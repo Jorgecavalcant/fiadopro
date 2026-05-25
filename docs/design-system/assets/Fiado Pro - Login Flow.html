@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Fiado Pro — Fluxo de Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #ffffff; font-family: 'Inter', sans-serif; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+// ─── DESIGN TOKENS ─────────────────────────────────────────────────────────
+const T = /*EDITMODE-BEGIN*/{
+  "primary": "#1a3f6f",
+  "primaryMid": "#2558a0",
+  "primaryLight": "#e6eef8",
+  "accent": "#2558a0",
+  "bg": "#eceef2",
+  "surface": "#ffffff",
+  "header": "#1a3f6f",
+  "textDark": "#1a1a1a",
+  "textMid": "#5a5a5a",
+  "textLight": "#9a9a9a",
+  "border": "#e2e0dd",
+  "divider": "#ececea",
+  "font": "'Inter', sans-serif"
+}/*EDITMODE-END*/;
+
+// ─── ICON COMPONENTS ───────────────────────────────────────────────────────
+const IconHome = ({ color = T.textMid, size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 9.5L12 3L21 9.5V20C21 20.6 20.6 21 20 21H15V16H9V21H4C3.4 21 3 20.6 3 20V9.5Z"/>
+  </svg>
+);
+const IconList = ({ color = T.textMid, size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="16" rx="2"/>
+    <line x1="7" y1="9" x2="17" y2="9"/>
+    <line x1="7" y1="13" x2="17" y2="13"/>
+    <line x1="7" y1="17" x2="12" y2="17"/>
+  </svg>
+);
+const IconChart = ({ color = T.textMid, size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="20" x2="18" y2="10"/>
+    <line x1="12" y1="20" x2="12" y2="4"/>
+    <line x1="6" y1="20" x2="6" y2="14"/>
+    <line x1="2" y1="20" x2="22" y2="20"/>
+  </svg>
+);
+const IconMenu = ({ color = T.textMid, size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round">
+    <line x1="4" y1="6" x2="20" y2="6"/>
+    <line x1="4" y1="12" x2="20" y2="12"/>
+    <line x1="4" y1="18" x2="20" y2="18"/>
+  </svg>
+);
+const IconChevronRight = ({ color = T.textLight, size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="9 18 15 12 9 6"/>
+  </svg>
+);
+const IconChevronLeft = ({ color, size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>
+);
+const IconUser = ({ color = T.primaryMid, size = 28 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="8" r="4"/>
+    <path d="M4 20C4 16.7 7.6 14 12 14C16.4 14 20 16.7 20 20"/>
+  </svg>
+);
+const IconCheck = ({ color = '#fff', size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12"/>
+  </svg>
+);
+const IconLock = ({ color = T.primaryMid, size = 44 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2"/>
+    <path d="M7 11V7C7 4.2 9.2 2 12 2C14.8 2 17 4.2 17 7V11"/>
+  </svg>
+);
+const IconBell = ({ color = '#fff', size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+    <path d="M13.7 21a1.94 1.94 0 0 1-3.4 0"/>
+  </svg>
+);
+const IconPlus = ({ color = '#fff', size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round">
+    <line x1="12" y1="5" x2="12" y2="19"/>
+    <line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+);
+const IconMsg = ({ color = T.primaryMid, size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15C21 16.1 20.1 17 19 17H7L3 21V5C3 3.9 3.9 3 5 3H19C20.1 3 21 3.9 21 5V15Z"/>
+  </svg>
+);
+
+// ─── SHARED UI ─────────────────────────────────────────────────────────────
+
+const BtnPrimary = ({ label, onClick, disabled = false, style = {} }) => (
+  <button onClick={onClick} disabled={disabled} style={{
+    width: '100%', padding: '15px 20px', borderRadius: 50,
+    border: `1.5px solid ${disabled ? T.border : T.primary}`,
+    background: disabled ? T.bg : T.primary,
+    color: disabled ? T.textLight : '#fff',
+    fontFamily: T.font, fontWeight: 600, fontSize: 15,
+    cursor: disabled ? 'default' : 'pointer',
+    letterSpacing: 0.1, transition: 'opacity .15s', ...style
+  }}>{label}</button>
+);
+
+const BtnOutlined = ({ label, onClick, style = {} }) => (
+  <button onClick={onClick} style={{
+    width: '100%', padding: '15px 20px', borderRadius: 50,
+    border: `1.5px solid ${T.primary}`,
+    background: T.surface,
+    color: T.primary,
+    fontFamily: T.font, fontWeight: 600, fontSize: 15,
+    cursor: 'pointer', letterSpacing: 0.1, ...style
+  }}>{label}</button>
+);
+
+const BackBtn = ({ onClick, light = false }) => (
+  <button onClick={onClick} style={{
+    background: 'none', border: 'none', padding: '4px 0',
+    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+    color: light ? '#fff' : T.primary, fontFamily: T.font, fontSize: 14, fontWeight: 500,
+  }}>
+    <IconChevronLeft color={light ? '#fff' : T.primary} size={20}/>
+    Voltar
+  </button>
+);
+
+const Label = ({ children, style = {} }) => (
+  <span style={{ fontFamily: T.font, fontSize: 11, fontWeight: 500, color: T.textLight, textTransform: 'uppercase', letterSpacing: 0.8, ...style }}>
+    {children}
+  </span>
+);
+
+const FieldInput = ({ label, placeholder, value, onChange, type = 'text' }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <Label>{label}</Label>
+    <input
+      type={type} placeholder={placeholder}
+      value={value} onChange={onChange ? e => onChange(e.target.value) : undefined}
+      style={{
+        background: T.surface, border: `1.5px solid ${T.border}`,
+        borderRadius: 12, padding: '13px 16px',
+        fontFamily: T.font, fontSize: 15, fontWeight: 500, color: T.textDark,
+        outline: 'none',
+      }}
+    />
+  </div>
+);
+
+// Logo
+const Logo = ({ light = false, size = 32 }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{
+      width: size, height: size, borderRadius: size * 0.25,
+      background: light ? 'rgba(255,255,255,0.15)' : T.primary,
+      border: light ? '1.5px solid rgba(255,255,255,0.3)' : 'none',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 20 20" fill="none">
+        <rect x="2" y="4" width="16" height="10" rx="2.5" fill={light ? 'rgba(255,255,255,0.9)' : '#fff'}/>
+        <path d="M6 14L5 18" stroke={light ? 'rgba(255,255,255,0.6)' : T.primaryMid} strokeWidth="1.5" strokeLinecap="round"/>
+        <path d="M14 14L15 18" stroke={light ? 'rgba(255,255,255,0.6)' : T.primaryMid} strokeWidth="1.5" strokeLinecap="round"/>
+        <path d="M3 18H17" stroke={light ? 'rgba(255,255,255,0.4)' : T.border} strokeWidth="1.2" strokeLinecap="round"/>
+        <rect x="5" y="7" width="4" height="2.5" rx="0.8" fill={light ? T.primary : T.primary}/>
+        <rect x="11" y="7" width="4" height="1.2" rx="0.6" fill={light ? 'rgba(255,255,255,0.5)' : T.primaryLight}/>
+        <rect x="11" y="9.3" width="3" height="1.2" rx="0.6" fill={light ? 'rgba(255,255,255,0.3)' : T.primaryLight}/>
+      </svg>
+    </div>
+    <div>
+      <span style={{ fontFamily: T.font, fontWeight: 700, fontSize: size * 0.56, color: light ? '#fff' : T.textDark, letterSpacing: -0.3 }}>
+        Fiado<span style={{ color: light ? 'rgba(255,255,255,0.65)' : T.primaryMid }}>Pro</span>
+      </span>
+    </div>
+  </div>
+);
+
+// Bottom nav
+const BottomNav = ({ active = 'inicio' }) => {
+  const items = [
+    { id: 'inicio', label: 'Início', Icon: IconHome },
+    { id: 'clientes', label: 'Clientes', Icon: IconList },
+    { id: 'relatorio', label: 'Extrato', Icon: IconChart },
+    { id: 'menu', label: 'Menu', Icon: IconMenu },
+  ];
+  return (
+    <div style={{
+      height: 60, background: T.surface, borderTop: `1px solid ${T.divider}`,
+      display: 'flex', alignItems: 'center', justifyContent: 'space-around',
+      paddingBottom: 2,
+    }}>
+      {items.map(({ id, label, Icon }) => {
+        const isActive = id === active;
+        return (
+          <button key={id} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+            padding: '6px 12px',
+          }}>
+            <Icon color={isActive ? T.primary : T.textLight} size={22}/>
+            <span style={{ fontFamily: T.font, fontSize: 10, fontWeight: isActive ? 600 : 400, color: isActive ? T.primary : T.textLight }}>
+              {label}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+// ─── SCREENS ───────────────────────────────────────────────────────────────
+
+// 1. SPLASH
+const SplashScreen = ({ onNext }) => (
+  <div onClick={onNext} style={{
+    flex: 1, background: T.header,
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center',
+    cursor: 'pointer', position: 'relative', overflow: 'hidden',
+  }}>
+    {/* subtle pattern */}
+    <div style={{
+      position: 'absolute', inset: 0,
+      backgroundImage: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.04) 0%, transparent 50%), radial-gradient(circle at 70% 80%, rgba(255,255,255,0.03) 0%, transparent 50%)',
+    }}/>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, position: 'relative' }}>
+      <div style={{
+        width: 80, height: 80, borderRadius: 22,
+        background: 'rgba(255,255,255,0.12)',
+        border: '1.5px solid rgba(255,255,255,0.2)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <svg width="44" height="44" viewBox="0 0 20 20" fill="none">
+          <rect x="2" y="4" width="16" height="10" rx="2.5" fill="rgba(255,255,255,0.9)"/>
+          <path d="M6 14L5 18" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M14 14L15 18" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M3 18H17" stroke="rgba(255,255,255,0.2)" strokeWidth="1.2" strokeLinecap="round"/>
+          <rect x="5" y="7" width="4" height="2.5" rx="0.8" fill={T.header}/>
+          <rect x="11" y="7" width="4" height="1.2" rx="0.6" fill="rgba(255,255,255,0.35)"/>
+          <rect x="11" y="9.3" width="3" height="1.2" rx="0.6" fill="rgba(255,255,255,0.2)"/>
+        </svg>
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontFamily: T.font, fontWeight: 700, fontSize: 32, color: '#fff', letterSpacing: -0.8, lineHeight: 1 }}>
+          Fiado<span style={{ opacity: 0.6 }}>Pro</span>
+        </div>
+        <div style={{ fontFamily: T.font, fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 8, letterSpacing: 0.2 }}>
+          Seu negócio organizado
+        </div>
+      </div>
+    </div>
+    <div style={{ position: 'absolute', bottom: 36, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', gap: 5 }}>
+        {[0,1,2].map(i=>(
+          <div key={i} style={{ width: i===0?18:5, height: 5, borderRadius: 3, background: `rgba(255,255,255,${i===0?'0.8':'0.25'})` }}/>
+        ))}
+      </div>
+      <span style={{ fontFamily: T.font, fontSize: 11, color: 'rgba(255,255,255,0.3)', letterSpacing: 0.5 }}>TOQUE PARA CONTINUAR</span>
+    </div>
+  </div>
+);
+
+// 2-4. ONBOARDING
+const obData = [
+  {
+    bg: T.header,
+    icon: (
+      <div style={{ width: 80, height: 80, borderRadius: 22, background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="16" rx="2"/>
+          <line x1="7" y1="9" x2="17" y2="9"/>
+          <line x1="7" y1="13" x2="12" y2="13"/>
+          <circle cx="17" cy="17" r="4" fill={T.header} stroke="rgba(255,255,255,0.9)"/>
+          <path d="M15 17L16.5 18.5L19 15.5" stroke="rgba(255,255,255,0.9)" strokeWidth="1.5"/>
+        </svg>
+      </div>
+    ),
+    title: 'Controle todos os fiados',
+    body: 'Anote vendas a prazo em segundos, direto pelo celular. Sem caderno, sem confusão.',
+    light: true,
+  },
+  {
+    bg: T.bg,
+    icon: (
+      <div style={{ width: 80, height: 80, borderRadius: 22, background: T.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={T.primaryMid} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M4 20C4 16.7 7.6 14 12 14C16.4 14 20 16.7 20 20"/>
+          <circle cx="19" cy="6" r="3" fill={T.primaryLight} stroke={T.primary}/>
+          <path d="M18 6H20M19 5V7" stroke={T.primary} strokeWidth="1.5"/>
+        </svg>
+      </div>
+    ),
+    title: 'Cadastre seus clientes',
+    body: 'Histórico completo de cada pessoa — o que compraram, quanto devem e quando pagaram.',
+    light: false,
+  },
+  {
+    bg: T.bg,
+    icon: (
+      <div style={{ width: 80, height: 80, borderRadius: 22, background: T.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={T.primaryMid} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="5" width="20" height="14" rx="2"/>
+          <line x1="2" y1="10" x2="22" y2="10"/>
+          <line x1="6" y1="15" x2="8" y2="15"/>
+          <line x1="11" y1="15" x2="15" y2="15"/>
+        </svg>
+      </div>
+    ),
+    title: 'Receba no prazo certo',
+    body: 'Avise clientes com uma mensagem e mantenha o caixa sempre em dia.',
+    light: false,
+  },
+];
+
+const OnboardingScreen = ({ index, onNext, onSkip }) => {
+  const d = obData[index];
+  const isLast = index === 2;
+  const textColor = d.light ? '#fff' : T.textDark;
+  const subColor = d.light ? 'rgba(255,255,255,0.65)' : T.textMid;
+
+  return (
+    <div style={{ flex: 1, background: d.bg, display: 'flex', flexDirection: 'column', padding: '20px 28px 32px', position: 'relative' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: 36 }}>
+        <Logo light={d.light} size={28}/>
+        {!isLast && (
+          <button onClick={onSkip} style={{
+            background: 'none', border: 'none',
+            fontFamily: T.font, fontSize: 13, fontWeight: 500,
+            color: d.light ? 'rgba(255,255,255,0.55)' : T.textLight,
+            cursor: 'pointer',
+          }}>Pular</button>
+        )}
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', gap: 20 }}>
+        {d.icon}
+        <div>
+          <div style={{ fontFamily: T.font, fontWeight: 700, fontSize: 24, color: textColor, lineHeight: 1.2, marginBottom: 10 }}>
+            {d.title}
+          </div>
+          <div style={{ fontFamily: T.font, fontSize: 14, color: subColor, lineHeight: 1.65, maxWidth: 280 }}>
+            {d.body}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+        {[0,1,2].map(i => (
+          <div key={i} style={{
+            width: i === index ? 22 : 6, height: 6, borderRadius: 3,
+            background: d.light
+              ? `rgba(255,255,255,${i===index?'0.9':'0.25'})`
+              : i===index ? T.primary : T.border,
+            transition: 'all .2s',
+          }}/>
+        ))}
+      </div>
+
+      {d.light
+        ? <BtnOutlined label={isLast?'Começar agora':'Continuar'} onClick={onNext} style={{ borderColor: 'rgba(255,255,255,0.5)', color: '#fff', background: 'transparent' }}/>
+        : <BtnPrimary label={isLast?'Começar agora':'Continuar'} onClick={onNext}/>
+      }
+    </div>
+  );
+};
+
+// 5. LOGIN
+const LoginScreen = ({ onNext, onCadastro }) => {
+  const [phone, setPhone] = React.useState('');
+  return (
+    <div style={{ flex: 1, background: T.bg, display: 'flex', flexDirection: 'column' }}>
+      {/* top band */}
+      <div style={{ background: T.header, padding: '24px 24px 32px' }}>
+        <Logo light size={30}/>
+        <div style={{ marginTop: 20 }}>
+          <div style={{ fontFamily: T.font, fontWeight: 700, fontSize: 22, color: '#fff', lineHeight: 1.2 }}>
+            Bem-vindo de volta
+          </div>
+          <div style={{ fontFamily: T.font, fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 4 }}>
+            Acesse sua conta para continuar
+          </div>
+        </div>
+      </div>
+
+      {/* card */}
+      <div style={{ background: T.surface, margin: '0 16px', borderRadius: 16, padding: '24px 20px', marginTop: -16, boxShadow: '0 2px 16px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <Label>Telefone celular</Label>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            border: `1.5px solid ${T.border}`, borderRadius: 12,
+            background: T.bg, padding: '12px 14px',
+          }}>
+            <span style={{ fontFamily: T.font, fontSize: 13, fontWeight: 500, color: T.textMid }}>🇧🇷 +55</span>
+            <div style={{ width: 1, height: 18, background: T.border }}/>
+            <input
+              type="tel" placeholder="(11) 99999-9999"
+              value={phone} onChange={e => setPhone(e.target.value)}
+              style={{
+                flex: 1, border: 'none', outline: 'none', background: 'transparent',
+                fontFamily: T.font, fontSize: 15, fontWeight: 500, color: T.textDark,
+              }}
+            />
+          </div>
+          <span style={{ fontFamily: T.font, fontSize: 11, color: T.textLight }}>
+            Enviaremos um código de verificação por SMS
+          </span>
+        </div>
+        <BtnPrimary label="Receber código" onClick={onNext} disabled={phone.length < 8}/>
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '24px 24px 32px', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1, height: 1, background: T.divider }}/>
+          <span style={{ fontFamily: T.font, fontSize: 12, color: T.textLight }}>Novo no Fiado Pro?</span>
+          <div style={{ flex: 1, height: 1, background: T.divider }}/>
+        </div>
+        <BtnOutlined label="Criar conta" onClick={onCadastro}/>
+        <p style={{ textAlign: 'center', fontFamily: T.font, fontSize: 11, color: T.textLight, lineHeight: 1.6 }}>
+          Ao continuar você concorda com os{' '}
+          <span style={{ color: T.primary, fontWeight: 500 }}>Termos de Uso</span>
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// 6. OTP
+const OTPDot = ({ filled, active }) => (
+  <div style={{
+    width: 46, height: 54, borderRadius: 12,
+    border: `1.5px solid ${active ? T.primary : filled ? T.primaryMid : T.border}`,
+    background: filled ? T.primaryLight : T.surface,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: 20, fontWeight: 700, color: T.primary,
+    transition: 'all .12s',
+  }}>
+    {filled ? '●' : ''}
+  </div>
+);
+
+const NumPad = ({ onPress, onDelete }) => {
+  const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+      {keys.map((k, i) => (
+        <button key={i} onClick={() => k === '⌫' ? onDelete() : k ? onPress(k) : null}
+          style={{
+            height: 54, borderRadius: 12, border: 'none',
+            background: k === '' ? 'transparent' : T.surface,
+            color: k === '⌫' ? T.primary : T.textDark,
+            fontFamily: T.font, fontWeight: 600, fontSize: k === '⌫' ? 17 : 22,
+            cursor: k ? 'pointer' : 'default',
+            boxShadow: k && k !== '⌫' ? '0 1px 3px rgba(0,0,0,0.07)' : 'none',
+          }}>{k}</button>
+      ))}
+    </div>
+  );
+};
+
+const OTPScreen = ({ onNext, onBack }) => {
+  const [code, setCode] = React.useState('');
+  const handlePress = (k) => { if (code.length < 6) setCode(c => c + k); };
+  const handleDelete = () => setCode(c => c.slice(0,-1));
+  React.useEffect(() => { if (code.length === 6) setTimeout(onNext, 400); }, [code]);
+
+  return (
+    <div style={{ flex: 1, background: T.bg, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ background: T.header, padding: '20px 24px 28px' }}>
+        <BackBtn onClick={onBack} light/>
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontFamily: T.font, fontWeight: 700, fontSize: 22, color: '#fff' }}>Código enviado</div>
+          <div style={{ fontFamily: T.font, fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 4 }}>
+            Digite o código de 6 dígitos recebido por SMS
+          </div>
+        </div>
+      </div>
+      <div style={{ background: T.surface, margin: '0 16px', borderRadius: 16, padding: '24px 20px', marginTop: -16, boxShadow: '0 2px 16px rgba(0,0,0,0.08)' }}>
+        <div style={{ display: 'flex', gap: 7, justifyContent: 'center', marginBottom: 20 }}>
+          {[0,1,2,3,4,5].map(i => <OTPDot key={i} filled={i<code.length} active={i===code.length}/>)}
+        </div>
+        <NumPad onPress={handlePress} onDelete={handleDelete}/>
+      </div>
+      <div style={{ padding: '20px 24px' }}>
+        <button style={{ background:'none', border:'none', fontFamily: T.font, fontSize: 13, color: T.primary, fontWeight: 600, cursor:'pointer' }}>
+          Não recebi — reenviar código
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// 7. CADASTRO
+const CadastroScreen = ({ onNext, onBack }) => {
+  const [nome, setNome] = React.useState('');
+  const [tipo, setTipo] = React.useState('Mercado');
+  const tipos = ['Mercado', 'Padaria', 'Bar', 'Lanchonete', 'Outro'];
+  return (
+    <div style={{ flex: 1, background: T.bg, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ background: T.header, padding: '20px 24px 28px' }}>
+        <BackBtn onClick={onBack} light/>
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontFamily: T.font, fontWeight: 700, fontSize: 22, color: '#fff' }}>Criar conta</div>
+          <div style={{ fontFamily: T.font, fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 4 }}>Informe os dados do seu negócio</div>
+        </div>
+      </div>
+      <div style={{ background: T.surface, margin: '0 16px', borderRadius: 16, padding: '24px 20px', marginTop: -16, boxShadow: '0 2px 16px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <FieldInput label="Seu nome" placeholder="João da Silva" value={nome} onChange={setNome}/>
+        <FieldInput label="Nome do negócio" placeholder="Mercadinho do João"/>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Label>Tipo de negócio</Label>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+            {tipos.map(t => (
+              <button key={t} onClick={() => setTipo(t)} style={{
+                padding: '7px 14px', borderRadius: 50,
+                border: `1.5px solid ${tipo===t ? T.primary : T.border}`,
+                background: tipo===t ? T.primaryLight : T.surface,
+                fontFamily: T.font, fontSize: 12, fontWeight: 500,
+                color: tipo===t ? T.primary : T.textMid, cursor: 'pointer',
+              }}>{t}</button>
+            ))}
+          </div>
+        </div>
+        <BtnPrimary label="Continuar" onClick={onNext} disabled={nome.length < 2}/>
+      </div>
+    </div>
+  );
+};
+
+// 8. PIN SETUP
+const PINScreen = ({ onNext, onBack }) => {
+  const [pin, setPin] = React.useState('');
+  const [confirming, setConfirming] = React.useState(false);
+  const [done, setDone] = React.useState(false);
+
+  const handlePress = (k) => {
+    if (done) return;
+    if (!confirming && pin.length < 6) {
+      const np = pin + k;
+      setPin(np);
+      if (np.length === 6) setTimeout(() => setConfirming(true), 400);
+    } else if (confirming && pin.length < 6) {
+      const np = pin + k;
+      setPin(np);
+      if (np.length === 6) { setDone(true); setTimeout(onNext, 700); }
+    }
+  };
+  const handleDelete = () => { if (!done) setPin(p => p.slice(0,-1)); };
+
+  React.useEffect(() => { if (confirming) setPin(''); }, [confirming]);
+
+  return (
+    <div style={{ flex: 1, background: T.bg, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ background: T.header, padding: '20px 24px 28px' }}>
+        {!confirming && <BackBtn onClick={onBack} light/>}
+        <div style={{ marginTop: confirming ? 0 : 16 }}>
+          <div style={{ fontFamily: T.font, fontWeight: 700, fontSize: 22, color: '#fff' }}>
+            {done ? 'PIN confirmado!' : confirming ? 'Confirme seu PIN' : 'Crie seu PIN'}
+          </div>
+          <div style={{ fontFamily: T.font, fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 4 }}>
+            {done ? 'Entrando no app…' : confirming ? 'Digite novamente para confirmar' : 'Você usará esse código para entrar no app'}
+          </div>
+        </div>
+      </div>
+      <div style={{ background: T.surface, margin: '0 16px', borderRadius: 16, padding: '28px 20px 24px', marginTop: -16, boxShadow: '0 2px 16px rgba(0,0,0,0.08)' }}>
+        <div style={{ display: 'flex', gap: 7, justifyContent: 'center', marginBottom: 28 }}>
+          {[0,1,2,3,4,5].map(i => (
+            <OTPDot key={i} filled={done || i < pin.length} active={!done && i === pin.length}/>
+          ))}
+        </div>
+        {done ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '12px 0' }}>
+            <div style={{ width: 28, height: 28, borderRadius: 50, background: T.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <IconCheck/>
+            </div>
+            <span style={{ fontFamily: T.font, fontSize: 14, fontWeight: 600, color: T.primary }}>Tudo certo!</span>
+          </div>
+        ) : (
+          <NumPad onPress={handlePress} onDelete={handleDelete}/>
+        )}
+      </div>
+      {!confirming && !done && (
+        <div style={{ padding: '16px 24px' }}>
+          <div style={{ fontFamily: T.font, fontSize: 11, color: T.textLight, lineHeight: 1.6 }}>
+            Mantenha seu PIN em segurança. Nunca compartilhe com ninguém.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// 9. HOME
+const HomeScreen = () => {
+  const clientes = [
+    { nome: 'Maria Santos', valor: 'R$ 87,50', dias: '3 dias', cor: '#c8783a', ini: 'M' },
+    { nome: 'Carlos Oliveira', valor: 'R$ 34,00', dias: '1 semana', cor: T.primaryMid, ini: 'C' },
+    { nome: 'Ana Lima', valor: 'R$ 120,00', dias: '12 dias', cor: '#7a5c9e', ini: 'A' },
+  ];
+  return (
+    <div style={{ flex: 1, background: T.bg, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{ background: T.header, padding: '14px 20px 30px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontFamily: T.font, fontSize: 13, color: 'rgba(255,255,255,0.55)', fontWeight: 500 }}>
+              João da Silva
+            </div>
+            <div style={{ fontFamily: T.font, fontWeight: 700, fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5, textTransform: 'uppercase', marginTop: 1 }}>
+              Mercadinho do João
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <button style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.7 }}>
+              <IconBell color="rgba(255,255,255,0.8)" size={20}/>
+            </button>
+            <div style={{ width: 34, height: 34, borderRadius: 50, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <IconUser color="rgba(255,255,255,0.8)" size={18}/>
+            </div>
+          </div>
+        </div>
+        {/* saldo */}
+        <div style={{ marginTop: 20 }}>
+          <div style={{ fontFamily: T.font, fontSize: 11, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>
+            Total a receber
+          </div>
+          <div style={{ fontFamily: T.font, fontWeight: 700, fontSize: 32, color: '#fff', letterSpacing: -1 }}>
+            R$ 241,50
+          </div>
+          <div style={{ fontFamily: T.font, fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>
+            3 clientes com saldo em aberto
+          </div>
+        </div>
+      </div>
+
+      {/* Quick actions card */}
+      <div style={{ background: T.surface, margin: '0 16px', borderRadius: 16, padding: '16px 16px', marginTop: -16, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', display: 'flex', gap: 10 }}>
+        <button style={{
+          flex: 1, padding: '12px 10px', borderRadius: 12,
+          border: `1.5px solid ${T.primary}`, background: T.primary,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          fontFamily: T.font, fontWeight: 600, fontSize: 13, color: '#fff', cursor: 'pointer',
+        }}>
+          <IconPlus/> Novo Fiado
+        </button>
+        <button style={{
+          flex: 1, padding: '12px 10px', borderRadius: 12,
+          border: `1.5px solid ${T.border}`, background: T.surface,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          fontFamily: T.font, fontWeight: 600, fontSize: 13, color: T.primaryMid, cursor: 'pointer',
+        }}>
+          <IconMsg/> Cobrar
+        </button>
+      </div>
+
+      {/* Clients */}
+      <div style={{ flex: 1, padding: '16px 16px 0', overflow: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <span style={{ fontFamily: T.font, fontWeight: 700, fontSize: 14, color: T.textDark }}>Clientes em aberto</span>
+          <button style={{ background: 'none', border: 'none', fontFamily: T.font, fontSize: 12, color: T.primary, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}>
+            Ver todos <IconChevronRight color={T.primary} size={14}/>
+          </button>
+        </div>
+        <div style={{ background: T.surface, borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+          {clientes.map((c, i) => (
+            <div key={c.nome}>
+              <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  background: c.cor + '22', border: `1.5px solid ${c.cor}33`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: T.font, fontWeight: 700, fontSize: 14, color: c.cor,
+                }}>{c.ini}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: T.font, fontWeight: 600, fontSize: 14, color: T.textDark }}>{c.nome}</div>
+                  <div style={{ fontFamily: T.font, fontSize: 11, color: T.textLight, marginTop: 1 }}>há {c.dias}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: T.font, fontWeight: 700, fontSize: 14, color: T.textDark }}>{c.valor}</div>
+                </div>
+                <IconChevronRight/>
+              </div>
+              {i < clientes.length - 1 && <div style={{ height: 1, background: T.divider, marginLeft: 64 }}/>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <BottomNav active="inicio"/>
+    </div>
+  );
+};
+
+// ─── FLOW CONTROLLER ───────────────────────────────────────────────────────
+const SCREENS = ['splash','ob0','ob1','ob2','login','otp','cadastro','otp-cad','pin','home'];
+
+function FlowController({ startAt = 0 }) {
+  const [idx, setIdx] = React.useState(startAt);
+  const go = n => setIdx(n);
+  const next = () => setIdx(i => Math.min(i+1, SCREENS.length-1));
+  const back = () => setIdx(i => Math.max(i-1, 0));
+  const screen = SCREENS[idx];
+
+  const isDark = screen === 'splash' || screen === 'ob0';
+
+  const content = (() => {
+    if (screen === 'splash')   return <SplashScreen onNext={next}/>;
+    if (screen === 'ob0')      return <OnboardingScreen index={0} onNext={next} onSkip={() => go(SCREENS.indexOf('login'))}/>;
+    if (screen === 'ob1')      return <OnboardingScreen index={1} onNext={next} onSkip={() => go(SCREENS.indexOf('login'))}/>;
+    if (screen === 'ob2')      return <OnboardingScreen index={2} onNext={next} onSkip={next}/>;
+    if (screen === 'login')    return <LoginScreen onNext={next} onCadastro={() => go(SCREENS.indexOf('cadastro'))}/>;
+    if (screen === 'otp')      return <OTPScreen onNext={() => go(SCREENS.indexOf('pin'))} onBack={back}/>;
+    if (screen === 'cadastro') return <CadastroScreen onNext={() => go(SCREENS.indexOf('otp-cad'))} onBack={() => go(SCREENS.indexOf('login'))}/>;
+    if (screen === 'otp-cad')  return <OTPScreen onNext={() => go(SCREENS.indexOf('pin'))} onBack={back}/>;
+    if (screen === 'pin')      return <PINScreen onNext={() => go(SCREENS.indexOf('home'))} onBack={back}/>;
+    if (screen === 'home')     return <HomeScreen/>;
+    return null;
+  })();
+
+  const homeBg = screen === 'home' ? T.surface : screen === 'splash' || screen === 'ob0' ? T.header : T.bg;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: screen === 'splash' || screen === 'ob0' ? T.header : T.bg }}>
+      <IOSStatusBar dark={isDark} time="9:41"/>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {content}
+      </div>
+      <div style={{ height: 34, background: homeBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 120, height: 5, borderRadius: 3, background: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.1)' }}/>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN ──────────────────────────────────────────────────────────────────
+const SCREEN_LABELS = ['Splash','Onboarding 1','Onboarding 2','Onboarding 3','Login','Verificação OTP','Cadastro','OTP Cadastro','Setup PIN','Home'];
+
+function App() {
+  const [tweaksOpen, setTweaksOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    window.addEventListener('message', e => {
+      if (e.data?.type === '__activate_edit_mode') setTweaksOpen(true);
+      if (e.data?.type === '__deactivate_edit_mode') setTweaksOpen(false);
+    });
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+  }, []);
+
+  return (
+    <>
+      <DesignCanvas>
+        <DCSection id="flow-ios" title="Fluxo completo — iOS" subtitle="Toque em qualquer tela para interagir com o fluxo">
+          {SCREEN_LABELS.map((label, i) => (
+            <DCArtboard key={i} id={`ios-${i}`} label={`${String(i+1).padStart(2,'0')} · ${label}`} width={390} height={844}>
+              <IOSDevice width={390} height={844}>
+                <FlowController startAt={i}/>
+              </IOSDevice>
+            </DCArtboard>
+          ))}
+        </DCSection>
+        <DCSection id="flow-interactive" title="Fluxo navegável completo" subtitle="Navegue pelo fluxo real do início ao fim">
+          <DCArtboard id="interactive" label="Fluxo interativo" width={390} height={844}>
+            <IOSDevice width={390} height={844}>
+              <FlowController startAt={0}/>
+            </IOSDevice>
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+
+      {tweaksOpen && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24, width: 260, zIndex: 9999,
+          background: '#fff', borderRadius: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+          padding: 20, fontFamily: T.font, border: `1px solid ${T.divider}`,
+        }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: T.textDark, marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+            Tweaks
+            <button onClick={() => { setTweaksOpen(false); window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*'); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textLight, fontSize: 16 }}>✕</button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <Label style={{ display: 'block', marginBottom: 8 }}>Cor primária</Label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[['#1b5e38','Floresta'],['#1a4a7a','Oceano'],['#6b3a8a','Roxo'],['#7a3a1e','Cobre']].map(([c,n]) => (
+                  <button key={c} title={n} style={{
+                    width: 32, height: 32, borderRadius: 8, background: c, border: `2px solid ${T.primary===c?'#000':T.border}`, cursor: 'pointer',
+                  }}/>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label style={{ display: 'block', marginBottom: 8 }}>Fundo</Label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[['#edecea','Creme'],['#f4f4f2','Gelo'],['#e8ecf0','Azul frio']].map(([c,n]) => (
+                  <button key={c} title={n} style={{
+                    width: 32, height: 32, borderRadius: 8, background: c, border: `2px solid ${T.bg===c?T.primary:T.border}`, cursor: 'pointer',
+                    fontFamily: T.font, fontSize: 9, color: T.textMid,
+                  }}/>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

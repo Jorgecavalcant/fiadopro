@@ -1,0 +1,510 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   FIADO PRO — Design System v2.0
+   Premium fintech UI for small business owners
+   ============================================================ */
+
+:root {
+  /* Brand Colors */
+  --fp-primary:       #4F46E5;
+  --fp-primary-dark:  #3730A3;
+  --fp-primary-light: #EEF2FF;
+  --fp-accent:        #F59E0B;
+  --fp-success:       #10B981;
+  --fp-danger:        #EF4444;
+  --fp-warning:       #F97316;
+
+  /* Neutrals */
+  --fp-bg:            #F1F5F9;
+  --fp-surface:       #FFFFFF;
+  --fp-border:        #E2E8F0;
+  --fp-text:          #0F172A;
+  --fp-muted:         #64748B;
+  --fp-subtle:        #CBD5E1;
+
+  /* Sidebar */
+  --sidebar-width:    260px;
+  --sidebar-bg:       #0F172A;
+  --header-h:         64px;
+
+  /* Transitions */
+  --t-fast:   150ms ease;
+  --t-normal: 250ms ease;
+  --t-slow:   400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Shadows */
+  --shadow-sm:  0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:  0 4px 12px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.04);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
+  --shadow-xl:  0 20px 48px rgba(0,0,0,.16), 0 8px 20px rgba(0,0,0,.08);
+  --shadow-glow: 0 0 0 3px rgba(79,70,229,.25);
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+@layer base {
+  * { box-sizing: border-box; }
+
+  html {
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background: var(--fp-bg);
+    color: var(--fp-text);
+    line-height: 1.6;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+  /* Scrollbar global */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--fp-subtle); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--fp-muted); }
+  * { scrollbar-width: thin; scrollbar-color: var(--fp-subtle) transparent; }
+}
+
+/* ============================================================
+   VIEW TRANSITIONS
+   ============================================================ */
+@keyframes fp-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fp-slide-in-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fp-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fp-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fp-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fp-pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.7; }
+}
+
+.fp-view-enter {
+  animation: fp-fade-in var(--t-slow) both;
+}
+
+.fp-slide-right {
+  animation: fp-slide-in-right var(--t-slow) both;
+}
+
+.fp-scale-in {
+  animation: fp-scale-in var(--t-normal) both;
+}
+
+/* Full-screen page slide (modal → tela completa) */
+@keyframes fp-page-from-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+.fp-page-slide {
+  animation: fp-page-from-right 260ms cubic-bezier(0.4,0,0.2,1) both;
+}
+
+/* ============================================================
+   CARDS
+   ============================================================ */
+.fp-card {
+  background: var(--fp-surface);
+  border: 1px solid var(--fp-border);
+  border-radius: 20px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--t-normal), border-color var(--t-normal), transform var(--t-normal);
+}
+
+.fp-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: #C7D2FE;
+}
+
+.fp-card-interactive {
+  cursor: pointer;
+}
+
+.fp-card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.fp-card-interactive:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ============================================================
+   STAT CARDS
+   ============================================================ */
+.fp-stat-card {
+  background: var(--fp-surface);
+  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid var(--fp-border);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+  transition: all var(--t-normal);
+}
+
+.fp-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 80px; height: 80px;
+  border-radius: 0 20px 0 80px;
+  opacity: 0.06;
+}
+
+.fp-stat-card.primary::before  { background: var(--fp-primary); }
+.fp-stat-card.success::before  { background: var(--fp-success); }
+.fp-stat-card.danger::before   { background: var(--fp-danger); }
+.fp-stat-card.warning::before  { background: var(--fp-warning); }
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.fp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  transition: all var(--t-fast);
+  cursor: pointer;
+  border: none;
+  outline: none;
+  white-space: nowrap;
+}
+
+.fp-btn:active { transform: scale(0.97); }
+
+.fp-btn-primary {
+  background: var(--fp-primary);
+  color: white;
+  box-shadow: 0 2px 8px rgba(79,70,229,.35);
+}
+.fp-btn-primary:hover {
+  background: var(--fp-primary-dark);
+  box-shadow: 0 4px 16px rgba(79,70,229,.45);
+}
+
+.fp-btn-ghost {
+  background: transparent;
+  color: var(--fp-muted);
+}
+.fp-btn-ghost:hover {
+  background: var(--fp-bg);
+  color: var(--fp-text);
+}
+
+/* ============================================================
+   INPUTS
+   ============================================================ */
+.fp-input {
+  width: 100%;
+  padding: 11px 16px;
+  border: 1.5px solid var(--fp-border);
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--fp-text);
+  background: var(--fp-surface);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+  outline: none;
+}
+
+.fp-input:focus {
+  border-color: var(--fp-primary);
+  box-shadow: var(--shadow-glow);
+}
+
+.fp-input::placeholder { color: var(--fp-subtle); }
+
+/* ============================================================
+   BADGE / TAG
+   ============================================================ */
+.fp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.fp-badge-success { background: #DCFCE7; color: #166534; }
+.fp-badge-danger  { background: #FEE2E2; color: #991B1B; }
+.fp-badge-warning { background: #FEF3C7; color: #92400E; }
+.fp-badge-primary { background: #EEF2FF; color: #3730A3; }
+.fp-badge-purple  { background: #F3E8FF; color: #6B21A8; }
+.fp-badge-muted   { background: #F1F5F9; color: #475569; }
+
+/* ============================================================
+   SCORE BAR
+   ============================================================ */
+.fp-score-bar {
+  height: 8px;
+  border-radius: 99px;
+  background: #E2E8F0;
+  overflow: hidden;
+}
+
+.fp-score-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================================
+   MODAL / OVERLAY
+   ============================================================ */
+.fp-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  animation: fp-fade-in 200ms ease both;
+}
+
+.fp-modal {
+  background: var(--fp-surface);
+  border-radius: 28px;
+  box-shadow: var(--shadow-xl);
+  animation: fp-scale-in var(--t-normal) both;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* ============================================================
+   SIDEBAR ITEMS
+   ============================================================ */
+.fp-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.6);
+  transition: all var(--t-fast);
+  cursor: pointer;
+  position: relative;
+  text-decoration: none;
+}
+
+.fp-nav-item:hover {
+  background: rgba(255,255,255,0.08);
+  color: white;
+}
+
+.fp-nav-item.active {
+  background: rgba(79,70,229,0.5);
+  color: white;
+  box-shadow: 0 2px 12px rgba(79,70,229,0.3);
+}
+
+.fp-nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  height: 60%;
+  width: 3px;
+  background: #818CF8;
+  border-radius: 0 4px 4px 0;
+}
+
+/* ============================================================
+   FAB
+   ============================================================ */
+.fp-fab {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 50;
+}
+
+.fp-fab-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #4F46E5, #7C3AED);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(79,70,229,0.45);
+  transition: all var(--t-normal);
+  cursor: pointer;
+  border: none;
+}
+
+.fp-fab-btn:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 12px 32px rgba(79,70,229,.55);
+}
+
+.fp-fab-btn:active {
+  transform: scale(0.95);
+}
+
+.fp-fab-btn svg {
+  transition: transform var(--t-normal);
+}
+
+.fp-fab-btn.open svg {
+  transform: rotate(45deg);
+}
+
+/* ============================================================
+   TABLE
+   ============================================================ */
+.fp-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.fp-table th {
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fp-muted);
+  border-bottom: 2px solid var(--fp-border);
+}
+
+.fp-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--fp-border);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.fp-table tr:last-child td { border-bottom: none; }
+
+.fp-table tbody tr {
+  transition: background var(--t-fast);
+}
+
+.fp-table tbody tr:hover {
+  background: var(--fp-bg);
+}
+
+/* ============================================================
+   AVATAR
+   ============================================================ */
+.fp-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 16px;
+  flex-shrink: 0;
+  transition: all var(--t-normal);
+}
+
+.fp-avatar-lg {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  font-size: 24px;
+}
+
+/* ============================================================
+   LOADING SKELETON
+   ============================================================ */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.fp-skeleton {
+  background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* ============================================================
+   PROGRESS BAR
+   ============================================================ */
+.fp-progress {
+  height: 6px;
+  background: var(--fp-bg);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.fp-progress-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================================
+   UTILS
+   ============================================================ */
+.text-money-positive { color: #DC2626; font-weight: 800; }
+.text-money-negative { color: #059669; font-weight: 800; }
+.text-money-zero     { color: #64748B; font-weight: 700; }
+
+.fp-section-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fp-muted);
+  margin-bottom: 12px;
+}
+
+/* Animate-in utility for staggered cards */
+.fp-stagger > * {
+  animation: fp-fade-in var(--t-slow) both;
+}
+.fp-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.fp-stagger > *:nth-child(2) { animation-delay: 60ms; }
+.fp-stagger > *:nth-child(3) { animation-delay: 120ms; }
+.fp-stagger > *:nth-child(4) { animation-delay: 180ms; }
+.fp-stagger > *:nth-child(5) { animation-delay: 240ms; }
+.fp-stagger > *:nth-child(6) { animation-delay: 300ms; }
+
+/* Capacitor: keyboard open padding */
+.keyboard-open { padding-bottom: 300px; }

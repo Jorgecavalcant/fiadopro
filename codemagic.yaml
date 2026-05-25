@@ -1,0 +1,27 @@
+workflows:
+  ios-release:
+    name: iOS Release
+    environment:
+      xcode: latest
+      node: 18
+      vars:
+        BUNDLE_ID: br.com.fiadopro.app
+    scripts:
+      - name: Install dependencies
+        script: cd frontend && npm ci
+      - name: Build web assets
+        script: cd frontend && npm run build
+      - name: Capacitor iOS sync
+        script: |
+          cd frontend
+          npx cap add ios || true
+          npx cap sync ios
+      - name: CocoaPods install
+        script: cd frontend/ios/App && pod install
+    artifacts:
+      - frontend/ios/App/build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_API_KEY
+        api_issuer: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true

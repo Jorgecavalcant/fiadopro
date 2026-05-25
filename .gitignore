@@ -1,0 +1,33 @@
+# Secrets
+.env
+.env.*
+!.env.example
+!frontend/.env.production
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+google-services.json
+GoogleService-Info.plist
+
+# Node
+node_modules/
+dist/
+coverage/
+*.log
+npm-debug.log*
+
+# Builds
+frontend/android/app/build/
+frontend/android/build/
+frontend/ios/App/build/
+
+# Local tooling
+.vite/
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>Fiado Pro · Design System</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #f0eee9; font-family: 'Inter', -apple-system, system-ui, sans-serif; }
+  #root { height: 100%; }
+  * { box-sizing: border-box; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="tokens.jsx"></script>
+<script type="text/babel" src="showcase.jsx"></script>
+<script type="text/babel" src="mobile-dashboard.jsx"></script>
+<script type="text/babel" src="web-dashboard.jsx"></script>
+<script type="text/babel" src="proto-store.jsx"></script>
+<script type="text/babel" src="proto-screens-1.jsx"></script>
+<script type="text/babel" src="proto-screens-2.jsx"></script>
+<script type="text/babel" src="proto-shell.jsx"></script>
+
+<script type="text/babel">
+const TWEAKS = /*EDITMODE-BEGIN*/{
+  "primaryColor": "navy",
+  "mode": "light"
+}/*EDITMODE-END*/;
+
+function TweaksPanel({ open, value, onChange, onClose }) {
+  if (!open) return null;
+  return (
+    <div style={{
+      position: 'fixed', bottom: 20, right: 20, zIndex: 200,
+      width: 280, background: '#fff', borderRadius: 20,
+      boxShadow: '0 20px 40px -8px rgba(15,23,42,0.22), 0 0 0 1px rgba(15,23,42,0.06)',
+      padding: 18, fontFamily: "'Inter', system-ui, sans-serif", color: '#0F172A',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: '#4F46E5', textTransform: 'uppercase' }}>Tweaks</div>
+          <div style={{ fontSize: 15, fontWeight: 700, marginTop: 2 }}>Personalizar</div>
+        </div>
+        <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 14, border: 'none', background: '#F1F5F9', cursor: 'pointer', fontSize: 16, color: '#64748B' }}>×</button>
+      </div>
+
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>Cor primária</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6, marginBottom: 18 }}>
+        {Object.entries(FIADO_PRIMARIES).map(([name, p]) => (
+          <button key={name}
+            onClick={() => onChange({ ...value, primaryColor: name })}
+            title={name}
+            style={{
+              aspectRatio: '1', borderRadius: 10, border: value.primaryColor === name ? '2px solid #0F172A' : '2px solid transparent',
+              background: p.base, cursor: 'pointer', padding: 0, position: 'relative',
+            }}>
+            {value.primaryColor === name && <span style={{ position: 'absolute', bottom: -4, left: '50%', transform: 'translateX(-50%)', width: 4, height: 4, borderRadius: 2, background: '#0F172A' }}/>}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>Modo</div>
+      <div style={{ display: 'flex', gap: 6, padding: 4, background: '#F1F5F9', borderRadius: 12 }}>
+        {['light', 'dark'].map(m => (
+          <button key={m}
+            onClick={() => onChange({ ...value, mode: m })}
+            style={{
+              flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              background: value.mode === m ? '#fff' : 'transparent',
+              color: value.mode === m ? '#0F172A' : '#64748B',
+              fontSize: 13, fontWeight: 600,
+              boxShadow: value.mode === m ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+              fontFamily: 'inherit',
+            }}>{m === 'light' ? '☀ Claro' : '☾ Escuro'}</button>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 16, fontSize: 11, color: '#94A3B8', lineHeight: 1.4 }}>
+        Alterações aplicam em todo o sistema. Ative no menu da barra de ferramentas para persistir.
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [tweaks, setTweaks] = React.useState(TWEAKS);
+  const [panel, setPanel] = React.useState(false);
+
+  const theme = fiadoTheme(tweaks.primaryColor, tweaks.mode);
+  const themeDark = fiadoTheme(tweaks.primaryColor, 'dark');
+  const themeLight = fiadoTheme(tweaks.primaryColor, 'light');
+
+  React.useEffect(() => {
+    const handler = (e) => {
+      if (!e.data || typeof e.data !== 'object') return;
+      if (e.data.type === '__activate_edit_mode') setPanel(true);
+      if (e.data.type === '__deactivate_edit_mode') setPanel(false);
+    };
+    window.addEventListener('message', handler);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  const applyTweaks = (next) => {
+    setTweaks(next);
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits: next }, '*');
+  };
+
+  return (
+    <StoreProvider>
+    <>
+      <DesignCanvas>
+        <DCSection id="foundations" title="Fundamentos" subtitle="Tokens de cor, tipografia, espaço e forma">
+          <DCArtboard id="colors" label="01 · Paleta" width={560} height={680}>
+            <ShowcaseColors theme={theme}/>
+          </DCArtboard>
+          <DCArtboard id="type" label="02 · Tipografia" width={560} height={680}>
+            <ShowcaseType theme={theme}/>
+          </DCArtboard>
+          <DCArtboard id="foundations" label="03 · Espaço & forma" width={560} height={680}>
+            <ShowcaseFoundations theme={theme}/>
+          </DCArtboard>
+          <DCArtboard id="components" label="04 · Componentes" width={560} height={680}>
+            <ShowcaseComponents theme={theme}/>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="mobile" title="Dashboard · Mobile" subtitle="O lojista atrás do balcão · iOS · duas abordagens visuais">
+          <DCArtboard id="m-light-a" label="A · Calmo · Light" width={402} height={874}>
+            <IOSDevice dark={false} width={402} height={874}>
+              <MobileDashboardA theme={themeLight}/>
+            </IOSDevice>
+          </DCArtboard>
+          <DCArtboard id="m-dark-a" label="A · Calmo · Dark" width={402} height={874}>
+            <IOSDevice dark={true} width={402} height={874}>
+              <MobileDashboardA theme={themeDark}/>
+            </IOSDevice>
+          </DCArtboard>
+          <DCArtboard id="m-light-b" label="B · Bold · Light" width={402} height={874}>
+            <IOSDevice dark={false} width={402} height={874}>
+              <MobileDashboardB theme={themeLight}/>
+            </IOSDevice>
+          </DCArtboard>
+          <DCArtboard id="m-dark-b" label="B · Bold · Dark" width={402} height={874}>
+            <IOSDevice dark={true} width={402} height={874}>
+              <MobileDashboardB theme={themeDark}/>
+            </IOSDevice>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="prototype" title="Protótipo Interativo" subtitle="Fluxo completo · mobile + companion web · use os botões e teclado">
+          <DCArtboard id="proto-mobile" label="App móvel · interações completas" width={402} height={874}>
+            <IOSDevice dark={tweaks.mode === 'dark'} width={402} height={874}>
+              <MobilePrototype theme={theme}/>
+            </IOSDevice>
+          </DCArtboard>
+          <DCArtboard id="proto-web" label="Companion web · mesmo estado" width={1280} height={820}>
+            <WebCompanion theme={theme}/>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="web" title="Dashboard · Web" subtitle="Painel do lojista — escritório / retaguarda">
+          <DCArtboard id="w-light-a" label="A · Analítico · Light" width={1280} height={820}>
+            <WebDashboardA theme={themeLight}/>
+          </DCArtboard>
+          <DCArtboard id="w-dark-a" label="A · Analítico · Dark" width={1280} height={820}>
+            <WebDashboardA theme={themeDark}/>
+          </DCArtboard>
+          <DCArtboard id="w-light-b" label="B · Editorial · Light" width={1280} height={820}>
+            <WebDashboardB theme={themeLight}/>
+          </DCArtboard>
+          <DCArtboard id="w-dark-b" label="B · Editorial · Dark" width={1280} height={820}>
+            <WebDashboardB theme={themeDark}/>
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+
+      <TweaksPanel open={panel} value={tweaks} onChange={applyTweaks} onClose={() => setPanel(false)}/>
+    </>
+    </StoreProvider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

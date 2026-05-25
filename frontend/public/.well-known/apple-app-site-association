@@ -1,0 +1,9 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [{
+      "appID": "TEAMID.br.com.fiadopro.app",
+      "paths": ["*"]
+    }]
+  }
+}
