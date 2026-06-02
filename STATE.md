@@ -106,7 +106,7 @@
 ## BLOQUEIOS E PENDENCIAS ATIVAS
 | # | Descricao | Responsavel | Prioridade | Data identificacao |
 |---|-----------|-------------|------------|--------------------|
-| 0 | **NOVO — Sprint 1:** Migrar password hashing de PBKDF2 com SHA-256 → Argon2 (state-of-the-art, obrigatorio antes de publicar) | jc-agent-manager | BLOQUEANTE | 21/04/2026 |
+| 0 | ~~Migrar password hashing PBKDF2 → Argon2~~ **RESOLVIDO/INVALIDO (02/06/2026):** auditoria do codigo de producao (`backend/src/routes/auth.ts`) confirmou que o backend ja usa **bcryptjs cost 12** (OWASP-compliant). A nota original referia-se ao hashing legado do frontend/localStorage, nao ao backend. NAO e bloqueante para publicacao. | jc-agent-manager | RESOLVIDO | 02/06/2026 |
 | 1 | Android Studio necessario para gerar AAB assinado na maquina do Jorge | Jorge | ALTO | 13/04/2026 |
 | 2 | Dominio de email — `fiadopro.com.br` nao verificado no Resend | Jorge | ALTO | 05/04/2026 |
 | 3 | Apple Store (iOS) — conta Apple Developer $99/ano pendente; usar Codemagic para build | Jorge | ALTO | 05/04/2026 |
@@ -132,22 +132,30 @@
 | 17/04/2026 | Implement | Sprint 2 — Features Nativas: 8 plugins Capacitor instalados e integrados no App.tsx | QA aprovado, build ok, cap sync android ok, site 200 | Sprint 3 — Compliance |
 | 17/04/2026 | Implement | Sprint 3 — Compliance e Legal: /privacidade + /termos + migration consent_at/consent_ip + checkbox LGPD no cadastro | QA aprovado em producao (HTTP 200, consent gravado no banco, 400 sem consent) | Sprint 4 — Empacotamento Mobile |
 | 17/04/2026 | Implement | Sprint 4 (parte tecnica): capacitor.config.ts (#553C9A + StatusBar), .env.production, codemagic.yaml, .well-known publicados (JSON valido), build + cap sync android OK | Site 200, assets android sincronizados, endpoints .well-known retornando JSON | Sprint 4 — parte manual (Jorge) |
+| 02/06/2026 | Implement | Sprint 5 — Prep de publicacao (agentes): auditoria de seguranca (bcrypt cost 12 confirmado, falso bloqueio Argon2 removido); pacote de conteudo das lojas (`docs/STORE-LISTING.md`); spec de assets (`docs/ASSETS-SPEC.md`); Vitest + 20 testes em `utils/credit.ts`; refator App.tsx para usar o modulo | 20/20 testes verdes; conteudo pronto para colar nos consoles | Jorge: contas/builds (Etapas 1-12 de SESSAO-SPRINT4) |
 
 ---
 
-## DECISOES IMPORTANTES — SEGURANCA (ADICIONAR)
+## DECISOES IMPORTANTES — SEGURANCA
 
-**Decisao**: Migrar password hashing de PBKDF2 com SHA-256 → **Argon2** antes de publicar nas stores.
-- **Por quê**: Argon2 venceu Password Hashing Competition (2015), melhor que bcrypt e PBKDF2. Usa memória para resistir ataques GPU/ASIC. Recomendado por OWASP.
-- **Impacto**: Segurança futura garantida. Custo zero (open source). Migração transparent para usuarios — apenas hash novo para senhas alteradas.
-- **Status**: Pendente — Sprint 1 (Bloqueante antes de App Store / Play Store)
+**Decisao (02/06/2026)**: Manter **bcryptjs cost 12** no backend — NAO migrar para Argon2 antes do lancamento.
+- **Auditoria**: `backend/src/routes/auth.ts` (registro e reset) e `backend/src/routes/users.ts` (exclusao) usam `bcrypt.hash(password, 12)` e `bcrypt.compare`. Nao ha PBKDF2/SHA-256 no backend de producao.
+- **Por quê manter**: bcrypt com cost 12 e aceito pela OWASP Password Storage Cheat Sheet como state-of-the-art valido. Migrar para Argon2 agora exigiria dependencia nativa (`argon2`), complicando o build de producao e o pipeline, sem ganho de seguranca relevante para o estagio do produto.
+- **Decisao futura (opcional, pos-lancamento)**: reavaliar Argon2id se/quando houver build com toolchain nativa estavel.
+- **Status**: Decidido — NAO bloqueante.
 
 ---
 
 ## COBERTURA DE TESTES
 
-**Status atual:** Mapeamento inicial — sem testes automatizados confirmados.
-Nenhum test runner instalado (package.json sem vitest/jest). Nenhum arquivo .test.ts ou .spec.ts encontrado.
+**Status atual (02/06/2026):** Vitest configurado no frontend (`frontend/vitest.config.ts`, script `npm test`).
+Lógica crítica de crédito extraída para `frontend/src/utils/credit.ts` (fonte única de verdade) e coberta por **20 testes passando** em `frontend/src/utils/credit.test.ts`:
+- `calculateScore` — confiável, neutro, pontualidade, atraso >30d, saldo alto, clamp 0–1000, isolamento por cliente
+- `computeRawBalance` — DEBT/PAYMENT/ABATIMENTO/REFUND, crédito (saldo negativo), vazio
+- `buildChargeMessage` — devedor/crédito/em dia, Pix, lançamentos recentes, veto a tom agressivo
+- `normalizeWhatsAppPhone` — DDI 55, idempotência, limpeza de não-dígitos
+
+O `App.tsx` agora importa essas funções (refator sem mudança de comportamento). Próximo alvo: testes E2E de auth e persistência.
 
 ### Funcionalidades criticas priorizadas
 

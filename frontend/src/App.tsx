@@ -78,6 +78,7 @@ import { Keyboard } from '@capacitor/keyboard';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { hapticMedium, hapticSuccess } from './utils/haptics';
 import { showToast } from './utils/toast';
+import { calculateScore, computeRawBalance, buildChargeMessage, normalizeWhatsAppPhone } from './utils/credit';
 
 const STORAGE_KEY = 'fiado_pro_data_v14';
 const API_URL = 'https://www.fiadopro.com.br/api';
@@ -126,43 +127,6 @@ const PLANS: Record<PlanType, SubscriptionPlan> = {
 };
 
 // Credit score calculation
-const calculateScore = (customer: { id: string; trusted?: boolean }, transactions: Transaction[]): number => {
-  if (customer.trusted) return 850;
-  const cTx = transactions.filter(t => t.customerId === customer.id && t.status === 'CONFIRMED');
-  if (cTx.length === 0) return 700;
-  let score = 700;
-  const debts = cTx.filter(t => t.type === 'DEBT');
-  const payments = cTx.filter(t => t.type === 'PAYMENT' || t.type === 'ABATIMENTO');
-  // Avalia pontualidade: compara data do pagamento com o dueDate do débito mais próximo
-  payments.forEach(payment => {
-    // Encontra o débito mais próximo em tempo que tenha dueDate
-    const relatedDebt = debts
-      .filter(d => d.dueDate && d.timestamp <= payment.timestamp)
-      .sort((a, b) => Math.abs(a.timestamp - payment.timestamp) - Math.abs(b.timestamp - payment.timestamp))[0];
-    if (relatedDebt?.dueDate) {
-      const daysDiff = (relatedDebt.dueDate - payment.timestamp) / 86400000;
-      // Só penaliza/bonifica se a dívida JÁ tinha vencido ou estava próxima de vencer
-      if (daysDiff > 7) score += 20;        // Pagou muito antes do vencimento
-      else if (daysDiff >= 0) score += 10;  // Pagou no prazo
-      else if (daysDiff > -7) score -= 15;  // Atrasou até 7 dias
-      else if (daysDiff > -30) score -= 40; // Atrasou até 30 dias
-      else score -= 80;                      // Atrasou mais de 30 dias
-    }
-  });
-  const currentBalance = cTx.reduce((acc, t) =>
-    t.type === 'DEBT' ? acc + t.amount : acc - t.amount, 0);
-  if (currentBalance > 5000) score -= 100;
-  else if (currentBalance > 1000) score -= 50;
-  // Ratio por valor (mais preciso que por quantidade)
-  const totalDebtAmt = debts.reduce((a, b) => a + b.amount, 0);
-  const totalPaidAmt = payments.reduce((a, b) => a + b.amount, 0);
-  const paymentRatio = totalDebtAmt > 0 ? Math.min(totalPaidAmt / totalDebtAmt, 1) : 1;
-  if (paymentRatio >= 0.95) score += 50;
-  else if (paymentRatio >= 0.8) score += 20;
-  else if (paymentRatio < 0.5) score -= 80;
-  return Math.max(0, Math.min(1000, Math.round(score)));
-};
-
 const scoreCategory = (score: number, t: any) => {
   if (score >= 800) return { label: t.excellent, color: 'text-green-600', bg: 'bg-green-100', bar: 'bg-green-500' };
   if (score >= 600) return { label: t.positive, color: 'text-green-500', bg: 'bg-green-50', bar: 'bg-green-400' };
@@ -2660,13 +2624,8 @@ const App: React.FC = () => {
   const customersWithBalance: CustomerWithBalance[] = useMemo(() => {
     return customers.map(c => {
       const customerTransactions = transactions.filter(tData => tData.customerId === c.id && tData.status === 'CONFIRMED');
-      let rawBalance = customerTransactions.reduce((acc, curr) => {
-        // DEBT aumenta saldo (cliente deve mais)
-        if (curr.type === 'DEBT') return acc + curr.amount;
-        // PAYMENT, ABATIMENTO, REFUND reduzem saldo
-        // REFUND = cliente devolveu mercadoria → reduz/anula dívida → pode criar saldo negativo → aparece no TO_PAY
-        return acc - curr.amount;
-      }, 0);
+      // DEBT aumenta saldo; PAYMENT/ABATIMENTO/REFUND reduzem (REFUND pode gerar saldo negativo → TO_PAY)
+      let rawBalance = computeRawBalance(customerTransactions);
       
       const lastActivity = customerTransactions.length > 0 ? Math.max(...customerTransactions.map(t => t.timestamp)) : c.createdAt;
       // isOverdue: só marca como vencido se o débito tem dueDate explícita e passou do prazo
@@ -2718,31 +2677,22 @@ const App: React.FC = () => {
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, 3);
 
-    const date = new Date().toLocaleDateString('pt-BR');
     const creditorName = user?.name || 'seu credor';
-    const pixInfo = user?.pixKey ? `\n💳 *Pix:* ${user.pixKey}` : '';
-
     const totalDebt = confirmedTx.filter(t => t.type === 'DEBT').reduce((a, b) => a + b.amount, 0);
     const totalPaid = confirmedTx.filter(t => t.type === 'PAYMENT' || t.type === 'ABATIMENTO').reduce((a, b) => a + b.amount, 0);
 
-    let recentList = '';
-    if (recentDebts.length > 0) {
-      recentList = '\n\n📋 *Lançamentos recentes:*\n' + recentDebts.map(t =>
-        `• ${new Date(t.timestamp).toLocaleDateString('pt-BR')} — ${t.description}: ${formatCurrency(t.amount)}`
-      ).join('\n');
-    }
+    const text = buildChargeMessage({
+      customerName: selected.name,
+      creditorName,
+      balance,
+      totalDebt,
+      totalPaid,
+      recentDebts,
+      pixKey: user?.pixKey,
+      formatCurrency,
+    });
 
-    let text;
-    if (balance > 0) {
-      text = `Olá ${selected.name}! 😊\n\nPassando para lembrar do seu saldo em aberto com *${creditorName}*.\n\n📊 *Resumo da Conta — ${date}*\n💸 Total de débitos: ${formatCurrency(totalDebt)}\n✅ Total pago: ${formatCurrency(totalPaid)}\n⚠️ *Saldo devedor: ${formatCurrency(balance)}*${recentList}${pixInfo}\n\nQualquer dúvida, é só me chamar! 🙏\nObrigado(a)!`;
-    } else if (balance < 0) {
-      text = `Olá ${selected.name}! 😊\n\nBoa notícia! Você tem um crédito com *${creditorName}*.\n\n💰 *Crédito disponível: ${formatCurrency(Math.abs(balance))}*\n\nEntre em contato para acertarmos! 🤝`;
-    } else {
-      text = `Olá ${selected.name}! 😊\n\nSua conta com *${creditorName}* está em dia! ✅\n\nObrigado pela confiança! 🙏`;
-    }
-
-    const phone = selected.phone.replace(/\D/g, '');
-    const waPhone = phone.startsWith('55') ? phone : `55${phone}`;
+    const waPhone = normalizeWhatsAppPhone(selected.phone);
     window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
