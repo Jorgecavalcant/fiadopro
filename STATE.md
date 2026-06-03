@@ -133,6 +133,7 @@
 | 17/04/2026 | Implement | Sprint 3 — Compliance e Legal: /privacidade + /termos + migration consent_at/consent_ip + checkbox LGPD no cadastro | QA aprovado em producao (HTTP 200, consent gravado no banco, 400 sem consent) | Sprint 4 — Empacotamento Mobile |
 | 17/04/2026 | Implement | Sprint 4 (parte tecnica): capacitor.config.ts (#553C9A + StatusBar), .env.production, codemagic.yaml, .well-known publicados (JSON valido), build + cap sync android OK | Site 200, assets android sincronizados, endpoints .well-known retornando JSON | Sprint 4 — parte manual (Jorge) |
 | 02/06/2026 | Implement | Sprint 5 — Prep de publicacao (agentes): auditoria de seguranca (bcrypt cost 12 confirmado, falso bloqueio Argon2 removido); pacote de conteudo das lojas (`docs/STORE-LISTING.md`); spec de assets (`docs/ASSETS-SPEC.md`); Vitest + 20 testes em `utils/credit.ts`; refator App.tsx para usar o modulo | 20/20 testes verdes; conteudo pronto para colar nos consoles | Jorge: contas/builds (Etapas 1-12 de SESSAO-SPRINT4) |
+| 03/06/2026 | Implement | Sprint 5 — Foco Play Store (Google ja pago, Apple adiada): subir targetSdk/compileSdk 34→35 (exigencia Play), toolchain AGP 8.2.1→8.7.2 + Gradle 8.2.1→8.9 + google-services 4.4.2; signingConfig via `keystore.properties` (gitignored) + `keystore.properties.example`; versionName 1.0.0; guia `docs/ANDROID-BUILD.md` | Projeto Android nos padroes atuais da Play; AAB assinavel via `./gradlew bundleRelease` | Jorge: instalar Android Studio, gerar keystore, rodar build, enviar SHA-256 |
 
 ---
 
