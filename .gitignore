@@ -8,6 +8,7 @@
 *.p12
 *.jks
 *.keystore
+keystore.properties
 google-services.json
 GoogleService-Info.plist
 
