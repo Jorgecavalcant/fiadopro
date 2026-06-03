@@ -6,10 +6,10 @@
 ---
 
 ## ONDE ESTAMOS AGORA
-- **Sprint atual:** Sprint 4 — Empacotamento Mobile (EM ANDAMENTO — parte tecnica concluida, aguardando Jorge)
-- **Fase RPI:** Sprint 4 Implement — parte tecnica feita pelos agentes. Aguardando Jorge: Firebase, Android Studio, contas Play Console e Apple Developer.
-- **Status geral:** Paginas /privacidade e /termos publicadas (HTTP 200). Consentimento LGPD registrado no banco (consent_at + consent_ip). Checkbox de consentimento ativo no cadastro. QA aprovado em producao.
-- **Responsavel atual:** Jorge
+- **Sprint atual:** Sprint 5 — Publicacao na Google Play (FOCO). Apple/App Store adiada a pedido do CEO (nao pagar Apple Developer agora).
+- **Fase RPI:** Implement — config tecnica Android CONCLUIDA e mergeada na `main` (PR #1, commit 32a67a7). Aguardando passos manuais do Jorge (alguns LOCAIS na maquina dele).
+- **Status geral:** Android nos padroes da Play (targetSdk 35, AGP 8.7.2/Gradle 8.9, signingConfig via keystore.properties); CI Codemagic (workflow android-release); 20 testes unitarios verdes; ficha das lojas pronta (`docs/STORE-LISTING.md`); guia de build (`docs/ANDROID-BUILD.md`); specs de assets (`docs/ASSETS-SPEC.md`). Backend usa bcrypt cost 12 (OWASP). Conta Google Play ja paga.
+- **Responsavel atual:** Jorge (passos manuais/locais)
 
 ---
 
@@ -67,18 +67,31 @@
 ## PROXIMA SESSAO — CONTINUAR AQUI
 > Leia este bloco PRIMEIRO antes de qualquer acao.
 
-**Proxima tarefa:** Sprint 4 — Parte manual (Jorge): Firebase, Android Studio, contas Play Console + Apple Developer, assets visuais, builds AAB e IPA, publicar lojas.
+**Objetivo:** colocar o Fiado Pro ONLINE na **Google Play** (Apple adiada). Guia detalhado: `docs/ANDROID-BUILD.md`.
 
-**Fase RPI atual:** Implement — Sprint 4 (parte tecnica CONCLUIDA pelos agentes)
+**Fase RPI atual:** Implement — config tecnica concluida (PR #1 mergeada). Faltam passos manuais/locais do Jorge + 1 retorno tecnico dos agentes (assetlinks).
 
-**Spec de referencia:** `D:\TECH42\PROJETOS\fiado-pro\docs\SPEC-empacotamento-mobile-v1.0.md` (secao Sprint 4)
+### CHECKLIST DE PUBLICACAO — GOOGLE PLAY (ordem)
+| # | Passo | Quem | Local? | Ref |
+|---|-------|------|--------|-----|
+| 1 | Instalar Android Studio (JDK 17 + SDK 35). Validar 1o Gradle Sync (se erro, mandar log p/ agentes) | Jorge | **LOCAL** | ANDROID-BUILD.md |
+| 2 | Gerar keystore `fiado-pro-release.jks` (senha no 1Password) | Jorge | **LOCAL** | SESSAO-SPRINT4 Etapa 4 |
+| 3 | Criar `frontend/android/keystore.properties` (de .example) | Jorge | **LOCAL** | keystore.properties.example |
+| 4 | Enviar SHA-256 do keystore → agentes atualizam `assetlinks.json` (NAO bloqueia 1o publish; habilita App Links) | Jorge → agentes | repo+VPS | ANDROID-BUILD.md Passo 4 |
+| 5 | Gerar assets: icone 512/1024, splash, 4 screenshots, feature graphic 1024x500 | Jorge | **LOCAL** | ASSETS-SPEC.md |
+| 6 | `npm run build && npx cap sync android && ./gradlew bundleRelease` → app-release.aab | Jorge | **LOCAL** | ANDROID-BUILD.md Passo 3 |
+| 7 | (Opcional) Build na nuvem via Codemagic (config das env vars no UI) | Jorge | nuvem | ANDROID-BUILD.md (Codemagic) |
+| 8 | Play Console: criar app, ficha, Data Safety, classificacao, privacidade | Jorge | nuvem | STORE-LISTING.md |
+| 9 | Upload do AAB + enviar para analise | Jorge | nuvem | STORE-LISTING.md |
 
-**Contexto critico para Sprint 4:**
-- Parte tecnica CONCLUIDA: capacitor.config.ts corrigido, .env.production, codemagic.yaml, .well-known publicados, build + cap sync OK
-- Jorge precisa fazer: A) Firebase + google-services.json | B) Android Studio | C) Play Console $25 | D) Apple Developer $99 | E) Codemagic | F) conta revisor Apple | G) assets visuais | H) SCP android/ para Windows | I) gerar keystore + AAB | J) build iOS Codemagic | K) publicar lojas
-- Apos gerar keystore: atualizar fingerprint SHA-256 em `frontend/public/.well-known/assetlinks.json` e rodar `npm run build`
-- Apos obter Apple Team ID: atualizar TEAMID em `frontend/public/.well-known/apple-app-site-association` e rodar `npm run build`
-- URLs das lojas: `https://www.fiadopro.com.br/privacidade` e `https://www.fiadopro.com.br/termos`
+**Push/FCM (Firebase):** OPCIONAL no v1 — `google-services.json` aplicado condicionalmente. Adiar para update futuro.
+
+**Apple/App Store:** ADIADA (CEO nao vai pagar agora). Quando retomar: conta Apple Developer $99 → Team ID → atualizar `apple-app-site-association` → build iOS via Codemagic.
+
+### PREVISAO DE GO-LIVE (Google Play)
+> Premissa-chave a confirmar: **conta de desenvolvedor e ORGANIZACAO (empresa)?** Se for pessoal criada apos nov/2023, a Google exige teste fechado com ~12-20 testers por 14 dias antes de producao (+2 semanas).
+- **Cenario A (conta organizacao):** publish direto em producao. Esforco local do Jorge ~2-4 dias (uteis) + analise da Google ~1-7 dias (tipico 1-3). **=> ONLINE em ~1 a 2 semanas.**
+- **Cenario B (conta pessoal pos-2023):** soma teste fechado obrigatorio de 14 dias. **=> ONLINE em ~3 a 4 semanas.**
 
 ---
 
