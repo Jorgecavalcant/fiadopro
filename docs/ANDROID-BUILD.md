@@ -69,6 +69,26 @@ Use o conteúdo pronto em `docs/STORE-LISTING.md` e os assets de `docs/ASSETS-SP
 Upload do `app-release.aab` em **Produção > Criar nova versão**.
 
 ---
+## Alternativa — Build na nuvem (Codemagic, sem Android Studio)
+
+O workflow `android-release` em `codemagic.yaml` gera o AAB assinado na nuvem e
+pode publicar direto na faixa de **teste interno** da Play Console.
+
+**Variáveis a configurar no Codemagic UI** (grupo `google_play`, todas *encrypted*):
+
+| Variável | O que é | Como obter |
+|---|---|---|
+| `CM_KEYSTORE` | o `.jks` em **base64** | `base64 fiado-pro-release.jks` (copiar a saída) |
+| `CM_KEYSTORE_PASSWORD` | senha do keystore | a que você definiu ao gerar |
+| `CM_KEY_ALIAS` | `fiado-pro` | alias do keystore |
+| `CM_KEY_PASSWORD` | senha da chave | normalmente igual à do keystore |
+| `GCLOUD_SERVICE_ACCOUNT_CREDENTIALS` | JSON da conta de serviço do Google Play | Play Console > Configurações > Acesso via API > criar conta de serviço |
+
+O workflow decodifica o keystore, escreve o `keystore.properties` e roda
+`./gradlew bundleRelease`. Publica como **rascunho** (`submit_as_draft`) na faixa
+`internal` — você revisa e promove para produção na Play Console.
+
+---
 ### Checklist rápido
 - [ ] `keystore.properties` criado e preenchido (não versionar)
 - [ ] `.jks` em `android/app/`
