@@ -74,6 +74,7 @@
 ### CHECKLIST DE PUBLICACAO — GOOGLE PLAY (ordem)
 | # | Passo | Quem | Local? | Ref |
 |---|-------|------|--------|-----|
+| 0 | **BLOQUEIO ATUAL:** concluir a **verificacao da conta de desenvolvedor** na Play Console (aviso "Conclua as verificacoes da conta para criar novos apps" — botao "Criar app" desabilitado). Menu: "Verificacao de desenvolvedor Android" / "Conta de desenvolvedor". Conta = Organizacao "Tech 42" (ID 5036461792737314690) | Jorge | nuvem | Play Console |
 | 1 | Instalar Android Studio (JDK 17 + SDK 35). Validar 1o Gradle Sync (se erro, mandar log p/ agentes) | Jorge | **LOCAL** | ANDROID-BUILD.md |
 | 2 | Gerar keystore `fiado-pro-release.jks` (senha no 1Password) | Jorge | **LOCAL** | SESSAO-SPRINT4 Etapa 4 |
 | 3 | Criar `frontend/android/keystore.properties` (de .example) | Jorge | **LOCAL** | keystore.properties.example |
@@ -89,9 +90,10 @@
 **Apple/App Store:** ADIADA (CEO nao vai pagar agora). Quando retomar: conta Apple Developer $99 → Team ID → atualizar `apple-app-site-association` → build iOS via Codemagic.
 
 ### PREVISAO DE GO-LIVE (Google Play)
-> Premissa-chave a confirmar: **conta de desenvolvedor e ORGANIZACAO (empresa)?** Se for pessoal criada apos nov/2023, a Google exige teste fechado com ~12-20 testers por 14 dias antes de producao (+2 semanas).
-- **Cenario A (conta organizacao):** publish direto em producao. Esforco local do Jorge ~2-4 dias (uteis) + analise da Google ~1-7 dias (tipico 1-3). **=> ONLINE em ~1 a 2 semanas.**
-- **Cenario B (conta pessoal pos-2023):** soma teste fechado obrigatorio de 14 dias. **=> ONLINE em ~3 a 4 semanas.**
+> **CONFIRMADO (03/06/2026):** conta de ORGANIZACAO ("Tech 42") — **Cenario A**. NAO ha exigencia de teste fechado de 14 dias.
+- **Gate atual:** verificacao da conta de desenvolvedor pendente (passo 0). A Google costuma levar ~2-3 dias uteis (pode pedir documentos da empresa). Enquanto nao concluir, nao da pra criar o app.
+- **Apos verificacao:** esforco local do Jorge (Android Studio + keystore + assets + ficha) ~2-4 dias uteis + analise da Google ~1-7 dias (tipico 1-3).
+- **=> ESTIMATIVA: ONLINE em ~1 a 2 semanas** apos a verificacao da conta sair. Se a verificacao demorar, somar esse tempo.
 
 ---
 
