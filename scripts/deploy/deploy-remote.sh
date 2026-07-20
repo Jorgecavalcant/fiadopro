@@ -10,7 +10,7 @@ set -euo pipefail
 
 RELEASE_DIR="${1:?Uso: deploy-remote.sh <release-dir>}"
 DEPLOY_DIR="/srv/projetos/clientes/fiado-pro"
-BACKUP_DIR="/srv/backups/fiado-pro"
+BACKUP_DIR="/srv/projetos/backups/fiado-pro"
 TS="$(date +%Y%m%d-%H%M%S)"
 DB_CONTAINER="fiado-pro-db"
 DB_USER="fiado_user"
