@@ -13,6 +13,7 @@ import geminiRoutes from './routes/gemini.js';
 import healthRoutes from './routes/health.js';
 import debtsRoutes from './routes/debts.js';
 import usersRoutes from './routes/users.js';
+import adminRoutes from './routes/admin.js';
 
 // Import middleware
 import cookieParser from 'cookie-parser';
@@ -56,6 +57,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/debts', debtsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/gemini', geminiRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
