@@ -81,7 +81,7 @@ import { showToast } from './utils/toast';
 import { calculateScore, computeRawBalance, buildChargeMessage, normalizeWhatsAppPhone } from './utils/credit';
 
 const STORAGE_KEY = 'fiado_pro_data_v14';
-const API_URL = 'https://www.fiadopro.com.br/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://www.fiadopro.com.br/api';
 // JWT gerenciado via httpOnly cookie
 const GOOGLE_CLIENT_ID = '372313466474-69v2logj3hkl6afj7l68q045rbbmbid7.apps.googleusercontent.com';
 

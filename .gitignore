@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 !frontend/.env.production
+!frontend/.env.staging
 *.pem
 *.key
 *.p12
