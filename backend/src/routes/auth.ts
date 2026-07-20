@@ -43,6 +43,10 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
       [body.full_name, body.email, hash, consentIp]
     );
     const user = result.rows[0];
+    // Vincular clientes já cadastrados por terceiros com este e-mail + promover admin se for o ADMIN_EMAIL
+    const { relinkCustomersForUser, ensureAdminRole } = await import('../services/linking.js');
+    await ensureAdminRole();
+    await relinkCustomersForUser(user.id);
     const token = signToken({ sub: user.id, email: user.email });
     setAuthCookie(res, token);
     res.status(201).json({
@@ -107,6 +111,9 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
         [email, full_name || email, avatar_url || null, google_id]
       );
       user = insert.rows[0];
+      const { relinkCustomersForUser, ensureAdminRole } = await import('../services/linking.js');
+      await ensureAdminRole();
+      await relinkCustomersForUser(user.id);
     } else {
       await query(
         'UPDATE users SET google_id = $1, avatar_url = COALESCE(avatar_url, $2) WHERE id = $3',
@@ -145,7 +152,7 @@ router.post('/verify', (req: Request, res: Response) => {
 router.get('/me', requireAuth, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await query(
-      'SELECT id, email, full_name, phone, avatar_url, created_at FROM users WHERE id = $1',
+      'SELECT id, email, full_name, phone, pix_key, avatar_url, role, created_at FROM users WHERE id = $1',
       [req.user!.sub]
     );
     if (!result.rows[0]) return next(new ApiError(404, 'Usuario nao encontrado', 'USER_NOT_FOUND'));

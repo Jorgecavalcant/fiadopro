@@ -13,6 +13,11 @@ import geminiRoutes from './routes/gemini.js';
 import healthRoutes from './routes/health.js';
 import debtsRoutes from './routes/debts.js';
 import usersRoutes from './routes/users.js';
+import customersRoutes from './routes/customers.js';
+import transactionsRoutes from './routes/transactions.js';
+import syncRoutes from './routes/sync.js';
+import inboxRoutes from './routes/inbox.js';
+import { ensureAdminRole } from './services/linking.js';
 
 // Import middleware
 import cookieParser from 'cookie-parser';
@@ -56,6 +61,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/debts', debtsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/gemini', geminiRoutes);
+app.use('/api/customers', customersRoutes);
+app.use('/api/transactions', transactionsRoutes);
+app.use('/api/sync', syncRoutes);
+app.use('/api', inboxRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
@@ -66,6 +75,8 @@ app.use(errorHandler);
 // ===== SERVER =====
 
 const server = app.listen(PORT, () => {
+  // Bootstrap idempotente: promove o ADMIN_EMAIL a admin se a conta já existir
+  void ensureAdminRole();
   console.log(`🚀 Fiado Pro Backend running on port ${PORT}`);
   console.log(`📡 Environment: ${process.env.NODE_ENV}`);
   console.log(`🔐 CORS enabled for: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}`);
