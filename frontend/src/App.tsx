@@ -2985,7 +2985,7 @@ const App: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error?.message || data.message || 'Falha no login com Google');
-      setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email });
+      setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email, role: data.user.role });
       setActiveView(AppView.DASHBOARD);
     } catch (err: any) {
       setLoginError(err.message || 'Erro ao entrar com Google. Tente novamente.');
@@ -3004,7 +3004,7 @@ const App: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error?.message || data.message || 'E-mail ou senha incorretos');
-      setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email });
+      setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email, role: data.user.role });
       setLoginError('');
     } catch (err: any) {
       setLoginError(err.message || 'Erro ao fazer login. Tente novamente.');
@@ -3024,7 +3024,7 @@ const App: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error?.message || data.message || 'Erro ao criar conta');
-      setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email });
+      setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email, role: data.user.role });
       setLoginError('');
     } catch (err: any) {
       setLoginError(err.message || 'Erro ao criar conta. Tente novamente.');
@@ -3070,7 +3070,7 @@ const App: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error?.message || data.message || 'Token invalido ou expirado.');
-      setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email });
+      setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email, role: data.user.role });
     } catch (err: any) {
       setLoginError((err as any).message || 'Erro ao redefinir senha.');
     }
