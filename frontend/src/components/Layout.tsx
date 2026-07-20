@@ -34,6 +34,7 @@ interface LayoutProps {
   pendingCount?: number;
   refundsCount?: number;
   ownerExpensesCount?: number;
+  inboxCount?: number;
 }
 
 const viewLabels: Partial<Record<AppView, string>> = {
@@ -53,6 +54,8 @@ const viewLabels: Partial<Record<AppView, string>> = {
   [AppView.DEBTORS_LIST]:        'Lista de Devedores',
   [AppView.RECEIVABLES_LIST]:    'Recebíveis',
   [AppView.SCORE_DETAIL]:        'Score de Crédito',
+  [AppView.INBOX]:               'Aprovações',
+  [AppView.MY_DEBTS]:            'Minhas Dívidas',
 };
 
 const AVATAR_COLORS = [
@@ -67,7 +70,7 @@ const AVATAR_COLORS = [
 const Layout: React.FC<LayoutProps> = ({
   children, activeView, setActiveView, language, setLanguage,
   isPro, onUpgrade, user, onLogout,
-  pendingCount = 0, refundsCount = 0, ownerExpensesCount = 0,
+  pendingCount = 0, refundsCount = 0, ownerExpensesCount = 0, inboxCount = 0,
 }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed]   = useState(false);
@@ -77,7 +80,7 @@ const Layout: React.FC<LayoutProps> = ({
 
   const avatarColor = AVATAR_COLORS[(user?.name?.charCodeAt(0) ?? 0) % AVATAR_COLORS.length];
   const pageTitle   = viewLabels[activeView] ?? t.dashboard;
-  const totalBadge  = pendingCount + refundsCount + ownerExpensesCount;
+  const totalBadge  = pendingCount + refundsCount + ownerExpensesCount + inboxCount;
 
   const navMain = [
     { id: AppView.DASHBOARD,  label: t.dashboard,  icon: LayoutDashboard, badge: 0 },
@@ -85,6 +88,8 @@ const Layout: React.FC<LayoutProps> = ({
     { id: AppView.SPLIT_BILL, label: t.splitBill,  icon: Receipt,         badge: 0 },
   ];
   const navOps = [
+    { id: AppView.INBOX,               label: 'Aprovações',                      icon: Zap,             badge: inboxCount },
+    { id: AppView.MY_DEBTS,            label: 'Minhas Dívidas',                  icon: ArrowDownCircle, badge: 0 },
     { id: AppView.NOTIFICATIONS,       label: t.notifications,                   icon: Bell,            badge: pendingCount },
     { id: AppView.TO_PAY,              label: t.toPay,                           icon: ArrowDownCircle, badge: refundsCount },
     { id: AppView.MY_EXPENSES,         label: t.myExpenses || 'Minhas Despesas', icon: Wallet,          badge: ownerExpensesCount },
