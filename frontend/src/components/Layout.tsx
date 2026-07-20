@@ -17,6 +17,7 @@ import {
   Settings,
   Zap,
   HelpCircle,
+  ShieldCheck,
 } from 'lucide-react';
 import { AppView, Language, User } from '../types';
 import { translations } from '../translations';
@@ -34,6 +35,8 @@ interface LayoutProps {
   pendingCount?: number;
   refundsCount?: number;
   ownerExpensesCount?: number;
+  /** Backend nunca confia no frontend: só controla a VISIBILIDADE do botão. */
+  isAdmin?: boolean;
 }
 
 const viewLabels: Partial<Record<AppView, string>> = {
@@ -68,6 +71,7 @@ const Layout: React.FC<LayoutProps> = ({
   children, activeView, setActiveView, language, setLanguage,
   isPro, onUpgrade, user, onLogout,
   pendingCount = 0, refundsCount = 0, ownerExpensesCount = 0,
+  isAdmin = false,
 }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed]   = useState(false);
@@ -91,6 +95,7 @@ const Layout: React.FC<LayoutProps> = ({
     { id: AppView.CUSTOMER_MANAGEMENT, label: t.customerManagement || 'Gestão',  icon: BarChart2,       badge: 0 },
     { id: AppView.INSIGHTS,            label: t.insights,                        icon: TrendingUp,      badge: 0 },
     { id: AppView.HELP,                label: 'Ajuda & Suporte',                 icon: HelpCircle,      badge: 0 },
+    ...(isAdmin ? [{ id: AppView.ADMIN, label: 'Admin', icon: ShieldCheck, badge: 0 }] : []),
   ];
 
   return (
