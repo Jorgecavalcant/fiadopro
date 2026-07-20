@@ -18,6 +18,7 @@ import transactionsRoutes from './routes/transactions.js';
 import syncRoutes from './routes/sync.js';
 import inboxRoutes from './routes/inbox.js';
 import adminRoutes from './routes/admin.js';
+import billingRoutes from './routes/billing.js';
 import { ensureAdminRole } from './services/linking.js';
 
 // Import middleware
@@ -66,6 +67,7 @@ app.use('/api/customers', customersRoutes);
 app.use('/api/transactions', transactionsRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/billing', billingRoutes);
 app.use('/api', inboxRoutes);
 
 // 404 handler

@@ -69,6 +69,7 @@ import {
 import { AppView, Customer, Transaction, CustomerWithBalance, TransactionType, Language, User, BillEvent, BillItem, Participant, PaymentMethod, CustomerNote, Debt, AuditEntry, PlanType, SubscriptionPlan, OwnerExpense, UserCredentials } from './types';
 import Layout from './components/Layout';
 import AdminPanel from './components/AdminPanel';
+import UpgradePlano from './components/UpgradePlano';
 import { getFinancialAdvice, getGeneralBusinessAdvice, extractItemsFromInvoice } from './services/geminiService';
 import { translations, Translation } from './translations';
 import { SplashScreen } from '@capacitor/splash-screen';
@@ -2126,6 +2127,8 @@ const ProfileView = ({ user, setUser, t, setActiveView, onExport, onImport, onDe
             </button>
           </div>
        </div>
+
+       <UpgradePlano />
 
        {/* Zona de Perigo */}
        <div className="bg-red-50 border border-red-200 p-8 rounded-[2.5rem] space-y-4">
