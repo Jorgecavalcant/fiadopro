@@ -199,6 +199,20 @@ router.post('/:id/resend', async (req: AuthRequest, res: Response, next: NextFun
   }
 });
 
+// DELETE /api/transactions/:id — dono remove lançamento (eventos caem em cascata)
+router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const result = await query(
+      `DELETE FROM transactions WHERE id = $1 AND owner_user_id = $2 RETURNING id`,
+      [req.params.id, req.user!.sub]
+    );
+    if (!result.rows[0]) return next(new ApiError(404, 'Lançamento não encontrado', 'NOT_FOUND'));
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/transactions/:id/events — trilha de auditoria (dono ou vinculado)
 router.get('/:id/events', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
