@@ -48,6 +48,12 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY}
       CORS_ORIGIN: https://fiadopro.jcplanejamento.com.br
       APP_URL: https://fiadopro.jcplanejamento.com.br
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      ASAAS_API_KEY: ${ASAAS_API_KEY:-}
+      ASAAS_WEBHOOK_TOKEN: ${ASAAS_WEBHOOK_TOKEN:-}
+      ASAAS_BASE_URL: ${ASAAS_BASE_URL:-https://api-sandbox.asaas.com/v3}
+      ASAAS_PRO_PRICE: ${ASAAS_PRO_PRICE:-19.90}
     ports:
       - "127.0.0.1:10014:4000"
     depends_on:

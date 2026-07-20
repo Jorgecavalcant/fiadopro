@@ -57,6 +57,12 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY}
       CORS_ORIGIN: https://www.fiadopro.com.br,http://localhost:3000
       APP_URL: https://www.fiadopro.com.br
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      ASAAS_API_KEY: ${ASAAS_API_KEY:-}
+      ASAAS_WEBHOOK_TOKEN: ${ASAAS_WEBHOOK_TOKEN:-}
+      ASAAS_BASE_URL: ${ASAAS_BASE_URL:-https://api.asaas.com/v3}
+      ASAAS_PRO_PRICE: ${ASAAS_PRO_PRICE:-19.90}
     ports:
       - "10004:4000"
     depends_on:
