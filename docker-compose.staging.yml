@@ -46,6 +46,7 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       RESEND_API_KEY: ${RESEND_API_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       CORS_ORIGIN: https://fiadopro.jcplanejamento.com.br
       APP_URL: https://fiadopro.jcplanejamento.com.br
     ports:
