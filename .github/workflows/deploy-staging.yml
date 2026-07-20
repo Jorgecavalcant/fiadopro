@@ -1,0 +1,82 @@
+name: Deploy Staging
+
+# Manual: escolha a branch na UI do Actions ("Run workflow") para
+# publicá-la em https://fiadopro.jcplanejamento.com.br e testar
+# antes do merge em main.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build + Deploy para staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Backend — typecheck
+        working-directory: backend
+        run: |
+          npm ci
+          npx tsc --noEmit
+
+      - name: Frontend — testes + build (modo staging)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run test
+          npm run build:staging
+
+      - name: Verificar bundle sem chaves de API
+        run: |
+          if grep -rEo 'AIza[A-Za-z0-9_-]{30,}|sk-or-v1-[a-f0-9]{16,}' dist/assets/ ; then
+            echo "::error::Chave de API detectada no bundle — deploy abortado."
+            exit 1
+          fi
+
+      - name: Montar payload
+        run: |
+          tar czf /tmp/fiadopro-staging.tar.gz \
+            backend/src backend/migrations backend/package.json backend/package-lock.json \
+            backend/tsconfig.json backend/Dockerfile \
+            docker-compose.staging.yml nginx.conf db-init.sql \
+            scripts/deploy \
+            dist
+
+      - name: Configurar chave SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H 46.224.55.18 >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Enviar payload e executar deploy de staging
+        run: |
+          scp -i ~/.ssh/id_deploy /tmp/fiadopro-staging.tar.gz jorge@46.224.55.18:/tmp/fiadopro-staging.tar.gz
+          ssh -i ~/.ssh/id_deploy jorge@46.224.55.18 \
+            'mkdir -p /tmp/fiadopro-staging-release && rm -rf /tmp/fiadopro-staging-release/* && \
+             tar xzf /tmp/fiadopro-staging.tar.gz -C /tmp/fiadopro-staging-release && \
+             bash /tmp/fiadopro-staging-release/scripts/deploy/deploy-staging.sh /tmp/fiadopro-staging-release'
+
+      - name: Healthcheck externo
+        run: |
+          sleep 5
+          code=$(curl -s -o /dev/null -w '%{http_code}' https://fiadopro.jcplanejamento.com.br/api/health)
+          site=$(curl -s -o /dev/null -w '%{http_code}' https://fiadopro.jcplanejamento.com.br/)
+          echo "Staging API: $code | Staging site: $site"
+          if [ "$code" != "200" ] || [ "$site" != "200" ]; then
+            echo "::error::Healthcheck externo do staging falhou (API=$code, site=$site)"
+            exit 1
+          fi
