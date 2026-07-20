@@ -68,6 +68,7 @@ import {
 } from 'recharts';
 import { AppView, Customer, Transaction, CustomerWithBalance, TransactionType, Language, User, BillEvent, BillItem, Participant, PaymentMethod, CustomerNote, Debt, AuditEntry, PlanType, SubscriptionPlan, OwnerExpense, UserCredentials } from './types';
 import Layout from './components/Layout';
+import AdminPanel from './components/AdminPanel';
 import { getFinancialAdvice, getGeneralBusinessAdvice, extractItemsFromInvoice } from './services/geminiService';
 import { translations, Translation } from './translations';
 import { SplashScreen } from '@capacitor/splash-screen';
@@ -2615,7 +2616,7 @@ const App: React.FC = () => {
       .then(r => r.json())
       .then(data => {
         if (data.success && data.user) {
-          setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email });
+          setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email, role: data.user.role });
         }
       })
       .catch(() => {/* sessao nao existe */})
@@ -3202,7 +3203,7 @@ const App: React.FC = () => {
         </div>
       )}
       <div className="flex-1 min-h-0">
-    <Layout activeView={activeView} setActiveView={setActiveView} language={language} setLanguage={setLanguage} isPro={plan.hasAI} onUpgrade={() => setIsUpgradeModalOpen(true)} user={user} onLogout={() => { resetSyncState(); setUser(null); }} refundsCount={customersWithBalance.filter(c => c.rawBalance < 0 && c.overpaymentStrategy === 'RETURN').length} pendingCount={transactions.filter(tx => tx.status === 'PENDING').length} ownerExpensesCount={ownerExpenses.filter(e => !e.isPaid).length} inboxCount={inboxCount}>
+    <Layout activeView={activeView} setActiveView={setActiveView} language={language} setLanguage={setLanguage} isPro={plan.hasAI} onUpgrade={() => setIsUpgradeModalOpen(true)} user={user} onLogout={() => { resetSyncState(); setUser(null); }} refundsCount={customersWithBalance.filter(c => c.rawBalance < 0 && c.overpaymentStrategy === 'RETURN').length} pendingCount={transactions.filter(tx => tx.status === 'PENDING').length} ownerExpensesCount={ownerExpenses.filter(e => !e.isPaid).length} inboxCount={inboxCount} isAdmin={user?.role === 'admin'}>
       {activeView === AppView.DASHBOARD && <DashboardView stats={stats} formatCurrency={formatCurrency} navigateToCustomer={navigateToCustomer} setActiveView={setActiveView} isPro={isPro} t={t} />}
       {activeView === AppView.CUSTOMERS && (
         <div className="space-y-6">
@@ -3349,6 +3350,7 @@ const App: React.FC = () => {
       {activeView === AppView.MY_EXPENSES && <MyExpensesView ownerExpenses={ownerExpenses} setOwnerExpenses={setOwnerExpenses} formatCurrency={formatCurrency} t={t} />}
       {activeView === AppView.CUSTOMER_MANAGEMENT && <CustomerManagementView customersWithBalance={customersWithBalance} transactions={transactions} navigateToCustomer={navigateToCustomer} formatCurrency={formatCurrency} t={t} />}
       {activeView === AppView.HELP && <HelpView t={t} setActiveView={setActiveView} />}
+      {activeView === AppView.ADMIN && user?.role === 'admin' && <AdminPanel />}
 
     </Layout>
       {/* FAB - Floating Action Button */}

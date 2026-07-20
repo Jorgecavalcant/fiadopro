@@ -52,6 +52,8 @@ export interface User {
   address?: string;
   pixKey?: string;
   defaultInterestRate?: number;
+  /** Preenchido pelo backend (/api/auth/me). Nunca decidir autorização só com isto no frontend. */
+  role?: 'user' | 'admin';
 }
 
 export interface CustomerNote {
@@ -187,4 +189,5 @@ export enum AppView {
   HELP = 'HELP',
   INBOX = 'INBOX',
   MY_DEBTS = 'MY_DEBTS',
+  ADMIN = 'ADMIN',
 }
