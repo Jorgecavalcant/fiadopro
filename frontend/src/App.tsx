@@ -70,7 +70,7 @@ import { AppView, Customer, Transaction, CustomerWithBalance, TransactionType, L
 import Layout from './components/Layout';
 import AdminPanel from './components/AdminPanel';
 import UpgradePlano from './components/UpgradePlano';
-import { getFinancialAdvice, getGeneralBusinessAdvice, extractItemsFromInvoice } from './services/geminiService';
+import { getFinancialAdvice, getGeneralBusinessAdvice, extractItemsFromInvoice } from './services/aiService';
 import { translations, Translation } from './translations';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';

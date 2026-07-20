@@ -27,7 +27,7 @@ mkdir -p "$DEPLOY_DIR/backend" "$DEPLOY_DIR/scripts/deploy" "$DEPLOY_DIR/dist"
 if [ ! -f "$DEPLOY_DIR/.env" ]; then
   log "Provisionando .env de staging (primeira execução)"
   [ -f "$PROD_ENV" ] || { log "ERRO: .env de produção não encontrado"; exit 1; }
-  grep -E '^(GOOGLE_API_KEY|GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET|RESEND_API_KEY)=' "$PROD_ENV" > "$DEPLOY_DIR/.env"
+  grep -E '^(GOOGLE_API_KEY|GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET|RESEND_API_KEY|OPENROUTER_API_KEY)=' "$PROD_ENV" > "$DEPLOY_DIR/.env"
   echo "DB_PASSWORD=$(openssl rand -hex 24)" >> "$DEPLOY_DIR/.env"
   echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$DEPLOY_DIR/.env"
   chmod 600 "$DEPLOY_DIR/.env"

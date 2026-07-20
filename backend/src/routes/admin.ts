@@ -2,8 +2,7 @@ import { Router, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { query } from '../config/database.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
-// INTEGRADOR: trocar pelo requireAdmin oficial da frente CORE (ver comentário no arquivo).
-import { requireAdmin } from '../middleware/requireAdmin.provisorio.js';
+import { requireAdmin } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { sendPasswordResetEmail } from '../services/email.js';
 
