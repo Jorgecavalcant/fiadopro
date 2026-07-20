@@ -74,5 +74,9 @@ jobs:
         run: |
           sleep 5
           code=$(curl -s -o /dev/null -w '%{http_code}' https://fiadopro.jcplanejamento.com.br/api/health)
-          echo "Staging API: $code"
-          [ "$code" = "200" ] || exit 1
+          site=$(curl -s -o /dev/null -w '%{http_code}' https://fiadopro.jcplanejamento.com.br/)
+          echo "Staging API: $code | Staging site: $site"
+          if [ "$code" != "200" ] || [ "$site" != "200" ]; then
+            echo "::error::Healthcheck externo do staging falhou (API=$code, site=$site)"
+            exit 1
+          fi
