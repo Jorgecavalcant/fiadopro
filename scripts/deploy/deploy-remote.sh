@@ -49,6 +49,7 @@ trap rollback ERR
 # 2. SYNC DE ARQUIVOS (preserva .env, data/, logs/)
 # -----------------------------------------------------------------
 log "Sincronizando arquivos da release"
+mkdir -p "$DEPLOY_DIR/backend" "$DEPLOY_DIR/scripts/deploy" "$DEPLOY_DIR/dist"
 rsync -a --delete "$RELEASE_DIR/backend/src/" "$DEPLOY_DIR/backend/src/"
 rsync -a --delete "$RELEASE_DIR/backend/migrations/" "$DEPLOY_DIR/backend/migrations/"
 rsync -a --delete "$RELEASE_DIR/scripts/deploy/" "$DEPLOY_DIR/scripts/deploy/"
