@@ -68,7 +68,9 @@ import {
 } from 'recharts';
 import { AppView, Customer, Transaction, CustomerWithBalance, TransactionType, Language, User, BillEvent, BillItem, Participant, PaymentMethod, CustomerNote, Debt, AuditEntry, PlanType, SubscriptionPlan, OwnerExpense, UserCredentials } from './types';
 import Layout from './components/Layout';
-import { getFinancialAdvice, getGeneralBusinessAdvice, extractItemsFromInvoice } from './services/geminiService';
+import AdminPanel from './components/AdminPanel';
+import UpgradePlano from './components/UpgradePlano';
+import { getFinancialAdvice, getGeneralBusinessAdvice, extractItemsFromInvoice } from './services/aiService';
 import { translations, Translation } from './translations';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -78,6 +80,9 @@ import { Keyboard } from '@capacitor/keyboard';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { hapticMedium, hapticSuccess } from './utils/haptics';
 import { showToast } from './utils/toast';
+import InboxAprovacoes from './components/InboxAprovacoes';
+import MinhasDividas from './components/MinhasDividas';
+import { bootstrapSync, schedulePush, resetSyncState, fetchInbox, resendTransaction } from './services/syncService';
 import { calculateScore, computeRawBalance, buildChargeMessage, normalizeWhatsAppPhone } from './utils/credit';
 
 const STORAGE_KEY = 'fiado_pro_data_v14';
@@ -1850,6 +1855,20 @@ const CustomerDetailView = ({
                               {tx.status === 'PENDING' ? 'Pendente' : 'Rejeitado'}
                             </span>
                           )}
+                          {tx.status === 'REJECTED' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void resendTransaction(tx.id).then((ok: boolean) => {
+                                  if (ok) setTransactions((prev: Transaction[]) => prev.map((p: Transaction) => p.id === tx.id ? { ...p, status: 'PENDING' as const } : p));
+                                });
+                              }}
+                              className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                              title="Reenviar para aprovação"
+                            >
+                              Reenviar
+                            </button>
+                          )}
                         </div>
                         <p className="text-xs text-slate-400 font-bold">{new Date(tx.timestamp).toLocaleString()}</p>
                       </div>
@@ -2108,6 +2127,8 @@ const ProfileView = ({ user, setUser, t, setActiveView, onExport, onImport, onDe
             </button>
           </div>
        </div>
+
+       <UpgradePlano />
 
        {/* Zona de Perigo */}
        <div className="bg-red-50 border border-red-200 p-8 rounded-[2.5rem] space-y-4">
@@ -2511,6 +2532,44 @@ const App: React.FC = () => {
   const [deleteError, setDeleteError] = useState('');
   const t = translations[language];
 
+  // ===== Sincronização com o servidor (fonte de verdade quando logado) =====
+  const [inboxCount, setInboxCount] = useState(0);
+  const syncBootstrapped = useRef(false);
+
+  const refreshInbox = useCallback(async () => {
+    const items = await fetchInbox();
+    setInboxCount(items.length);
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      syncBootstrapped.current = false;
+      return;
+    }
+    if (syncBootstrapped.current) return;
+    syncBootstrapped.current = true;
+    void bootstrapSync(customers, transactions).then((result) => {
+      if (result.online) {
+        setCustomers(result.customers);
+        setTransactions(result.transactions);
+      }
+      void refreshInbox();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    schedulePush(true, customers, transactions, (patches) => {
+      setTransactions((prev) =>
+        prev.map((tx) => {
+          const patch = patches.find((p) => p.id === tx.id);
+          return patch ? { ...tx, status: patch.status } : tx;
+        })
+      );
+    });
+  }, [user, customers, transactions]);
+
   const handleUpdateNote = (noteId: string) => {
     if (editingNoteText.trim() && selectedCustomerId) {
       setCustomers((prev: Customer[]) => prev.map(c => 
@@ -2560,7 +2619,7 @@ const App: React.FC = () => {
       .then(r => r.json())
       .then(data => {
         if (data.success && data.user) {
-          setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email });
+          setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email, role: data.user.role });
         }
       })
       .catch(() => {/* sessao nao existe */})
@@ -2926,7 +2985,7 @@ const App: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error?.message || data.message || 'Falha no login com Google');
-      setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email });
+      setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email, role: data.user.role });
       setActiveView(AppView.DASHBOARD);
     } catch (err: any) {
       setLoginError(err.message || 'Erro ao entrar com Google. Tente novamente.');
@@ -2945,7 +3004,7 @@ const App: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error?.message || data.message || 'E-mail ou senha incorretos');
-      setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email });
+      setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email, role: data.user.role });
       setLoginError('');
     } catch (err: any) {
       setLoginError(err.message || 'Erro ao fazer login. Tente novamente.');
@@ -2965,7 +3024,7 @@ const App: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error?.message || data.message || 'Erro ao criar conta');
-      setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email });
+      setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email, role: data.user.role });
       setLoginError('');
     } catch (err: any) {
       setLoginError(err.message || 'Erro ao criar conta. Tente novamente.');
@@ -3011,7 +3070,7 @@ const App: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error?.message || data.message || 'Token invalido ou expirado.');
-      setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email });
+      setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email, role: data.user.role });
     } catch (err: any) {
       setLoginError((err as any).message || 'Erro ao redefinir senha.');
     }
@@ -3147,7 +3206,7 @@ const App: React.FC = () => {
         </div>
       )}
       <div className="flex-1 min-h-0">
-    <Layout activeView={activeView} setActiveView={setActiveView} language={language} setLanguage={setLanguage} isPro={plan.hasAI} onUpgrade={() => setIsUpgradeModalOpen(true)} user={user} onLogout={() => setUser(null)} refundsCount={customersWithBalance.filter(c => c.rawBalance < 0 && c.overpaymentStrategy === 'RETURN').length} pendingCount={transactions.filter(tx => tx.status === 'PENDING').length} ownerExpensesCount={ownerExpenses.filter(e => !e.isPaid).length}>
+    <Layout activeView={activeView} setActiveView={setActiveView} language={language} setLanguage={setLanguage} isPro={plan.hasAI} onUpgrade={() => setIsUpgradeModalOpen(true)} user={user} onLogout={() => { resetSyncState(); setUser(null); }} refundsCount={customersWithBalance.filter(c => c.rawBalance < 0 && c.overpaymentStrategy === 'RETURN').length} pendingCount={transactions.filter(tx => tx.status === 'PENDING').length} ownerExpensesCount={ownerExpenses.filter(e => !e.isPaid).length} inboxCount={inboxCount} isAdmin={user?.role === 'admin'}>
       {activeView === AppView.DASHBOARD && <DashboardView stats={stats} formatCurrency={formatCurrency} navigateToCustomer={navigateToCustomer} setActiveView={setActiveView} isPro={isPro} t={t} />}
       {activeView === AppView.CUSTOMERS && (
         <div className="space-y-6">
@@ -3214,6 +3273,8 @@ const App: React.FC = () => {
 
       {activeView === AppView.TO_PAY && <ToPayView customers={customersWithBalance} formatCurrency={formatCurrency} navigateToCustomer={navigateToCustomer} t={t} setTransactions={setTransactions} />}
       {activeView === AppView.NOTIFICATIONS && <NotificationsView transactions={transactions} setTransactions={setTransactions} customers={customers} formatCurrency={formatCurrency} t={t} user={user} setAuditLog={setAuditLog} />}
+      {activeView === AppView.INBOX && <InboxAprovacoes formatCurrency={formatCurrency} onChanged={() => { void refreshInbox(); }} />}
+      {activeView === AppView.MY_DEBTS && <MinhasDividas formatCurrency={formatCurrency} />}
       {activeView === AppView.AUDIT_LOG && <AuditLogView auditLog={auditLog} t={t} />}
       {activeView === AppView.INSIGHTS && (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -3292,6 +3353,7 @@ const App: React.FC = () => {
       {activeView === AppView.MY_EXPENSES && <MyExpensesView ownerExpenses={ownerExpenses} setOwnerExpenses={setOwnerExpenses} formatCurrency={formatCurrency} t={t} />}
       {activeView === AppView.CUSTOMER_MANAGEMENT && <CustomerManagementView customersWithBalance={customersWithBalance} transactions={transactions} navigateToCustomer={navigateToCustomer} formatCurrency={formatCurrency} t={t} />}
       {activeView === AppView.HELP && <HelpView t={t} setActiveView={setActiveView} />}
+      {activeView === AppView.ADMIN && user?.role === 'admin' && <AdminPanel />}
 
     </Layout>
       {/* FAB - Floating Action Button */}

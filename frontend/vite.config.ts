@@ -1,8 +1,7 @@
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, '.', '')
+export default defineConfig(() => {
   return {
     plugins: [react()],
     base: './',
@@ -10,10 +9,9 @@ export default defineConfig(({ mode }) => {
       outDir: '../dist',
       emptyOutDir: true,
     },
-    define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || ''),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || ''),
-    },
+    // ⚠️ Nenhuma chave de IA aqui. Toda chamada de IA vai pelo backend
+    // (services/aiService.ts → OPENROUTER_API_KEY só no servidor). O antigo
+    // `define` embutia a chave do Gemini no bundle — vazou em produção.
     server: {
       port: 5173,
       proxy: {

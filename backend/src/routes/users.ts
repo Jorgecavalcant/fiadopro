@@ -9,6 +9,40 @@ import { sendAccountDeletionEmail } from '../services/email.js';
 
 const router = Router();
 
+const UpdateProfileSchema = z.object({
+  full_name: z.string().min(2).max(100).optional(),
+  phone: z.string().max(30).optional().nullable(),
+  pix_key: z.string().max(140).optional().nullable(),
+  avatar_url: z.string().url().max(500).optional().nullable(),
+});
+
+// PATCH /api/users/me — atualizar perfil (revincula clientes se telefone mudou)
+router.patch('/me', requireAuth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const body = UpdateProfileSchema.parse(req.body);
+    const fields = Object.entries(body).filter(([, v]) => v !== undefined);
+    if (fields.length === 0) return next(new ApiError(400, 'Nenhum campo para atualizar', 'EMPTY_UPDATE'));
+
+    const setClause = fields.map(([k], i) => `${k} = $${i + 2}`).join(', ');
+    const result = await query(
+      `UPDATE users SET ${setClause}
+        WHERE id = $1 AND deleted_at IS NULL
+        RETURNING id, email, full_name, phone, pix_key, avatar_url, role`,
+      [req.user!.sub, ...fields.map(([, v]) => v)]
+    );
+    if (!result.rows[0]) return next(new ApiError(404, 'Usuario nao encontrado', 'USER_NOT_FOUND'));
+
+    if (body.phone !== undefined) {
+      const { relinkCustomersForUser } = await import('../services/linking.js');
+      await relinkCustomersForUser(req.user!.sub);
+    }
+    res.json({ success: true, user: result.rows[0] });
+  } catch (err) {
+    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    next(err);
+  }
+});
+
 const DeleteAccountSchema = z.object({
   password: z.string().min(1),
   reason: z.string().optional(),
