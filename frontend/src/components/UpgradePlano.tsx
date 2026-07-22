@@ -9,6 +9,8 @@ interface BillingStatus {
   plan: PlanName;
   status: string | null;
   currentPeriodEnd: string | null;
+  canceledAt: string | null;
+  canCancel: boolean;
   maxReportMonths: number;
 }
 
@@ -39,6 +41,7 @@ const UpgradePlano: React.FC = () => {
   const [statusData, setStatusData] = useState<BillingStatus | null>(null);
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsCpf, setNeedsCpf] = useState(false);
   const [cpf, setCpf] = useState('');
@@ -56,6 +59,8 @@ const UpgradePlano: React.FC = () => {
         plan: data.plan,
         status: data.status,
         currentPeriodEnd: data.currentPeriodEnd,
+        canceledAt: data.canceledAt,
+        canCancel: Boolean(data.canCancel),
         maxReportMonths: data.maxReportMonths,
       });
     } catch (err) {
@@ -112,6 +117,38 @@ const UpgradePlano: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Não foi possível iniciar a assinatura.');
     } finally {
       setIsSubscribing(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!statusData) return;
+    const confirmMsg = statusData.currentPeriodEnd
+      ? `Tem certeza que deseja cancelar sua assinatura PRO? Você continua com acesso completo até ${formatDate(statusData.currentPeriodEnd)} (fim do período já pago) — depois disso o plano volta para o Gratuito.`
+      : 'Tem certeza que deseja cancelar sua assinatura PRO?';
+    if (!window.confirm(confirmMsg)) return;
+
+    setIsCanceling(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/billing/cancel`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || 'Não foi possível cancelar a assinatura.');
+      }
+      await loadStatus();
+      window.alert(
+        data.currentPeriodEnd
+          ? `Assinatura cancelada. Você ainda pode usar o plano PRO até ${formatDate(data.currentPeriodEnd)}.`
+          : 'Assinatura cancelada.'
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível cancelar a assinatura.');
+    } finally {
+      setIsCanceling(false);
     }
   };
 
@@ -191,10 +228,28 @@ const UpgradePlano: React.FC = () => {
         </>
       )}
 
-      {isPro && (
+      {isPro && statusData?.canceledAt && (
+        <p className="text-sm font-bold text-amber-600 flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4" />
+          Assinatura cancelada — você ainda pode usar o PRO até {formatDate(statusData.currentPeriodEnd)}.
+        </p>
+      )}
+
+      {isPro && !statusData?.canceledAt && (
         <p className="text-sm font-bold text-emerald-600 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4" /> Sua assinatura está ativa.
         </p>
+      )}
+
+      {isPro && statusData?.canCancel && !statusData.canceledAt && (
+        <button
+          onClick={handleCancelSubscription}
+          disabled={isCanceling}
+          className="w-full flex items-center justify-center gap-2 bg-white border-2 border-red-200 text-red-600 py-3 rounded-2xl font-black text-sm hover:bg-red-50 transition-all active:scale-95 disabled:opacity-50"
+        >
+          {isCanceling ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          Cancelar assinatura
+        </button>
       )}
 
       <button

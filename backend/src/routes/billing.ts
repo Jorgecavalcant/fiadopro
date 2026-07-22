@@ -8,6 +8,7 @@ import {
   createCustomer,
   createSubscription,
   getSubscription,
+  cancelSubscription,
   AsaasNotConfiguredError,
   AsaasRequestError,
 } from '../services/asaas.js';
@@ -61,7 +62,7 @@ export async function getStatusHandler(req: AuthRequest, res: Response, next: Ne
     const userId = req.user!.sub;
     const plan = await getUserPlan(userId);
     const result = await query(
-      'SELECT plan, status, current_period_end FROM subscriptions WHERE user_id = $1',
+      'SELECT plan, status, current_period_end, canceled_at, asaas_subscription_id FROM subscriptions WHERE user_id = $1',
       [userId]
     );
     const sub = result.rows[0] || null;
@@ -71,6 +72,8 @@ export async function getStatusHandler(req: AuthRequest, res: Response, next: Ne
       plan,
       status: sub?.status ?? null,
       currentPeriodEnd: sub?.current_period_end ?? null,
+      canceledAt: sub?.canceled_at ?? null,
+      canCancel: Boolean(sub?.asaas_subscription_id) && !sub?.canceled_at,
       maxReportMonths: maxReportMonths(plan),
     });
   } catch (err) {
@@ -150,6 +153,41 @@ export async function subscribeHandler(req: AuthRequest, res: Response, next: Ne
   }
 }
 
+// POST /api/billing/cancel — cancela a assinatura (mantém acesso PRO até
+// current_period_end; não é o mesmo que downgrade imediato)
+export async function cancelHandler(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user!.sub;
+    const result = await query(
+      'SELECT asaas_subscription_id, current_period_end, canceled_at FROM subscriptions WHERE user_id = $1',
+      [userId]
+    );
+    const sub = result.rows[0];
+    if (!sub || !sub.asaas_subscription_id) {
+      return next(new ApiError(404, 'Nenhuma assinatura ativa para cancelar', 'NO_SUBSCRIPTION'));
+    }
+    if (sub.canceled_at) {
+      // Idempotente: já cancelada, apenas devolve o estado atual.
+      return res.json({ success: true, currentPeriodEnd: sub.current_period_end });
+    }
+
+    await cancelSubscription(sub.asaas_subscription_id);
+
+    await query(
+      `UPDATE subscriptions SET canceled_at = NOW(), updated_at = NOW() WHERE user_id = $1`,
+      [userId]
+    );
+
+    res.json({ success: true, currentPeriodEnd: sub.current_period_end });
+  } catch (err) {
+    if (err instanceof AsaasNotConfiguredError) {
+      return next(new ApiError(503, 'Pagamentos nao configurados', 'BILLING_NOT_CONFIGURED'));
+    }
+    if (err instanceof AsaasRequestError) return next(new ApiError(502, err.message, 'ASAAS_ERROR'));
+    next(err);
+  }
+}
+
 // POST /api/billing/webhook/asaas — sem auth (validado por token proprio do Asaas)
 export async function webhookHandler(req: Request, res: Response) {
   try {
@@ -204,6 +242,7 @@ export async function webhookHandler(req: Request, res: Response) {
 
 router.get('/status', requireAuth, getStatusHandler);
 router.post('/subscribe', requireAuth, subscribeHandler);
+router.post('/cancel', requireAuth, cancelHandler);
 router.post('/webhook/asaas', webhookHandler);
 
 export default router;
