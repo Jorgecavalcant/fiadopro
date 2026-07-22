@@ -6,7 +6,6 @@ import {
   TrendingUp,
   Wallet,
   Menu,
-  X,
   Crown,
   Receipt,
   LogOut,
@@ -181,19 +180,6 @@ const Layout: React.FC<LayoutProps> = ({
           >
             <ChevronLeft style={{ width: 16, height: 16, transition: 'transform 280ms', transform: collapsed ? 'rotate(180deg)' : 'none' }} />
           </button>
-
-          <button
-            onClick={() => setMobileOpen(false)}
-            className="md:hidden"
-            style={{
-              position: 'absolute', top: 16, right: 12,
-              width: 32, height: 32, borderRadius: 8, border: 'none', cursor: 'pointer',
-              background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <X style={{ width: 18, height: 18 }} />
-          </button>
         </div>
 
         {/* Nav */}
@@ -291,18 +277,26 @@ const Layout: React.FC<LayoutProps> = ({
           borderBottom: '1px solid rgba(226,232,240,0.8)',
           boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}>
-          {/* Mobile menu */}
+          {/* Menu — esconde/revela a sidebar. Abaixo de md, alterna o overlay
+              móvel; em md+, alterna entre a barra lateral cheia e colapsada
+              (o mesmo estado que o ChevronLeft dentro da sidebar controla). */}
           <button
-            className="md:hidden"
-            onClick={() => setMobileOpen(true)}
+            onClick={() => {
+              if (window.matchMedia('(min-width: 768px)').matches) {
+                setCollapsed(c => !c);
+              } else {
+                setMobileOpen(o => !o);
+              }
+            }}
             style={{
               width: 38, height: 38, borderRadius: 12, border: 'none', cursor: 'pointer',
               background: 'transparent', color: '#64748B',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'background 150ms',
+              transition: 'background 150ms', flexShrink: 0,
             }}
             onMouseEnter={e => (e.currentTarget.style.background = '#F1F5F9')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            title="Mostrar/ocultar menu"
           >
             <Menu style={{ width: 20, height: 20 }} />
           </button>
