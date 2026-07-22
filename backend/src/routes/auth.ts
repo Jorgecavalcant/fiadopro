@@ -32,8 +32,9 @@ const LoginSchema = z.object({
 // POST /api/auth/register
 router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const body = RegisterSchema.parse(req.body);
-    const email = normalizeEmail(body.email);
+    const rawEmail = typeof req.body?.email === 'string' ? normalizeEmail(req.body.email) : req.body?.email;
+    const body = RegisterSchema.parse({ ...req.body, email: rawEmail });
+    const email = body.email;
     const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
       return next(new ApiError(409, 'E-mail ja cadastrado', 'EMAIL_EXISTS'));
@@ -65,8 +66,9 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
 // POST /api/auth/login
 router.post('/login', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const body = LoginSchema.parse(req.body);
-    const email = normalizeEmail(body.email);
+    const rawEmail = typeof req.body?.email === 'string' ? normalizeEmail(req.body.email) : req.body?.email;
+    const body = LoginSchema.parse({ ...req.body, email: rawEmail });
+    const email = body.email;
     const result = await query(
       'SELECT id, email, full_name, password_hash, is_active, role FROM users WHERE email = $1',
       [email]
