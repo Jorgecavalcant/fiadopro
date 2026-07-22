@@ -6,6 +6,7 @@ import {
   fetchCounterpartTransactions,
   createCounterpartPayment,
 } from '../services/syncService';
+import FullScreenModal from './FullScreenModal';
 
 interface CounterpartDetailProps {
   counterpart: Counterpart;
@@ -209,6 +210,7 @@ function PaymentModal({ openDebts, onClose, onSubmit }: PaymentModalProps) {
   };
 
   return (
+    <FullScreenModal>
     <div className="fp-page-slide" style={{ position: 'fixed', inset: 0, zIndex: 300, background: '#F8FAFF', display: 'flex', flexDirection: 'column' }}>
       {/* Header — mesmo padrão sticky colorido do modal de lançamento do dono */}
       <div style={{
@@ -308,5 +310,6 @@ function PaymentModal({ openDebts, onClose, onSubmit }: PaymentModalProps) {
         </div>
       </div>
     </div>
+    </FullScreenModal>
   );
 }

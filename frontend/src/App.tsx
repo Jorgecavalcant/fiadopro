@@ -70,6 +70,7 @@ import { AppView, Customer, Transaction, CustomerWithBalance, TransactionType, L
 import Layout from './components/Layout';
 import AdminPanel from './components/AdminPanel';
 import UpgradePlano from './components/UpgradePlano';
+import FullScreenModal from './components/FullScreenModal';
 import { getFinancialAdvice, getGeneralBusinessAdvice, extractItemsFromInvoice } from './services/aiService';
 import { translations, Translation } from './translations';
 import { SplashScreen } from '@capacitor/splash-screen';
@@ -419,20 +420,20 @@ const DashboardView = ({ stats, formatCurrency, navigateToCustomer, setActiveVie
 
 const ReceivablesListView = ({ receivables, formatCurrency, navigateToCustomer, t }: any) => (
   <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-     <div className="flex items-center gap-4 bg-indigo-50 border border-indigo-200 p-8 rounded-[2.5rem]">
+     <div className="flex items-center gap-4 bg-indigo-50 border border-indigo-200 p-8 rounded-t42lg">
         <div className="bg-indigo-600 p-4 rounded-3xl text-white shadow-lg"><ArrowUpRight className="w-10 h-10" /></div>
         <div><h2 className="text-2xl font-black text-indigo-900">{t.receivablesList}</h2><p className="text-indigo-700 font-medium leading-relaxed">Clientes com saldos pendentes a receber, ordenados pelos maiores valores.</p></div>
      </div>
 
      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {receivables.length === 0 ? (
-          <div className="col-span-full py-20 text-center bg-white rounded-[3rem] border border-slate-200">
+          <div className="col-span-full py-20 text-center bg-white rounded-t42xl border border-slate-200">
              <div className="bg-slate-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6"><CheckCircle2 className="w-12 h-12 text-slate-300" /></div>
              <h3 className="text-xl font-black text-slate-800">Sem recebíveis pendentes</h3>
           </div>
         ) : (
           receivables.map((c: any) => (
-            <div key={c.id} onClick={() => navigateToCustomer(c.id)} className="bg-white p-8 rounded-[3rem] border border-slate-200 hover:border-indigo-400 hover:shadow-xl transition-all cursor-pointer group">
+            <div key={c.id} onClick={() => navigateToCustomer(c.id)} className="bg-white p-8 rounded-t42xl border border-slate-200 hover:border-indigo-400 hover:shadow-xl transition-all cursor-pointer group">
                <div className="flex items-center gap-5 mb-8">
                   <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all">{c.name.charAt(0)}</div>
                   <div><h3 className="font-black text-slate-900 text-lg group-hover:text-indigo-600 transition-colors">{c.name}</h3><p className="text-xs text-slate-400 font-bold">{c.phone}</p></div>
@@ -949,7 +950,7 @@ const DebtorsListView: React.FC<{ debts: Debt[]; setDebts: React.Dispatch<React.
           const customer = customers.find(c => c.id === debt.customerId);
           const event = events.find(e => e.id === debt.eventId);
           return (
-            <div key={debt.id} onClick={() => navigateToCustomer(debt.customerId)} className="bg-white p-8 rounded-[3rem] border border-slate-200 hover:border-indigo-300 transition-all cursor-pointer group">
+            <div key={debt.id} onClick={() => navigateToCustomer(debt.customerId)} className="bg-white p-8 rounded-t42xl border border-slate-200 hover:border-indigo-300 transition-all cursor-pointer group">
               <div className="flex items-center gap-5 mb-8">
                 <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">{customer?.name.charAt(0) || '?'}
                 </div>
@@ -978,7 +979,7 @@ const DebtorsListView: React.FC<{ debts: Debt[]; setDebts: React.Dispatch<React.
 const SplitBillView = ({ events, setEvents, setIsEventModalOpen, setSelectedEventId, setActiveView, formatCurrency, t, setTransactions, setDebts }: any) => (
   <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-      <div className="flex items-center gap-4 bg-indigo-50 border border-indigo-200 p-8 rounded-[2.5rem] w-full md:w-auto flex-1">
+      <div className="flex items-center gap-4 bg-indigo-50 border border-indigo-200 p-8 rounded-t42lg w-full md:w-auto flex-1">
         <div className="bg-indigo-600 p-4 rounded-3xl text-white shadow-lg"><Receipt className="w-10 h-10" /></div>
         <div><h2 className="text-2xl font-black text-indigo-900">{t.splitBill}</h2><p className="text-indigo-700 font-medium leading-relaxed">{t.aiBusinessDescription}</p></div>
       </div>
@@ -987,7 +988,7 @@ const SplitBillView = ({ events, setEvents, setIsEventModalOpen, setSelectedEven
     
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {events.length === 0 ? (
-        <div className="col-span-full py-20 text-center bg-white rounded-[3rem] border border-slate-200">
+        <div className="col-span-full py-20 text-center bg-white rounded-t42xl border border-slate-200">
           <div className="bg-slate-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6"><Receipt className="w-12 h-12 text-slate-300" /></div>
           <h3 className="text-xl font-black text-slate-800">{t.noEvents}</h3>
           <p className="text-slate-500 font-bold mt-2">{t.createFirstEvent}</p>
@@ -997,7 +998,7 @@ const SplitBillView = ({ events, setEvents, setIsEventModalOpen, setSelectedEven
           const total = event.items.reduce((sum: number, i: any) => sum + i.price, 0);
           return (
             <div key={event.id} className="relative group">
-              <div onClick={() => { setSelectedEventId(event.id); setActiveView(AppView.EVENT_DETAIL); }} className="bg-white p-8 rounded-[3rem] border border-slate-200 hover:border-indigo-400 hover:shadow-xl transition-all cursor-pointer shadow-sm h-full flex flex-col justify-between">
+              <div onClick={() => { setSelectedEventId(event.id); setActiveView(AppView.EVENT_DETAIL); }} className="bg-white p-8 rounded-t42xl border border-slate-200 hover:border-indigo-400 hover:shadow-xl transition-all cursor-pointer shadow-sm h-full flex flex-col justify-between">
                 <div>
                   <div className="flex justify-between items-start mb-6">
                     <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
@@ -1347,7 +1348,7 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
          </div>
       </div>
 
-      <div className="bg-white p-8 md:p-12 rounded-[3.5rem] border border-slate-200 shadow-sm">
+      <div className="bg-white p-8 md:p-12 rounded-t42xl border border-slate-200 shadow-sm">
          <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-12">
             <div><h2 className="text-3xl font-black text-slate-900 mb-2">{event.name}</h2><p className="text-slate-400 font-bold text-sm">{new Date(event.date).toLocaleDateString()}</p></div>
             <div className="md:text-right"><p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mb-1">{t.totalBill}</p><p className="text-4xl font-black text-indigo-600">{formatCurrency(totalBill)}</p></div>
@@ -1439,7 +1440,7 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
                
                <div className="space-y-6">
                 {event.participants.map((p: any) => (
-                  <div key={p.id} className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 animate-in fade-in slide-in-from-right-4 duration-200">
+                  <div key={p.id} className="bg-slate-50 p-6 rounded-t42lg border border-slate-100 animate-in fade-in slide-in-from-right-4 duration-200">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="flex-1 relative">
                         <input
@@ -1508,7 +1509,7 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
                 ))}
                </div>
 
-               <div className="bg-indigo-50 border-2 border-indigo-200 rounded-[2.5rem] p-8 shadow-sm">
+               <div className="bg-indigo-50 border-2 border-indigo-200 rounded-t42lg p-8 shadow-sm">
                   <p className="text-indigo-400 font-black uppercase tracking-widest text-[10px] mb-4">CÁLCULO FINAL</p>
                   <button onClick={handleConfirmSplit} disabled={totalBill <= 0 || event.isCompleted} className="w-full bg-green-600 hover:bg-green-700 text-white py-5 rounded-2xl font-black text-lg transition-all shadow-lg active:scale-95 disabled:opacity-50">{event.isCompleted ? '✓ Divisão já confirmada' : (t.confirmSplitBtn || "Confirmar Divisão")}</button>
                   {event.splitDirty && (
@@ -1558,7 +1559,7 @@ const InstallmentGroupCard = ({ group, formatCurrency, t, onPayInstallment }: { 
   const saldo = group.totalAmount - group.totalPaid;
 
   return (
-    <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+    <div className="bg-white rounded-t42lg border border-slate-200 overflow-hidden shadow-sm">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full p-6 flex items-center justify-between hover:bg-slate-50 transition-colors"
@@ -1864,10 +1865,10 @@ const CustomerDetailView = ({
         </div>
       </div>
 
-      <div className="bg-white p-5 md:p-12 rounded-[2rem] md:rounded-[3.5rem] border border-slate-200 shadow-sm overflow-hidden relative">
+      <div className="bg-white p-5 md:p-12 rounded-t42lg md:rounded-t42xl border border-slate-200 shadow-sm overflow-hidden relative">
         <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-8 md:mb-12 relative z-10">
           <div className="flex items-center gap-6">
-            <div className="w-20 h-20 bg-indigo-600 rounded-[2rem] flex items-center justify-center text-white font-black text-3xl shadow-lg shadow-indigo-200">{selectedCustomer.name.charAt(0)}</div>
+            <div className="w-20 h-20 bg-indigo-600 rounded-t42lg flex items-center justify-center text-white font-black text-3xl shadow-lg shadow-indigo-200">{selectedCustomer.name.charAt(0)}</div>
             <div>
               <h2 className="text-3xl font-black text-slate-900 mb-1">{selectedCustomer.name}</h2>
               <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -1919,7 +1920,7 @@ const CustomerDetailView = ({
         </div>
 
         {selectedCustomer.rawBalance < 0 && (
-          <div className="bg-indigo-50 border border-indigo-100 rounded-[2.5rem] p-8 mb-12 animate-in slide-in-from-top-4 duration-300 relative z-10">
+          <div className="bg-indigo-50 border border-indigo-100 rounded-t42lg p-8 mb-12 animate-in slide-in-from-top-4 duration-300 relative z-10">
              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
                    <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg"><ArrowDownCircle className="w-8 h-8" /></div>
@@ -1978,7 +1979,7 @@ const CustomerDetailView = ({
                 </div>
               ) : (
                 filteredTransactions.map((tx: Transaction) => (
-                  <div key={tx.id} className="group flex items-center justify-between p-6 bg-slate-50 rounded-[2rem] border border-transparent hover:border-indigo-100 hover:bg-white transition-all hover:shadow-md">
+                  <div key={tx.id} className="group flex items-center justify-between p-6 bg-slate-50 rounded-t42lg border border-transparent hover:border-indigo-100 hover:bg-white transition-all hover:shadow-md">
                     <div className="flex items-center gap-5">
                       <div className={`p-3 rounded-2xl ${tx.type === 'DEBT' ? 'bg-orange-100 text-orange-600' : (tx.type === 'PAYMENT' ? 'bg-emerald-100 text-emerald-600' : (tx.type === 'ABATIMENTO' ? 'bg-purple-100 text-purple-600' : 'bg-indigo-100 text-indigo-600'))}`}>
                         {tx.type === 'DEBT' ? <ArrowUpRight className="w-5 h-5" /> : (tx.type === 'ABATIMENTO' ? <RefreshCcw className="w-5 h-5" /> : <ArrowDownLeft className="w-5 h-5" />)}
@@ -2038,7 +2039,7 @@ const CustomerDetailView = ({
           </div>
 
           <div className="space-y-8">
-            <div className="bg-indigo-900 rounded-[2.5rem] p-8 text-white shadow-xl relative overflow-hidden group">
+            <div className="bg-indigo-900 rounded-t42lg p-8 text-white shadow-xl relative overflow-hidden group">
               <div className="relative z-10">
                 <h3 className="text-xl font-black mb-4 flex items-center gap-3"><Sparkles className="w-6 h-6 text-amber-400" /> {t.aiAnalysis}</h3>
                 {!isPro && (
@@ -2062,7 +2063,7 @@ const CustomerDetailView = ({
               <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/5 rounded-full blur-3xl group-hover:bg-white/10 transition-colors duration-500"></div>
             </div>
 
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
+            <div className="bg-white p-8 rounded-t42lg border border-slate-200 shadow-sm">
                <div className="flex items-center justify-between mb-6">
                   <button onClick={() => setIsNotesModalOpen(true)} className="flex items-center gap-3 hover:text-indigo-600 transition-colors">
                     <FileText className="w-5 h-5 text-indigo-600" /> 
@@ -2139,7 +2140,7 @@ const CustomerDetailView = ({
                </div>
             </div>
 
-            <div className="bg-emerald-50 p-8 rounded-[2.5rem] border border-emerald-100 shadow-sm group">
+            <div className="bg-emerald-50 p-8 rounded-t42lg border border-emerald-100 shadow-sm group">
                <h3 className="text-lg font-black text-emerald-900 mb-4 flex items-center gap-3"><Phone className="w-5 h-5" /> {t.notifyCustomer}</h3>
                <p className="text-sm text-emerald-700 font-medium mb-6 leading-relaxed">Envie um lembrete gentil com o resumo atualizado da conta diretamente para o WhatsApp.</p>
                <button onClick={() => handleShareWhatsApp('GENTLE')} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-3 active:scale-95 shadow-emerald-100/50">
@@ -2211,9 +2212,9 @@ const ProfileView = ({ user, setUser, t, setActiveView, onExport, onImport, onDe
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-       <div className="bg-white p-6 md:p-12 rounded-[3.5rem] border border-slate-200 shadow-sm">
+       <div className="bg-white p-6 md:p-12 rounded-t42xl border border-slate-200 shadow-sm">
           <div className="flex flex-col md:flex-row items-center gap-6 mb-12 pb-12 border-b border-slate-100">
-             <div className="w-24 h-24 bg-indigo-600 rounded-[2.5rem] flex items-center justify-center text-white font-black text-4xl shadow-xl shadow-indigo-100">{user.name.charAt(0)}</div>
+             <div className="w-24 h-24 bg-indigo-600 rounded-t42lg flex items-center justify-center text-white font-black text-4xl shadow-xl shadow-indigo-100">{user.name.charAt(0)}</div>
              <div className="text-center md:text-left">
                 <h2 className="text-3xl font-black text-slate-900">{user.name}</h2>
                 <p className="text-slate-400 font-bold">{user.email}</p>
@@ -2268,14 +2269,14 @@ const ProfileView = ({ user, setUser, t, setActiveView, onExport, onImport, onDe
                 />
              </div>
              <div className="md:col-span-2 pt-6">
-                <button type="submit" disabled={savingProfile} className="w-full bg-indigo-600 text-white py-5 rounded-[2rem] font-black text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-60">
+                <button type="submit" disabled={savingProfile} className="w-full bg-indigo-600 text-white py-5 rounded-t42lg font-black text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-60">
                   {savingProfile ? 'Salvando…' : t.saveChanges}
                 </button>
              </div>
           </form>
        </div>
 
-       <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-4">
+       <div className="bg-white p-8 rounded-t42lg border border-slate-200 shadow-sm space-y-4">
           <h3 className="text-lg font-black text-slate-800 flex items-center gap-3"><Download className="w-5 h-5 text-indigo-600" /> {t.exportData} / {t.importData}</h3>
           <div className="flex gap-4 flex-wrap">
             <button onClick={onExport} className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-sm shadow-lg hover:bg-indigo-700 transition-all active:scale-95">
@@ -2294,7 +2295,7 @@ const ProfileView = ({ user, setUser, t, setActiveView, onExport, onImport, onDe
        <UpgradePlano />
 
        {/* Zona de Perigo */}
-       <div className="bg-red-50 border border-red-200 p-8 rounded-[2.5rem] space-y-4">
+       <div className="bg-red-50 border border-red-200 p-8 rounded-t42lg space-y-4">
          <h3 className="text-lg font-black text-red-700 flex items-center gap-2">⚠️ Zona de Perigo</h3>
          <p className="text-sm text-red-600 font-medium">Esta ação é irreversível. Todos os dados serão permanentemente apagados.</p>
          <button
@@ -2306,8 +2307,9 @@ const ProfileView = ({ user, setUser, t, setActiveView, onExport, onImport, onDe
        </div>
 
        {cancelStep > 0 && (
+      <FullScreenModal>
          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4">
-           <div className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl p-10 space-y-6 animate-in zoom-in">
+           <div className="bg-white w-full max-w-md rounded-t42xl shadow-2xl p-10 space-y-6 animate-in zoom-in">
 
              {cancelStep === 1 && (
                <>
@@ -2382,6 +2384,7 @@ const ProfileView = ({ user, setUser, t, setActiveView, onExport, onImport, onDe
              )}
            </div>
          </div>
+      </FullScreenModal>
        )}
     </div>
   );
@@ -2405,7 +2408,7 @@ const ToPayView: React.FC<{ customers: CustomerWithBalance[]; formatCurrency: (a
         <h2 className="text-3xl font-black text-slate-900 mb-6">{t.toPay}</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {debtsToPay.map(c => (
-            <div key={c.id} className="bg-white p-8 rounded-[3rem] border border-slate-200 hover:border-indigo-300 transition-all group">
+            <div key={c.id} className="bg-white p-8 rounded-t42xl border border-slate-200 hover:border-indigo-300 transition-all group">
               <div className="flex items-center gap-5 mb-8">
                 <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">{c.name.charAt(0)}</div>
                 <div>
@@ -2534,7 +2537,7 @@ const NotificationsView = ({ transactions, setTransactions, customers, formatCur
         {pending.map(tx => {
           const customer = customers.find(c => c.id === tx.customerId);
           return (
-            <div key={tx.id} className="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-sm">
+            <div key={tx.id} className="bg-white p-8 rounded-t42xl border border-slate-200 shadow-sm">
               <div className="flex items-center gap-5 mb-6">
                 <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 font-black text-2xl shadow-sm">
                   {customer?.name.charAt(0) || '?'}
@@ -2600,7 +2603,7 @@ const AuditLogView = ({ auditLog, t }: { auditLog: AuditEntry[]; t: Translation 
       </h2>
       <div className="space-y-3">
         {sorted.map(entry => (
-          <div key={entry.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 flex items-center justify-between gap-4">
+          <div key={entry.id} className="bg-white p-6 rounded-t42lg border border-slate-100 flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <span className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest ${actionColors[entry.action] || 'bg-slate-100 text-slate-600'}`}>
                 {entry.action}
@@ -3300,7 +3303,7 @@ const App: React.FC = () => {
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white w-full max-w-md p-10 rounded-[3rem] shadow-2xl text-center space-y-6 animate-in fade-in zoom-in">
+        <div className="bg-white w-full max-w-md p-10 rounded-t42xl shadow-2xl text-center space-y-6 animate-in fade-in zoom-in">
           <div className="bg-indigo-100 w-24 h-24 rounded-3xl flex items-center justify-center mx-auto text-indigo-600"><Wallet className="w-12 h-12" /></div>
           <div>
             <h1 className="text-3xl font-black text-slate-900">{t.loginTitle}</h1>
@@ -3388,7 +3391,7 @@ const App: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {customersWithBalance.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase())).map(c => (
-              <div key={c.id} onClick={() => navigateToCustomer(c.id)} className="bg-white p-8 rounded-[3rem] border border-slate-200 hover:border-indigo-300 transition-all cursor-pointer group">
+              <div key={c.id} onClick={() => navigateToCustomer(c.id)} className="bg-white p-8 rounded-t42xl border border-slate-200 hover:border-indigo-300 transition-all cursor-pointer group">
                 <div className="flex items-center gap-5 mb-8"><div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">{c.name.charAt(0)}</div><div><h3 className="text-lg font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{c.name}</h3><p className="text-xs text-slate-400 font-bold">{c.phone}</p></div></div>
                 <div className="pt-6 border-t border-slate-50 flex justify-between items-end"><div><p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mb-1">{t.pendingBalance}</p><p className={`text-2xl font-black ${c.rawBalance > 0 ? 'text-red-600' : (c.rawBalance < 0 ? 'text-green-600' : 'text-slate-400')}`}>{c.rawBalance < 0 ? '-' : ''}{formatCurrency(Math.abs(c.rawBalance))}</p></div><ChevronRight className="w-6 h-6 text-slate-200 group-hover:text-indigo-600 transition-all" /></div>
               </div>
@@ -3450,7 +3453,7 @@ const App: React.FC = () => {
       {activeView === AppView.AUDIT_LOG && <AuditLogView auditLog={auditLog} t={t} />}
       {activeView === AppView.INSIGHTS && (
         <div className="space-y-6 animate-in fade-in duration-500">
-           <div className="bg-indigo-900 text-white p-10 rounded-[3rem] shadow-xl">
+           <div className="bg-indigo-900 text-white p-10 rounded-t42xl shadow-xl">
               <h2 className="text-3xl font-black mb-4 flex items-center gap-3"><Sparkles className="w-8 h-8 text-amber-400" /> {t.insights}</h2>
               <p className="text-indigo-200 text-lg mb-8 leading-relaxed">{t.aiBusinessDescription}</p>
               <button 
@@ -3539,6 +3542,7 @@ const App: React.FC = () => {
       </button>
 
       {isQuickAddOpen && (
+      <FullScreenModal>
         <div className="fp-page-slide" style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#F8FAFC', display: 'flex', flexDirection: 'column' }}>
           {/* Header */}
           <div style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', height: 60, flexShrink: 0, background: quickAddStep === 1 ? 'linear-gradient(135deg,#6366F1,#8B5CF6)' : quickAddType === 'DEBT' ? 'linear-gradient(135deg,#F97316,#EF4444)' : 'linear-gradient(135deg,#10B981,#059669)' }}>
@@ -3605,9 +3609,11 @@ const App: React.FC = () => {
           </div>
           </div>
         </div>
+      </FullScreenModal>
       )}
 
       {isNotesModalOpen && selectedCustomer && (
+      <FullScreenModal>
         <div className="fp-page-slide" style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#F8FAFC', display: 'flex', flexDirection: 'column' }}>
           {/* Header */}
           <div style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', height: 60, flexShrink: 0, background: 'linear-gradient(135deg,#0F172A,#1E293B)' }}>
@@ -3671,9 +3677,11 @@ const App: React.FC = () => {
           </div>
           </div>
         </div>
+      </FullScreenModal>
       )}
 
       {(isCustomerModalOpen || isEditCustomerModalOpen) && (
+      <FullScreenModal>
         <div className="fp-page-slide" style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#F8FAFC', display: 'flex', flexDirection: 'column' }}>
           {/* Header */}
           <div style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', height: 60, flexShrink: 0, background: 'linear-gradient(135deg,#6366F1,#8B5CF6)', }}>
@@ -3739,9 +3747,11 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
+      </FullScreenModal>
       )}
 
       {isTransactionModalOpen && (
+      <FullScreenModal>
         <div className="fp-page-slide" style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#F8FAFC', display: 'flex', flexDirection: 'column' }}>
           {/* Header */}
           <div style={{
@@ -3901,11 +3911,13 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
+      </FullScreenModal>
       )}
 
       {isUpgradeModalOpen && (
+      <FullScreenModal>
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl p-10 space-y-8 animate-in zoom-in overflow-y-auto max-h-[90vh]">
+          <div className="bg-white w-full max-w-2xl rounded-t42xl shadow-2xl p-10 space-y-8 animate-in zoom-in overflow-y-auto max-h-[90vh]">
             <div className="text-center">
               <div className="bg-indigo-600 w-20 h-20 rounded-full flex items-center justify-center mx-auto text-amber-300 shadow-xl mb-4"><Crown className="w-10 h-10" /></div>
               <h3 className="text-2xl font-black text-slate-800">Escolha seu Plano</h3>
@@ -3951,9 +3963,11 @@ const App: React.FC = () => {
             <button onClick={() => setIsUpgradeModalOpen(false)} className="w-full text-slate-400 text-sm font-bold uppercase tracking-widest">Fechar</button>
           </div>
         </div>
+      </FullScreenModal>
       )}
 
       {isEventModalOpen && (
+      <FullScreenModal>
         <div className="fp-page-slide" style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#F8FAFC', display: 'flex', flexDirection: 'column' }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', height: 60, flexShrink: 0, background: 'linear-gradient(135deg,#0EA5E9,#6366F1)' }}>
             <button onClick={() => setIsEventModalOpen(false)} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -3986,6 +4000,7 @@ const App: React.FC = () => {
           </div>
           </div>
         </div>
+      </FullScreenModal>
       )}
       </div>
     </div>

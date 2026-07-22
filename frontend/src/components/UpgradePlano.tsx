@@ -155,7 +155,7 @@ const UpgradePlano: React.FC = () => {
   const isPro = statusData?.plan === 'PRO' || statusData?.plan === 'ADMIN';
 
   return (
-    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
+    <div className="bg-white p-8 rounded-t42lg border border-slate-200 shadow-sm space-y-6">
       <div className="flex items-center gap-3">
         <div className="bg-indigo-600 w-12 h-12 rounded-2xl flex items-center justify-center text-amber-300 shadow-lg shrink-0">
           <Crown className="w-6 h-6" />
