@@ -1042,6 +1042,8 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
   const [participantSearch, setParticipantSearch] = useState<Record<string, string>>({});
   const [lastAddedParticipantId, setLastAddedParticipantId] = useState<string | null>(null);
   const participantRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+  const [lastAddedItemId, setLastAddedItemId] = useState<string | null>(null);
+  const itemRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const event = events.find((e: any) => e.id === selectedEventId);
 
   // Foca e rola até o participante recém-criado (adicionado via botão "Adicionar Pessoa").
@@ -1054,6 +1056,17 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
     }
     setLastAddedParticipantId(null);
   }, [lastAddedParticipantId]);
+
+  // Foca e rola até o item recém-criado (adicionado via botão "Adicionar Item").
+  useEffect(() => {
+    if (!lastAddedItemId) return;
+    const el = itemRefs.current.get(lastAddedItemId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.focus();
+    }
+    setLastAddedItemId(null);
+  }, [lastAddedItemId]);
 
   if (!event) return null;
 
@@ -1350,7 +1363,11 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
                       {isScanning ? t.thinking : t.scanInvoice}
                       <input type="file" accept="image/*" className="hidden" onChange={handleScanInvoice} disabled={isScanning} />
                     </label>
-                    <button onClick={() => updateEventContent((ev: BillEvent) => ({ ...ev, items: [...ev.items, { id: generateId(), name: '', price: 0, quantity: 1, unitPrice: 0 }] }))} className="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-100 transition-all">{t.addItem}</button>
+                    <button onClick={() => {
+                      const newItemId = generateId();
+                      updateEventContent((ev: BillEvent) => ({ ...ev, items: [...ev.items, { id: newItemId, name: '', price: 0, quantity: 1, unitPrice: 0 }] }));
+                      setLastAddedItemId(newItemId);
+                    }} className="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-100 transition-all">{t.addItem}</button>
                   </div>
                </div>
                <div className="space-y-3">{event.items.map((item: any) => {
@@ -1359,7 +1376,13 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
                   return (
                     <div key={item.id} className="flex flex-col gap-2 bg-slate-50 rounded-2xl p-3">
                       <div className="flex gap-3">
-                        <input value={item.name} onChange={(e) => updateEventContent((ev: BillEvent) => ({ ...ev, items: ev.items.map((i: any) => i.id === item.id ? { ...i, name: e.target.value } : i) }))} placeholder={t.itemName} className="flex-1 px-5 py-3 bg-white border-none rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                        <input
+                          ref={(el) => { if (el) itemRefs.current.set(item.id, el); else itemRefs.current.delete(item.id); }}
+                          value={item.name}
+                          onChange={(e) => updateEventContent((ev: BillEvent) => ({ ...ev, items: ev.items.map((i: any) => i.id === item.id ? { ...i, name: e.target.value } : i) }))}
+                          placeholder={t.itemName}
+                          className="flex-1 px-5 py-3 bg-white border-2 border-[#E4E8F5] rounded-t42md font-bold text-sm outline-none focus:border-[#5967D8]"
+                        />
                         <button onClick={() => updateEventContent((ev: BillEvent) => ({ ...ev, items: ev.items.filter((i: any) => i.id !== item.id) }))} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><XCircle className="w-5 h-5" /></button>
                       </div>
                       <div className="flex gap-3 items-center">
@@ -1368,7 +1391,7 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
                           <input type="number" step="1" min="0" value={quantity === 0 ? '' : quantity} onChange={(e) => {
                             const newQuantity = parseFloat(e.target.value) || 0;
                             updateEventContent((ev: BillEvent) => ({ ...ev, items: ev.items.map((i: any) => i.id === item.id ? { ...i, quantity: newQuantity, unitPrice: getItemUnitPrice(i), price: computeItemPrice({ quantity: newQuantity, unitPrice: getItemUnitPrice(i), price: i.price }) } : i) }));
-                          }} placeholder="1" className="w-16 px-3 py-2 bg-white border-none rounded-xl font-black text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500" />
+                          }} placeholder="1" className="w-16 px-3 py-2 bg-white border-2 border-[#E4E8F5] rounded-t42sm font-black text-sm text-center outline-none focus:border-[#5967D8]" />
                         </div>
                         <div className="relative flex-1">
                           <label className="text-[9px] text-slate-400 font-black uppercase mb-1 block">{t.unitPrice}</label>
@@ -1376,7 +1399,7 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
                           <input type="number" step="0.01" value={unitPrice === 0 ? '' : unitPrice} onChange={(e) => {
                             const newUnitPrice = parseFloat(e.target.value) || 0;
                             updateEventContent((ev: BillEvent) => ({ ...ev, items: ev.items.map((i: any) => i.id === item.id ? { ...i, unitPrice: newUnitPrice, quantity: getItemQuantity(i), price: computeItemPrice({ quantity: getItemQuantity(i), unitPrice: newUnitPrice, price: i.price }) } : i) }));
-                          }} placeholder="0,00" className="w-full pl-9 pr-4 py-2 bg-white border-none rounded-xl font-black text-sm text-right outline-none focus:ring-2 focus:ring-indigo-500" />
+                          }} placeholder="0,00" className="w-full pl-9 pr-4 py-2 bg-white border-2 border-[#E4E8F5] rounded-t42sm font-black text-sm text-right outline-none focus:border-[#5967D8]" />
                         </div>
                         <div className="flex flex-col items-end">
                           <label className="text-[9px] text-slate-400 font-black uppercase mb-1">{t.itemTotal}</label>
@@ -1888,11 +1911,11 @@ const CustomerDetailView = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12 relative z-10">
-          <button onClick={() => { setTransactionType('DEBT'); setEditTransactionData(null); setIsTransactionModalOpen(true); }} className="flex-1 flex items-center justify-center gap-3 bg-orange-600 text-white py-5 rounded-3xl font-black text-lg shadow-xl hover:bg-orange-700 transition-all active:scale-95 shadow-orange-100"><ArrowUpRight className="w-6 h-6" /> {t.newPurchase}</button>
-          <button onClick={() => { setTransactionType('PAYMENT'); setEditTransactionData(null); setIsTransactionModalOpen(true); }} className="flex-1 flex items-center justify-center gap-3 bg-emerald-600 text-white py-5 rounded-3xl font-black text-lg shadow-xl hover:bg-emerald-700 transition-all active:scale-95 shadow-emerald-100"><ArrowDownLeft className="w-6 h-6" /> {t.logPayment}</button>
-          <button onClick={() => { setTransactionType('ABATIMENTO'); setEditTransactionData(null); setIsTransactionModalOpen(true); }} className="flex-1 flex items-center justify-center gap-3 bg-purple-600 text-white py-5 rounded-3xl font-black text-lg shadow-xl hover:bg-purple-700 transition-all active:scale-95 shadow-purple-100"><RefreshCcw className="w-6 h-6" /> Abatimento</button>
-          <button onClick={() => { setTransactionType('REFUND'); setEditTransactionData(null); setIsTransactionModalOpen(true); }} className="flex-1 flex items-center justify-center gap-3 bg-blue-600 text-white py-5 rounded-3xl font-black text-lg shadow-xl hover:bg-blue-700 transition-all active:scale-95 shadow-blue-100"><ArrowDownCircle className="w-6 h-6" /> Devolução</button>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-12 relative z-10">
+          <button onClick={() => { setTransactionType('DEBT'); setEditTransactionData(null); setIsTransactionModalOpen(true); }} className="flex-1 flex items-center justify-center gap-2.5 text-white py-4 rounded-t42lg font-bold text-base shadow-t42sm hover:brightness-110 transition-all active:scale-95" style={{ background: '#1C2446' }}><ArrowUpRight className="w-5 h-5" /> {t.newPurchase}</button>
+          <button onClick={() => { setTransactionType('PAYMENT'); setEditTransactionData(null); setIsTransactionModalOpen(true); }} className="flex-1 flex items-center justify-center gap-2.5 text-white py-4 rounded-t42lg font-bold text-base shadow-t42sm hover:brightness-110 transition-all active:scale-95" style={{ background: '#2E9D6F' }}><ArrowDownLeft className="w-5 h-5" /> {t.logPayment}</button>
+          <button onClick={() => { setTransactionType('ABATIMENTO'); setEditTransactionData(null); setIsTransactionModalOpen(true); }} className="flex-1 flex items-center justify-center gap-2.5 text-white py-4 rounded-t42lg font-bold text-base shadow-t42sm hover:brightness-110 transition-all active:scale-95" style={{ background: '#7252E2' }}><RefreshCcw className="w-5 h-5" /> Abatimento</button>
+          <button onClick={() => { setTransactionType('REFUND'); setEditTransactionData(null); setIsTransactionModalOpen(true); }} className="flex-1 flex items-center justify-center gap-2.5 text-white py-4 rounded-t42lg font-bold text-base shadow-t42sm hover:brightness-110 transition-all active:scale-95" style={{ background: '#3D559C' }}><ArrowDownCircle className="w-5 h-5" /> Devolução</button>
         </div>
 
         {selectedCustomer.rawBalance < 0 && (
@@ -3725,7 +3748,7 @@ const App: React.FC = () => {
             position: 'sticky', top: 0, zIndex: 10,
             display: 'flex', alignItems: 'center', gap: 12,
             padding: '0 16px', height: 60, flexShrink: 0,
-            background: transactionType === 'DEBT' ? 'linear-gradient(135deg,#F97316,#EF4444)' : transactionType === 'PAYMENT' ? 'linear-gradient(135deg,#10B981,#059669)' : transactionType === 'ABATIMENTO' ? 'linear-gradient(135deg,#8B5CF6,#7C3AED)' : transactionType === 'REFUND' ? 'linear-gradient(135deg,#3B82F6,#2563EB)' : 'linear-gradient(135deg,#6366F1,#4F46E5)',
+            background: transactionType === 'DEBT' ? 'linear-gradient(135deg,#1C2446,#26315B)' : transactionType === 'PAYMENT' ? 'linear-gradient(135deg,#2E9D6F,#25835D)' : transactionType === 'ABATIMENTO' ? 'linear-gradient(135deg,#7252E2,#5F3FD1)' : transactionType === 'REFUND' ? 'linear-gradient(135deg,#3D559C,#2F4480)' : 'linear-gradient(135deg,#5967D8,#4654C4)',
           }}>
             <button onClick={() => { setIsTransactionModalOpen(false); setInstallmentPreFill(null); }} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <ArrowLeft style={{ width: 20, height: 20 }} />
@@ -3752,17 +3775,17 @@ const App: React.FC = () => {
                   <p className="text-xs font-black text-indigo-700">Pagamento de parcela {installmentPreFill.installmentNumber} pré-preenchido</p>
                 </div>
               )}
-              <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-2">{t.amount} (R$)</label><input required name="amount" type="number" step="0.01" defaultValue={installmentPreFill?.amount || editTransactionData?.amount || ''} onChange={e => setCurrentAmountValue(parseFloat(e.target.value) || 0)} className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-4xl font-black" autoFocus /></div>
+              <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-2">{t.amount} (R$)</label><input required name="amount" type="number" step="0.01" defaultValue={installmentPreFill?.amount || editTransactionData?.amount || ''} onChange={e => setCurrentAmountValue(parseFloat(e.target.value) || 0)} className="w-full px-5 py-4 bg-white border-2 border-[#CCD2E9] rounded-t42md text-4xl font-black focus:outline-none focus:border-[#5967D8]" autoFocus /></div>
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">{t.description}</label>
-                <input required name="description" defaultValue={installmentPreFill?.description || editTransactionData?.description || ''} className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl font-bold" />
+                <input required name="description" defaultValue={installmentPreFill?.description || editTransactionData?.description || ''} className="w-full px-5 py-4 bg-white border-2 border-[#CCD2E9] rounded-t42md font-bold focus:outline-none focus:border-[#5967D8]" />
                 {transactionType === 'ABATIMENTO' && (
                   <p className="text-xs text-purple-600 font-bold mt-1">Ex: Recebido em mercadoria, serviço prestado, troca, etc.</p>
                 )}
               </div>
               <div>
                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">{t.relatedEvent}</label>
-                 <select name="eventId" defaultValue={editTransactionData?.eventId || ''} className="w-full px-5 py-3 bg-slate-50 rounded-xl border-none font-bold">
+                 <select name="eventId" defaultValue={editTransactionData?.eventId || ''} className="w-full px-5 py-3 bg-white border-2 border-[#CCD2E9] rounded-t42md font-bold focus:outline-none focus:border-[#5967D8]">
                     <option value="">Nenhum evento</option>
                     {/* Alteração crítica: Mostrar TODOS os eventos para permitir vínculo retroativo */}
                     {events.map(ev => (
@@ -3771,9 +3794,9 @@ const App: React.FC = () => {
                  </select>
               </div>
               {transactionType === 'DEBT' ? (
-                <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-2">{t.dueDate}</label><input name="dueDate" type="date" className="w-full px-5 py-3 bg-slate-50 rounded-xl border-none font-bold" /></div>
+                <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-2">{t.dueDate}</label><input name="dueDate" type="date" className="w-full px-5 py-3 bg-white border-2 border-[#CCD2E9] rounded-t42md font-bold focus:outline-none focus:border-[#5967D8]" /></div>
               ) : (
-                <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-2">{t.paymentMethod}</label><select name="paymentMethod" className="w-full px-5 py-3 bg-slate-50 rounded-xl font-bold"><option value="PIX">Pix</option><option value="CREDIT_CARD">Cartão Crédito</option><option value="DEBIT_CARD">Cartão Débito</option><option value="COMPENSATION">{t.compensation}</option></select></div>
+                <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-2">{t.paymentMethod}</label><select name="paymentMethod" className="w-full px-5 py-3 bg-white border-2 border-[#CCD2E9] rounded-t42md font-bold focus:outline-none focus:border-[#5967D8]"><option value="PIX">Pix</option><option value="CREDIT_CARD">Cartão Crédito</option><option value="DEBIT_CARD">Cartão Débito</option><option value="COMPENSATION">{t.compensation}</option></select></div>
               )}
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Comprovante (opcional)</label>
@@ -3869,10 +3892,10 @@ const App: React.FC = () => {
                 </div>
               )}
               <button type="submit" style={{
-                width: '100%', padding: '16px', borderRadius: 16, border: 'none', cursor: 'pointer',
-                fontWeight: 900, fontSize: 16, color: 'white',
-                background: transactionType === 'DEBT' ? 'linear-gradient(135deg,#F97316,#EF4444)' : transactionType === 'ABATIMENTO' ? 'linear-gradient(135deg,#8B5CF6,#7C3AED)' : transactionType === 'REFUND' ? 'linear-gradient(135deg,#3B82F6,#2563EB)' : 'linear-gradient(135deg,#10B981,#059669)',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.15)', marginTop: 8,
+                width: '100%', padding: '16px', borderRadius: 14, border: 'none', cursor: 'pointer',
+                fontWeight: 800, fontSize: 16, color: 'white',
+                background: transactionType === 'DEBT' ? 'linear-gradient(135deg,#1C2446,#26315B)' : transactionType === 'ABATIMENTO' ? 'linear-gradient(135deg,#7252E2,#5F3FD1)' : transactionType === 'REFUND' ? 'linear-gradient(135deg,#3D559C,#2F4480)' : 'linear-gradient(135deg,#2E9D6F,#25835D)',
+                boxShadow: '0 8px 24px rgba(16,22,47,0.18)', marginTop: 8,
               }}>{editTransactionData ? 'Salvar Alterações' : t.confirmTransaction}</button>
             </form>
             </div>
