@@ -49,15 +49,18 @@ interface ServerTransaction {
 export interface InboxItem {
   id: string;
   type: Transaction['type'];
+  status: Transaction['status'];
   amount: string | number;
   description: string;
   occurred_at: string;
   due_date: string | null;
+  attachment: Transaction['attachment'] | null;
   created_at: string;
   customer_name: string;
-  owner_id: string;
-  owner_name: string;
-  owner_phone: string | null;
+  /** A OUTRA pessoa nessa relação — quem lançou (se sou o vinculado) ou meu cliente (se sou o dono). */
+  counterpart_id: string;
+  counterpart_name: string;
+  counterpart_phone: string | null;
 }
 
 export interface Counterpart {

@@ -7,22 +7,31 @@ const router = Router();
 router.use(requireAuth);
 
 /**
- * GET /api/inbox — lançamentos PENDING contra MIM (sou o usuário vinculado
- * do cliente). É o que o Dyllan vê quando o Jorge lança uma despesa.
+ * GET /api/inbox — lançamentos PENDING que EU preciso aprovar/recusar.
+ * Bidirecional: (a) sou o usuário vinculado do cliente e o DONO lançou
+ * contra mim (ex.: Jorge lança uma despesa para o Dyllan aprovar); ou
+ * (b) sou o dono do cadastro e o cliente vinculado (a contraparte)
+ * registrou um pagamento que eu preciso conferir/aprovar.
+ * "counterpart_*" é sempre a OUTRA pessoa nessa relação especifica.
  */
 router.get('/inbox', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await query(
       `SELECT t.id, t.type, t.amount, t.description, t.occurred_at, t.due_date, t.status,
-              t.created_at,
-              c.name  AS customer_name,
-              o.id    AS owner_id,
-              o.full_name AS owner_name,
-              o.phone AS owner_phone
+              t.attachment, t.created_at,
+              c.name AS customer_name,
+              CASE WHEN c.linked_user_id = $1 THEN o.id ELSE lu.id END AS counterpart_id,
+              CASE WHEN c.linked_user_id = $1 THEN o.full_name ELSE lu.full_name END AS counterpart_name,
+              CASE WHEN c.linked_user_id = $1 THEN o.phone ELSE lu.phone END AS counterpart_phone
          FROM transactions t
          JOIN customers c ON c.id = t.customer_id
          JOIN users o ON o.id = t.owner_user_id
-        WHERE c.linked_user_id = $1 AND t.status = 'PENDING'
+         LEFT JOIN users lu ON lu.id = c.linked_user_id
+        WHERE t.status = 'PENDING'
+          AND (
+                (c.linked_user_id = $1 AND t.created_by_user_id = c.owner_user_id)
+             OR (c.owner_user_id = $1 AND t.created_by_user_id = c.linked_user_id)
+          )
         ORDER BY t.created_at DESC`,
       [req.user!.sub]
     );
