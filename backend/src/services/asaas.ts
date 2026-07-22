@@ -126,3 +126,14 @@ export async function getSubscription(subscriptionId: string): Promise<AsaasSubs
     method: 'GET',
   });
 }
+
+/**
+ * Cancela a assinatura no Asaas (para as cobranças futuras). O acesso PRO já
+ * pago continua valendo até current_period_end — quem decide isso é
+ * getUserPlan() no banco local, não o Asaas.
+ */
+export async function cancelSubscription(subscriptionId: string): Promise<void> {
+  await asaasFetch<unknown>(`/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+    method: 'DELETE',
+  });
+}

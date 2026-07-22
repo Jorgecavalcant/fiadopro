@@ -82,7 +82,7 @@ import { hapticMedium, hapticSuccess } from './utils/haptics';
 import { showToast } from './utils/toast';
 import InboxAprovacoes from './components/InboxAprovacoes';
 import MinhasDividas from './components/MinhasDividas';
-import { bootstrapSync, schedulePush, resetSyncState, fetchInbox, resendTransaction } from './services/syncService';
+import { bootstrapSync, schedulePush, resetSyncState, fetchInbox, resendTransaction, updateProfile } from './services/syncService';
 import { calculateScore, computeRawBalance, buildChargeMessage, normalizeWhatsAppPhone } from './utils/credit';
 import { computeItemPrice, getItemQuantity, getItemUnitPrice, planEventSplitRecords, formatDateBR } from './utils/billSplit';
 
@@ -2157,11 +2157,33 @@ const ProfileView = ({ user, setUser, t, setActiveView, onExport, onImport, onDe
   const [cancelStep, setCancelStep] = useState<0 | 1 | 2 | 3>(0);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelConfirmText, setCancelConfirmText] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileSyncWarning, setProfileSyncWarning] = useState('');
 
   const handleWhatsAppProfile = () => {
     if (editUser.phone) {
       window.open(`https://wa.me/55${editUser.phone.replace(/\D/g, '')}`, '_blank');
     }
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingProfile(true);
+    setProfileSyncWarning('');
+    // Servidor é a fonte de verdade para o vínculo cliente↔usuário (por
+    // telefone/e-mail) — sem sincronizar aqui, quem cadastrar você pelo
+    // telefone nunca vai gerar lançamento, mesmo com o número certo.
+    const synced = await updateProfile({
+      full_name: editUser.name,
+      phone: editUser.phone || null,
+      pix_key: editUser.pixKey || null,
+    });
+    if (!synced) {
+      setProfileSyncWarning('Não foi possível sincronizar com o servidor agora (sem conexão?). Os dados foram salvos só neste dispositivo — o vínculo por telefone/e-mail com outros usuários não vai funcionar até você conseguir salvar online.');
+    }
+    setUser(editUser);
+    setSavingProfile(false);
+    setActiveView(AppView.DASHBOARD);
   };
 
   return (
@@ -2174,7 +2196,12 @@ const ProfileView = ({ user, setUser, t, setActiveView, onExport, onImport, onDe
                 <p className="text-slate-400 font-bold">{user.email}</p>
              </div>
           </div>
-          <form onSubmit={e => { e.preventDefault(); setUser(editUser); setActiveView(AppView.DASHBOARD); }} className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {profileSyncWarning && (
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-700 text-sm font-semibold">
+              {profileSyncWarning}
+            </div>
+          )}
+          <form onSubmit={handleSaveProfile} className="grid grid-cols-1 md:grid-cols-2 gap-8">
              <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><UserIcon className="w-3 h-3" /> {t.fullName}</label>
                 <input value={editUser.name} onChange={e => setEditUser({...editUser, name: e.target.value})} className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl font-bold" />
@@ -2218,8 +2245,8 @@ const ProfileView = ({ user, setUser, t, setActiveView, onExport, onImport, onDe
                 />
              </div>
              <div className="md:col-span-2 pt-6">
-                <button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-[2rem] font-black text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
-                  {t.saveChanges}
+                <button type="submit" disabled={savingProfile} className="w-full bg-indigo-600 text-white py-5 rounded-[2rem] font-black text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-60">
+                  {savingProfile ? 'Salvando…' : t.saveChanges}
                 </button>
              </div>
           </form>
@@ -2732,7 +2759,16 @@ const App: React.FC = () => {
       .then(r => r.json())
       .then(data => {
         if (data.success && data.user) {
-          setUser({ id: data.user.id, name: data.user.full_name || data.user.email, email: data.user.email, role: data.user.role });
+          setUser((prev: User | null) => ({
+            ...(prev ?? {}),
+            id: data.user.id,
+            name: data.user.full_name || data.user.email,
+            email: data.user.email,
+            role: data.user.role,
+            phone: data.user.phone ?? prev?.phone,
+            pixKey: data.user.pix_key ?? prev?.pixKey,
+            avatar: data.user.avatar_url ?? prev?.avatar,
+          }));
         }
       })
       .catch(() => {/* sessao nao existe */})
@@ -3701,6 +3737,14 @@ const App: React.FC = () => {
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
           <div style={{ maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
+            {(transactionType === 'ABATIMENTO' || transactionType === 'REFUND') && selectedCustomer && (
+              <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo do cliente</span>
+                <span className={`text-lg font-black ${selectedCustomer.balance > 0 ? 'text-orange-600' : selectedCustomer.balance < 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                  Saldo: {formatCurrency(selectedCustomer.balance)}
+                </span>
+              </div>
+            )}
             <form onSubmit={addTransaction} className="space-y-6">
               {installmentPreFill && (
                 <div className="flex items-center gap-3 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">

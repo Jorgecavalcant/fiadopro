@@ -14,12 +14,14 @@ vi.mock('../services/asaas.js', async (importOriginal) => {
     createCustomer: vi.fn(),
     createSubscription: vi.fn(),
     getSubscription: vi.fn(),
+    cancelSubscription: vi.fn(),
   };
 });
 
 import {
   webhookHandler,
   subscribeHandler,
+  cancelHandler,
   classifyBillingEvent,
   timingSafeEqualString,
   isValidCpfCnpj,
@@ -248,5 +250,79 @@ describe('billing — subscribeHandler', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ success: true, invoiceUrl: 'https://asaas.com/i/xyz' })
     );
+  });
+});
+
+describe('billing — cancelHandler', () => {
+  beforeEach(() => {
+    queryMock.mockReset();
+    vi.mocked(asaasService.cancelSubscription).mockReset();
+  });
+
+  it('retorna 404 quando o usuario nao tem assinatura vinculada ao Asaas', async () => {
+    queryMock.mockResolvedValueOnce({ rows: [] });
+    const req: any = { user: { sub: 'u1' } };
+    const res = fakeRes();
+    const next = vi.fn();
+
+    await cancelHandler(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(next.mock.calls[0][0].code).toBe('NO_SUBSCRIPTION');
+    expect(asaasService.cancelSubscription).not.toHaveBeenCalled();
+  });
+
+  it('e idempotente: se ja estava cancelada, nao chama o Asaas de novo', async () => {
+    const periodEnd = new Date('2026-08-01T00:00:00Z');
+    queryMock.mockResolvedValueOnce({
+      rows: [{ asaas_subscription_id: 'sub_9', current_period_end: periodEnd, canceled_at: new Date() }],
+    });
+    const req: any = { user: { sub: 'u2' } };
+    const res = fakeRes();
+    const next = vi.fn();
+
+    await cancelHandler(req, res, next);
+
+    expect(asaasService.cancelSubscription).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true, currentPeriodEnd: periodEnd })
+    );
+  });
+
+  it('cancela no Asaas e marca canceled_at, mantendo current_period_end (carencia)', async () => {
+    const periodEnd = new Date('2026-08-01T00:00:00Z');
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ asaas_subscription_id: 'sub_10', current_period_end: periodEnd, canceled_at: null }] })
+      .mockResolvedValueOnce({ rows: [] }); // UPDATE canceled_at
+    vi.mocked(asaasService.cancelSubscription).mockResolvedValueOnce(undefined);
+    const req: any = { user: { sub: 'u3' } };
+    const res = fakeRes();
+    const next = vi.fn();
+
+    await cancelHandler(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(asaasService.cancelSubscription).toHaveBeenCalledWith('sub_10');
+    const [updateSql] = queryMock.mock.calls[1];
+    expect(updateSql).toContain('canceled_at = NOW()');
+    expect(updateSql).not.toContain("plan ="); // nao mexe no plano — a carencia e natural
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true, currentPeriodEnd: periodEnd })
+    );
+  });
+
+  it('retorna 503 quando Asaas nao esta configurado', async () => {
+    queryMock.mockResolvedValueOnce({
+      rows: [{ asaas_subscription_id: 'sub_11', current_period_end: null, canceled_at: null }],
+    });
+    vi.mocked(asaasService.cancelSubscription).mockRejectedValueOnce(new asaasService.AsaasNotConfiguredError());
+    const req: any = { user: { sub: 'u4' } };
+    const res = fakeRes();
+    const next = vi.fn();
+
+    await cancelHandler(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(next.mock.calls[0][0].statusCode).toBe(503);
   });
 });

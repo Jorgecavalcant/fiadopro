@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Wallet, MessageCircle, RefreshCw } from 'lucide-react';
+import { Wallet, MessageCircle, RefreshCw, ChevronRight } from 'lucide-react';
 import { Counterpart, fetchCounterparts } from '../services/syncService';
 import { normalizeWhatsAppPhone } from '../utils/credit';
+import CounterpartDetail from './CounterpartDetail';
 
 interface MinhasDividasProps {
   formatCurrency: (v: number) => string;
@@ -15,16 +16,35 @@ interface MinhasDividasProps {
 export default function MinhasDividas({ formatCurrency }: MinhasDividasProps) {
   const [counterparts, setCounterparts] = useState<Counterpart[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Counterpart | null>(null);
 
   const reload = async () => {
     setLoading(true);
-    setCounterparts(await fetchCounterparts());
+    const data = await fetchCounterparts();
+    setCounterparts(data);
+    // Mantém a seleção sincronizada com o saldo/contagens mais recentes
+    if (selected) {
+      const updated = data.find((c) => c.customer_id === selected.customer_id);
+      setSelected(updated ?? null);
+    }
     setLoading(false);
   };
 
   useEffect(() => {
     void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (selected) {
+    return (
+      <CounterpartDetail
+        counterpart={selected}
+        formatCurrency={formatCurrency}
+        onBack={() => setSelected(null)}
+        onChanged={() => void reload()}
+      />
+    );
+  }
 
   return (
     <div className="p-4 max-w-2xl mx-auto">
@@ -42,7 +62,8 @@ export default function MinhasDividas({ formatCurrency }: MinhasDividasProps) {
           <Wallet size={40} className="mx-auto mb-3" />
           <p>Você ainda não está vinculado como cliente de ninguém.</p>
           <p className="text-xs mt-2">
-            Quando alguém cadastrar você (pelo seu telefone ou e-mail), os lançamentos aprovados aparecem aqui.
+            Quando alguém cadastrar seu telefone ou e-mail, você verá aqui: o saldo (a partir dos lançamentos já
+            aprovados) e as pendências aguardando sua aprovação.
           </p>
         </div>
       )}
@@ -53,7 +74,11 @@ export default function MinhasDividas({ formatCurrency }: MinhasDividasProps) {
           const devo = balance > 0;
           const wa = cp.owner_phone ? normalizeWhatsAppPhone(cp.owner_phone) : null;
           return (
-            <div key={cp.customer_id} className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
+            <div
+              key={cp.customer_id}
+              onClick={() => setSelected(cp)}
+              className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 cursor-pointer hover:border-indigo-200 transition-colors"
+            >
               <div className="flex justify-between items-center gap-3">
                 <div>
                   <p className="font-semibold text-slate-800">{cp.owner_name}</p>
@@ -70,16 +95,20 @@ export default function MinhasDividas({ formatCurrency }: MinhasDividasProps) {
                     </p>
                   )}
                 </div>
-                {wa && (
-                  <a
-                    href={`https://wa.me/${wa}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2 text-sm font-semibold"
-                  >
-                    <MessageCircle size={16} /> WhatsApp
-                  </a>
-                )}
+                <div className="flex items-center gap-2">
+                  {wa && (
+                    <a
+                      href={`https://wa.me/${wa}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1 text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2 text-sm font-semibold"
+                    >
+                      <MessageCircle size={16} /> WhatsApp
+                    </a>
+                  )}
+                  <ChevronRight size={18} className="text-slate-300" />
+                </div>
               </div>
               {cp.owner_pix_key && (
                 <p className="text-xs text-slate-400 mt-2">

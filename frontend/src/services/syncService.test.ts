@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { bootstrapSync, resetSyncState, fetchInbox } from './syncService';
+import {
+  bootstrapSync,
+  resetSyncState,
+  fetchInbox,
+  fetchCounterpartTransactions,
+  createCounterpartPayment,
+  updateProfile,
+} from './syncService';
 import { Customer, Transaction } from '../types';
 
 // Ambiente node: stub de localStorage e fetch
@@ -129,5 +136,52 @@ describe('fetchInbox', () => {
 
     mockFetch.mockRejectedValueOnce(new Error('down'));
     expect(await fetchInbox()).toEqual([]);
+  });
+});
+
+describe('fetchCounterpartTransactions', () => {
+  it('busca o historico do relacionamento e devolve lista vazia em erro', async () => {
+    mockFetch.mockReturnValueOnce(ok({ success: true, transactions: [{ id: 'tx1' }] }));
+    const result = await fetchCounterpartTransactions('cust-1');
+    expect(result.length).toBe(1);
+    expect(mockFetch.mock.calls[0][0]).toContain('/counterpart/cust-1/transactions');
+
+    mockFetch.mockRejectedValueOnce(new Error('down'));
+    expect(await fetchCounterpartTransactions('cust-1')).toEqual([]);
+  });
+});
+
+describe('createCounterpartPayment', () => {
+  it('envia POST /transactions com type=PAYMENT por padrao e customer_id correto', async () => {
+    mockFetch.mockReturnValueOnce(ok({ success: true, transaction: { id: 'tx-novo' } }));
+    const okResult = await createCounterpartPayment('cust-1', { amount: 30, description: 'pix' });
+
+    expect(okResult).toBe(true);
+    expect(mockFetch.mock.calls[0][0]).toContain('/transactions');
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.customer_id).toBe('cust-1');
+    expect(body.type).toBe('PAYMENT');
+    expect(body.amount).toBe(30);
+  });
+
+  it('devolve false em erro de rede (nunca quebra a UI)', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('down'));
+    expect(await createCounterpartPayment('cust-1', { amount: 10, description: 'x' })).toBe(false);
+  });
+});
+
+describe('updateProfile', () => {
+  it('envia PATCH /users/me com os campos informados', async () => {
+    mockFetch.mockReturnValueOnce(ok({ success: true, user: { id: 'u1' } }));
+    const okResult = await updateProfile({ full_name: 'Jorge', phone: '11999999999', pix_key: null });
+
+    expect(okResult).toBe(true);
+    expect(mockFetch.mock.calls[0][0]).toContain('/users/me');
+    expect(mockFetch.mock.calls[0][1].method).toBe('PATCH');
+  });
+
+  it('devolve false em erro de rede — chamador deve degradar graciosamente', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('down'));
+    expect(await updateProfile({ phone: '11999999999' })).toBe(false);
   });
 });
