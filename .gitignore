@@ -29,6 +29,7 @@ frontend/ios/App/build/
 .vite/
 .idea/
 .vscode/
+.claude/
 
 # OS
 .DS_Store
