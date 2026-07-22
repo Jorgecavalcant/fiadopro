@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { OAuth2Client } from 'google-auth-library';
 import { query } from '../config/database.js';
 import { signToken, verifyToken, setAuthCookie, clearAuthCookie } from '../utils/jwt.js';
+import { normalizeEmail } from '../utils/normalizeEmail.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 
@@ -32,7 +33,8 @@ const LoginSchema = z.object({
 router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const body = RegisterSchema.parse(req.body);
-    const existing = await query('SELECT id FROM users WHERE email = $1', [body.email]);
+    const email = normalizeEmail(body.email);
+    const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
       return next(new ApiError(409, 'E-mail ja cadastrado', 'EMAIL_EXISTS'));
     }
@@ -40,7 +42,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     const consentIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || null;
     const result = await query(
       'INSERT INTO users (full_name, email, password_hash, consent_at, consent_ip) VALUES ($1, $2, $3, NOW(), $4) RETURNING id, email, full_name, created_at',
-      [body.full_name, body.email, hash, consentIp]
+      [body.full_name, email, hash, consentIp]
     );
     const user = result.rows[0];
     // Vincular clientes já cadastrados por terceiros com este e-mail + promover admin se for o ADMIN_EMAIL
@@ -64,9 +66,10 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
 router.post('/login', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const body = LoginSchema.parse(req.body);
+    const email = normalizeEmail(body.email);
     const result = await query(
       'SELECT id, email, full_name, password_hash, is_active, role FROM users WHERE email = $1',
-      [body.email]
+      [email]
     );
     const user = result.rows[0];
     if (!user || !user.password_hash || !(await bcrypt.compare(body.password, user.password_hash))) {
@@ -100,7 +103,8 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
     if (!payload || !payload.email) {
       return next(new ApiError(401, 'Token do Google invalido', 'INVALID_GOOGLE_TOKEN'));
     }
-    const { sub: google_id, email, name: full_name, picture: avatar_url } = payload;
+    const { sub: google_id, name: full_name, picture: avatar_url } = payload;
+    const email = normalizeEmail(payload.email);
     let result = await query(
       'SELECT id, email, full_name, is_active, role FROM users WHERE google_id = $1 OR email = $2',
       [google_id, email]
@@ -167,8 +171,9 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response, next: Nex
 // POST /api/auth/forgot-password
 router.post('/forgot-password', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email } = req.body;
-    if (!email) return next(new ApiError(400, 'E-mail obrigatorio', 'MISSING_EMAIL'));
+    const { email: rawEmail } = req.body;
+    if (!rawEmail) return next(new ApiError(400, 'E-mail obrigatorio', 'MISSING_EMAIL'));
+    const email = normalizeEmail(rawEmail);
     const result = await query('SELECT id FROM users WHERE email = $1 AND is_active = true', [email]);
     if (result.rows.length === 0) {
       return res.json({ success: true, message: 'Se o e-mail existir, voce recebera o link em breve.' });
