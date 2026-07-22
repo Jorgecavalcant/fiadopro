@@ -19,6 +19,14 @@ vi.mock('google-auth-library', () => ({
   })),
 }));
 
+// A frente CORE (vínculo+aprovação) adicionou chamadas a este serviço no
+// register/google — mockado aqui pois este arquivo testa só a normalização
+// de e-mail, não o comportamento de vínculo (que tem testes próprios).
+vi.mock('../services/linking.js', () => ({
+  relinkCustomersForUser: vi.fn(),
+  ensureAdminRole: vi.fn(),
+}));
+
 // Importado depois dos mocks (ESM hoisting do vi.mock garante a ordem correta)
 import router from './auth.js';
 
@@ -35,6 +43,7 @@ interface FakeUser {
   google_id: string | null;
   avatar_url: string | null;
   created_at: string;
+  role: string;
 }
 
 function createFakeDb() {
@@ -49,7 +58,7 @@ function createFakeDb() {
       return { rows: users.filter((u) => u.email === email).map((u) => ({ id: u.id })) };
     }
 
-    if (sql.startsWith('SELECT id, email, full_name, password_hash, is_active FROM users WHERE email = $1')) {
+    if (sql.startsWith('SELECT id, email, full_name, password_hash, is_active, role FROM users WHERE email = $1')) {
       const [email] = params as [string];
       return { rows: users.filter((u) => u.email === email) };
     }
@@ -65,12 +74,13 @@ function createFakeDb() {
         google_id: null,
         avatar_url: null,
         created_at: new Date().toISOString(),
+        role: 'user',
       };
       users.push(user);
       return { rows: [{ id: user.id, email: user.email, full_name: user.full_name, created_at: user.created_at }] };
     }
 
-    if (sql.startsWith('SELECT id, email, full_name, is_active FROM users WHERE google_id = $1 OR email = $2')) {
+    if (sql.startsWith('SELECT id, email, full_name, is_active, role FROM users WHERE google_id = $1 OR email = $2')) {
       const [google_id, email] = params as [string, string];
       return { rows: users.filter((u) => u.google_id === google_id || u.email === email) };
     }
@@ -86,6 +96,7 @@ function createFakeDb() {
         password_hash: null,
         is_active: true,
         created_at: new Date().toISOString(),
+        role: 'user',
       };
       users.push(user);
       return { rows: [{ id: user.id, email: user.email, full_name: user.full_name }] };
@@ -99,6 +110,12 @@ function createFakeDb() {
         user.avatar_url = user.avatar_url ?? avatar_url;
       }
       return { rows: [] };
+    }
+
+    if (sql.startsWith('SELECT role FROM users WHERE id = $1')) {
+      const [id] = params as [string];
+      const user = users.find((u) => u.id === id);
+      return { rows: user ? [{ role: user.role }] : [] };
     }
 
     throw new Error(`Query nao tratada no fake db: ${sql}`);
@@ -209,6 +226,7 @@ describe('normalizacao de e-mail em auth.ts (dedup auth)', () => {
       google_id: null,
       avatar_url: null,
       created_at: new Date().toISOString(),
+      role: 'user',
     });
 
     mockVerifyIdToken.mockResolvedValue({
