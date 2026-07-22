@@ -8,26 +8,26 @@
    ============================================================ */
 
 :root {
-  /* Brand Colors */
-  --fp-primary:       #4F46E5;
-  --fp-primary-dark:  #3730A3;
-  --fp-primary-light: #EEF2FF;
-  --fp-accent:        #F59E0B;
-  --fp-success:       #10B981;
-  --fp-danger:        #EF4444;
-  --fp-warning:       #F97316;
+  /* Brand Colors — paleta Tech 42 (navy/cobalt/violet, regra 70/20/10) */
+  --fp-primary:       #5967D8;  /* cobalt-500 — CTA principal */
+  --fp-primary-dark:  #4654C4;
+  --fp-primary-light: #F0F3FD;  /* ice-100 */
+  --fp-accent:        #7252E2;  /* violet-500 — acento digital */
+  --fp-success:       #2E9D6F;
+  --fp-danger:        #E24C4C;
+  --fp-warning:       #DCA84A;  /* amber */
 
   /* Neutrals */
-  --fp-bg:            #F1F5F9;
+  --fp-bg:            #F8FAFF;  /* mist-050 */
   --fp-surface:       #FFFFFF;
-  --fp-border:        #E2E8F0;
-  --fp-text:          #0F172A;
-  --fp-muted:         #64748B;
-  --fp-subtle:        #CBD5E1;
+  --fp-border:        #CCD2E9; /* line-200 — mais visível que cinza puro */
+  --fp-text:          #10162F; /* ink-900 */
+  --fp-muted:         #65759D; /* slate-500 */
+  --fp-subtle:        #AEB8DC;
 
   /* Sidebar */
   --sidebar-width:    260px;
-  --sidebar-bg:       #0F172A;
+  --sidebar-bg:       #1C2446;  /* navy-800 */
   --header-h:         64px;
 
   /* Transitions */
@@ -40,7 +40,7 @@
   --shadow-md:  0 4px 12px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.04);
   --shadow-lg:  0 8px 32px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
   --shadow-xl:  0 20px 48px rgba(0,0,0,.16), 0 8px 20px rgba(0,0,0,.08);
-  --shadow-glow: 0 0 0 3px rgba(79,70,229,.25);
+  --shadow-glow: 0 0 0 3px rgba(89,103,216,.25);
 }
 
 /* ============================================================
@@ -50,7 +50,7 @@
   * { box-sizing: border-box; }
 
   html {
-    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system;
+    font-family: 'Mulish', 'Inter', ui-sans-serif, system-ui, -apple-system;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -209,11 +209,11 @@
 .fp-btn-primary {
   background: var(--fp-primary);
   color: white;
-  box-shadow: 0 2px 8px rgba(79,70,229,.35);
+  box-shadow: 0 2px 8px rgba(89,103,216,.35);
 }
 .fp-btn-primary:hover {
   background: var(--fp-primary-dark);
-  box-shadow: 0 4px 16px rgba(79,70,229,.45);
+  box-shadow: 0 4px 16px rgba(89,103,216,.45);
 }
 
 .fp-btn-ghost {
@@ -331,9 +331,9 @@
 }
 
 .fp-nav-item.active {
-  background: rgba(79,70,229,0.5);
+  background: rgba(89,103,216,0.5);
   color: white;
-  box-shadow: 0 2px 12px rgba(79,70,229,0.3);
+  box-shadow: 0 2px 12px rgba(89,103,216,0.3);
 }
 
 .fp-nav-item.active::before {
@@ -366,7 +366,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 24px rgba(79,70,229,0.45);
+  box-shadow: 0 8px 24px rgba(89,103,216,0.45);
   transition: all var(--t-normal);
   cursor: pointer;
   border: none;
@@ -374,7 +374,7 @@
 
 .fp-fab-btn:hover {
   transform: translateY(-3px) scale(1.05);
-  box-shadow: 0 12px 32px rgba(79,70,229,.55);
+  box-shadow: 0 12px 32px rgba(89,103,216,.55);
 }
 
 .fp-fab-btn:active {

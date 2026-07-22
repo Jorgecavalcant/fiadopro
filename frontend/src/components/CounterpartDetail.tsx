@@ -209,87 +209,103 @@ function PaymentModal({ openDebts, onClose, onSubmit }: PaymentModalProps) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'flex-end' }}>
-      <div className="bg-white w-full rounded-t-[2.5rem] p-6 md:max-w-lg md:mx-auto animate-in slide-in-from-bottom duration-300">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-black text-slate-800">Realizar Pagamento</h3>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100 text-slate-400">
-            <X size={20} />
-          </button>
+    <div className="fp-page-slide" style={{ position: 'fixed', inset: 0, zIndex: 300, background: '#F8FAFF', display: 'flex', flexDirection: 'column' }}>
+      {/* Header — mesmo padrão sticky colorido do modal de lançamento do dono */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 10,
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '0 16px', height: 60, flexShrink: 0,
+        background: 'linear-gradient(135deg,#2E9D6F,#25835D)',
+      }}>
+        <button onClick={onClose} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <X size={20} />
+        </button>
+        <p style={{ fontSize: 17, fontWeight: 900, color: 'white', margin: 0 }}>Realizar Pagamento</p>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Valor (R$)</label>
+              <input
+                required
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full px-5 py-4 bg-white border-2 border-[#CCD2E9] rounded-t42md text-4xl font-black focus:outline-none focus:border-[#2E9D6F]"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Descrição</label>
+              <input
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Ex: Pagamento via Pix"
+                className="w-full px-5 py-4 bg-white border-2 border-[#CCD2E9] rounded-t42md font-bold focus:outline-none focus:border-[#2E9D6F]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Referente a</label>
+              <select
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                className="w-full px-5 py-3 bg-white border-2 border-[#CCD2E9] rounded-t42md font-bold focus:outline-none focus:border-[#2E9D6F]"
+              >
+                <option value="">Pagamento avulso (contra o saldo total)</option>
+                {openDebts.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.description || 'Dívida'} — {new Date(d.occurred_at).toLocaleDateString('pt-BR')}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Forma de Pagamento</label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)}
+                className="w-full px-5 py-3 bg-white border-2 border-[#CCD2E9] rounded-t42md font-bold focus:outline-none focus:border-[#2E9D6F]"
+              >
+                <option value="PIX">Pix</option>
+                <option value="CREDIT_CARD">Cartão Crédito</option>
+                <option value="DEBIT_CARD">Cartão Débito</option>
+                <option value="COMPENSATION">Compensação</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">
+                Comprovante (opcional)
+              </label>
+              <label className="flex items-center gap-2 bg-white border-2 border-dashed border-[#CCD2E9] text-slate-600 px-5 py-3 rounded-t42md font-bold text-sm cursor-pointer hover:border-[#2E9D6F] hover:text-[#2E9D6F] transition-all w-fit">
+                <Paperclip size={16} /> {attachment ? attachment.name : 'Anexar comprovante'}
+                <input type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFile} />
+              </label>
+            </div>
+
+            {error && <p className="text-sm font-bold text-red-600">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{
+                width: '100%', padding: '16px', borderRadius: 14, border: 'none', cursor: 'pointer',
+                fontWeight: 800, fontSize: 16, color: 'white',
+                background: 'linear-gradient(135deg,#2E9D6F,#25835D)',
+                boxShadow: '0 8px 24px rgba(16,22,47,0.18)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                opacity: submitting ? 0.6 : 1,
+              }}
+            >
+              <Send size={18} /> {submitting ? 'Enviando...' : 'Enviar Pagamento'}
+            </button>
+            <p className="text-xs text-slate-400 text-center">
+              O comerciante será notificado e precisa aprovar este pagamento.
+            </p>
+          </form>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Valor (R$)</label>
-            <input
-              required
-              type="number"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-2xl font-black"
-              autoFocus
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Descrição</label>
-            <input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ex: Pagamento via Pix"
-              className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl font-bold"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Referente a</label>
-            <select
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              className="w-full px-5 py-3 bg-slate-50 rounded-xl border-none font-bold"
-            >
-              <option value="">Pagamento avulso (contra o saldo total)</option>
-              {openDebts.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.description || 'Dívida'} — {new Date(d.occurred_at).toLocaleDateString('pt-BR')}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Forma de Pagamento</label>
-            <select
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)}
-              className="w-full px-5 py-3 bg-slate-50 rounded-xl font-bold"
-            >
-              <option value="PIX">Pix</option>
-              <option value="CREDIT_CARD">Cartão Crédito</option>
-              <option value="DEBIT_CARD">Cartão Débito</option>
-              <option value="COMPENSATION">Compensação</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">
-              Comprovante (opcional)
-            </label>
-            <label className="flex items-center gap-2 bg-slate-100 text-slate-700 px-5 py-3 rounded-2xl font-bold text-sm cursor-pointer hover:bg-slate-200 transition-all w-fit">
-              <Paperclip size={16} /> {attachment ? attachment.name : 'Anexar comprovante'}
-              <input type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFile} />
-            </label>
-          </div>
-
-          {error && <p className="text-sm font-bold text-red-600">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-4 rounded-2xl font-black text-base shadow-xl hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50"
-          >
-            <Send size={18} /> {submitting ? 'Enviando...' : 'Enviar Pagamento'}
-          </button>
-          <p className="text-xs text-slate-400 text-center">
-            O comerciante será notificado e precisa aprovar este pagamento.
-          </p>
-        </form>
       </div>
     </div>
   );
