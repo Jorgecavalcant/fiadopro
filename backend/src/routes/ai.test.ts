@@ -34,7 +34,7 @@ describe('ReadDocumentSchema — validação de mime e tamanho', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejeita imagem maior que 10MB', () => {
+  it('rejeita imagem maior que 15MB', () => {
     // Gera um base64 cujo tamanho decodificado estoura MAX_IMAGE_BYTES.
     const oversizedBase64 = 'A'.repeat(Math.ceil((MAX_IMAGE_BYTES + 1024) / 3) * 4);
     const result = ReadDocumentSchema.safeParse({

@@ -14,7 +14,7 @@ import {
 } from '../services/openrouter.js';
 
 export const MIME_ALLOWLIST = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const;
-export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+export const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
 export const estimateBase64Bytes = (base64: string): number => {
   const clean = base64.replace(/[^A-Za-z0-9+/]/g, '');
@@ -157,7 +157,7 @@ export const ReadDocumentSchema = z
   })
   .superRefine((val, ctx) => {
     if (estimateBase64Bytes(val.image.data) > MAX_IMAGE_BYTES) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Arquivo maior que 10MB', path: ['image', 'data'] });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Arquivo maior que 15MB', path: ['image', 'data'] });
     }
   });
 
