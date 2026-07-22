@@ -348,3 +348,19 @@ export async function rejectTransaction(id: string, note?: string): Promise<bool
 export async function resendTransaction(id: string): Promise<boolean> {
   return (await jsonFetch(`/transactions/${id}/resend`, { method: 'POST', body: JSON.stringify({}) })) !== null;
 }
+
+export interface ProfileUpdateInput {
+  full_name?: string;
+  phone?: string | null;
+  pix_key?: string | null;
+}
+
+/**
+ * Persiste nome/telefone/pix do próprio usuário no servidor. Sem isso,
+ * users.phone/email nunca refletem o perfil real e o vínculo cliente↔usuário
+ * (linkCustomer) nunca encontra correspondência — mesmo que outra pessoa
+ * cadastre você certinho pelo telefone.
+ */
+export async function updateProfile(input: ProfileUpdateInput): Promise<boolean> {
+  return (await jsonFetch('/users/me', { method: 'PATCH', body: JSON.stringify(input) })) !== null;
+}

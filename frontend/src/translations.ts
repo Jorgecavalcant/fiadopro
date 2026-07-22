@@ -421,7 +421,7 @@ export const translations = {
     includeItemsList: "Incluir Lista de Itens na Impressão",
     moneyToReturn: "Dinheiro a devolver",
     noRefunds: "Nenhuma devolução pendente",
-    dueDate: "Due Date",
+    dueDate: "Data de Vencimento",
     paymentMethod: "Forma de Pagamento",
     compensation: "Compensação",
     overview: "Visão Financeira",
