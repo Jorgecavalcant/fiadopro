@@ -42,9 +42,10 @@ app.use(cors({
 
 // Body parsing
 // Limite maior só para /api/ai/read-document: imagem/documento em base64 (até
-// 10MB de arquivo real) infla ~33% + overhead do envelope JSON. Como o
-// body-parser marca `req._body` após parsear, o parser geral abaixo (10mb)
-// não reprocessa a mesma requisição — só as demais rotas ficam com o limite padrão.
+// 15MB de arquivo real, ver MAX_IMAGE_BYTES em routes/ai.ts) infla ~33% + overhead
+// do envelope JSON. Como o body-parser marca `req._body` após parsear, o parser
+// geral abaixo (10mb) não reprocessa a mesma requisição — só as demais rotas
+// ficam com o limite padrão.
 app.use('/api/ai/read-document', express.json({ limit: '15mb' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
