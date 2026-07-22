@@ -1,0 +1,8 @@
+version: 2
+
+secret:
+  ignored_matches:
+    - name: senha fake usada em fixture de unit test (auth.test.ts) — nunca foi credencial real
+      match: Senha123
+    - name: hash de senha fake usado em fixture de unit test (auth.test.ts) — nunca foi credencial real
+      match: hash-fake
