@@ -9,10 +9,17 @@ dotenv.config();
 
 // Import routes
 import authRoutes from './routes/auth.js';
-import geminiRoutes from './routes/gemini.js';
 import healthRoutes from './routes/health.js';
 import debtsRoutes from './routes/debts.js';
 import usersRoutes from './routes/users.js';
+import customersRoutes from './routes/customers.js';
+import transactionsRoutes from './routes/transactions.js';
+import syncRoutes from './routes/sync.js';
+import inboxRoutes from './routes/inbox.js';
+import adminRoutes from './routes/admin.js';
+import billingRoutes from './routes/billing.js';
+import aiRoutes, { adminAiConfigRouter } from './routes/ai.js';
+import { ensureAdminRole } from './services/linking.js';
 
 // Import middleware
 import cookieParser from 'cookie-parser';
@@ -34,6 +41,11 @@ app.use(cors({
 }));
 
 // Body parsing
+// Limite maior só para /api/ai/read-document: imagem/documento em base64 (até
+// 10MB de arquivo real) infla ~33% + overhead do envelope JSON. Como o
+// body-parser marca `req._body` após parsear, o parser geral abaixo (10mb)
+// não reprocessa a mesma requisição — só as demais rotas ficam com o limite padrão.
+app.use('/api/ai/read-document', express.json({ limit: '15mb' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
@@ -55,7 +67,14 @@ app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/debts', debtsRoutes);
 app.use('/api/users', usersRoutes);
-app.use('/api/gemini', geminiRoutes);
+app.use('/api/customers', customersRoutes);
+app.use('/api/transactions', transactionsRoutes);
+app.use('/api/sync', syncRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/admin', adminAiConfigRouter);
+app.use('/api/billing', billingRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api', inboxRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
@@ -66,6 +85,8 @@ app.use(errorHandler);
 // ===== SERVER =====
 
 const server = app.listen(PORT, () => {
+  // Bootstrap idempotente: promove o ADMIN_EMAIL a admin se a conta já existir
+  void ensureAdminRole();
   console.log(`🚀 Fiado Pro Backend running on port ${PORT}`);
   console.log(`📡 Environment: ${process.env.NODE_ENV}`);
   console.log(`🔐 CORS enabled for: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}`);

@@ -43,11 +43,16 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
       [body.full_name, body.email, hash, consentIp]
     );
     const user = result.rows[0];
+    // Vincular clientes já cadastrados por terceiros com este e-mail + promover admin se for o ADMIN_EMAIL
+    const { relinkCustomersForUser, ensureAdminRole } = await import('../services/linking.js');
+    await ensureAdminRole();
+    await relinkCustomersForUser(user.id);
+    const roleResult = await query('SELECT role FROM users WHERE id = $1', [user.id]);
     const token = signToken({ sub: user.id, email: user.email });
     setAuthCookie(res, token);
     res.status(201).json({
       success: true,
-      user: { id: user.id, email: user.email, full_name: user.full_name },
+      user: { id: user.id, email: user.email, full_name: user.full_name, role: roleResult.rows[0]?.role ?? 'user' },
     });
   } catch (err) {
     if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
@@ -60,7 +65,7 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
   try {
     const body = LoginSchema.parse(req.body);
     const result = await query(
-      'SELECT id, email, full_name, password_hash, is_active FROM users WHERE email = $1',
+      'SELECT id, email, full_name, password_hash, is_active, role FROM users WHERE email = $1',
       [body.email]
     );
     const user = result.rows[0];
@@ -74,7 +79,7 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
     setAuthCookie(res, token);
     res.json({
       success: true,
-      user: { id: user.id, email: user.email, full_name: user.full_name },
+      user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role },
     });
   } catch (err) {
     if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
@@ -97,7 +102,7 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
     }
     const { sub: google_id, email, name: full_name, picture: avatar_url } = payload;
     let result = await query(
-      'SELECT id, email, full_name, is_active FROM users WHERE google_id = $1 OR email = $2',
+      'SELECT id, email, full_name, is_active, role FROM users WHERE google_id = $1 OR email = $2',
       [google_id, email]
     );
     let user = result.rows[0];
@@ -107,6 +112,10 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
         [email, full_name || email, avatar_url || null, google_id]
       );
       user = insert.rows[0];
+      const { relinkCustomersForUser, ensureAdminRole } = await import('../services/linking.js');
+      await ensureAdminRole();
+      await relinkCustomersForUser(user.id);
+      user.role = (await query('SELECT role FROM users WHERE id = $1', [user.id])).rows[0]?.role ?? 'user';
     } else {
       await query(
         'UPDATE users SET google_id = $1, avatar_url = COALESCE(avatar_url, $2) WHERE id = $3',
@@ -120,7 +129,7 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
     setAuthCookie(res, token);
     res.json({
       success: true,
-      user: { id: user.id, email: user.email, full_name: user.full_name },
+      user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role ?? 'user' },
     });
   } catch (err: any) {
     if (err.message?.includes('Token used too late') || err.message?.includes('Invalid token')) {
@@ -145,7 +154,7 @@ router.post('/verify', (req: Request, res: Response) => {
 router.get('/me', requireAuth, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await query(
-      'SELECT id, email, full_name, phone, avatar_url, created_at FROM users WHERE id = $1',
+      'SELECT id, email, full_name, phone, pix_key, avatar_url, role, created_at FROM users WHERE id = $1',
       [req.user!.sub]
     );
     if (!result.rows[0]) return next(new ApiError(404, 'Usuario nao encontrado', 'USER_NOT_FOUND'));

@@ -5,7 +5,11 @@ interface RateLimitStore {
   resetAt: number;
 }
 
-const createLimiter = (maxRequests: number, windowMs: number) => {
+export const createLimiter = (
+  maxRequests: number,
+  windowMs: number,
+  keyFn?: (req: Request) => string
+) => {
   const store = new Map<string, RateLimitStore>();
 
   // Limpa entradas expiradas a cada 5 minutos
@@ -17,7 +21,7 @@ const createLimiter = (maxRequests: number, windowMs: number) => {
   }, 5 * 60 * 1000);
 
   return (req: Request, res: Response, next: NextFunction) => {
-    const key = req.ip || 'unknown';
+    const key = keyFn ? keyFn(req) : req.ip || 'unknown';
     const now = Date.now();
     const entry = store.get(key);
 
