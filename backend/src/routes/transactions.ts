@@ -31,6 +31,9 @@ export const TransactionSchema = z.object({
   total_installments: z.number().int().positive().optional().nullable(),
   installment_group_id: z.string().uuid().optional().nullable(),
   interest_rate: z.number().min(0).max(100).optional().nullable(),
+  // Referência opcional a um lançamento específico (ex.: pagamento contra
+  // uma dívida pontual). Ausente = pagamento avulso contra o saldo total.
+  applies_to_transaction_id: z.string().uuid().optional().nullable(),
 });
 
 const toDate = (v: number | string | null | undefined): Date | null => {
@@ -40,9 +43,10 @@ const toDate = (v: number | string | null | undefined): Date | null => {
   return d;
 };
 
-const TX_COLUMNS = `id, customer_id, owner_user_id, type, status, amount, description,
+const TX_COLUMNS = `id, customer_id, owner_user_id, created_by_user_id, type, status, amount, description,
   occurred_at, due_date, payment_method, attachment, installment_number,
-  total_installments, installment_group_id, interest_rate, created_at, updated_at`;
+  total_installments, installment_group_id, interest_rate, applies_to_transaction_id,
+  created_at, updated_at`;
 
 async function logEvent(transactionId: string, actorUserId: string, action: string, note?: string) {
   await query(
@@ -70,31 +74,55 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   }
 });
 
-// POST /api/transactions — contra cliente vinculado nasce PENDING (exige aprovação)
+// POST /api/transactions — dono lança contra seu cliente; cliente VINCULADO
+// (a contraparte) também pode lançar um pagamento contra si mesmo (nunca
+// DEBT). Contra cliente vinculado, sempre nasce PENDING — exige aprovação
+// de quem NÃO criou (dono aprova pagamento do devedor, devedor aprova
+// dívida/lançamento do dono).
 router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const body = TransactionSchema.parse(req.body);
     const customer = await query(
-      `SELECT id, linked_user_id FROM customers
-        WHERE id = $1 AND owner_user_id = $2 AND deleted_at IS NULL`,
-      [body.customer_id, req.user!.sub]
+      `SELECT id, owner_user_id, linked_user_id FROM customers
+        WHERE id = $1 AND deleted_at IS NULL`,
+      [body.customer_id]
     );
     if (!customer.rows[0]) return next(new ApiError(404, 'Cliente não encontrado', 'CUSTOMER_NOT_FOUND'));
+    const c = customer.rows[0];
 
-    const status = customer.rows[0].linked_user_id ? 'PENDING' : 'CONFIRMED';
+    const isOwner = c.owner_user_id === req.user!.sub;
+    const isLinkedCounterpart = c.linked_user_id === req.user!.sub;
+    if (!isOwner && !isLinkedCounterpart) {
+      return next(new ApiError(404, 'Cliente não encontrado', 'CUSTOMER_NOT_FOUND'));
+    }
+    if (isLinkedCounterpart && body.type === 'DEBT') {
+      return next(new ApiError(400, 'Você não pode lançar uma dívida contra o comerciante — apenas pagamentos', 'INVALID_TYPE_FOR_COUNTERPART'));
+    }
+    if (body.applies_to_transaction_id) {
+      const ref = await query(
+        `SELECT id FROM transactions WHERE id = $1 AND customer_id = $2`,
+        [body.applies_to_transaction_id, body.customer_id]
+      );
+      if (!ref.rows[0]) return next(new ApiError(400, 'Lançamento de referência inválido', 'INVALID_REFERENCE'));
+    }
+
+    // Sempre PENDING quando há vínculo — a outra parte precisa aprovar.
+    const status = c.linked_user_id ? 'PENDING' : 'CONFIRMED';
     const result = await query(
-      `INSERT INTO transactions (id, customer_id, owner_user_id, type, status, amount, description,
+      `INSERT INTO transactions (id, customer_id, owner_user_id, created_by_user_id, type, status, amount, description,
                                  occurred_at, due_date, payment_method, attachment,
-                                 installment_number, total_installments, installment_group_id, interest_rate)
-       VALUES (COALESCE($1::uuid, uuid_generate_v4()), $2, $3, $4, $5, $6, $7,
-               COALESCE($8, NOW()), $9, $10, $11::jsonb, $12, $13, $14, $15)
+                                 installment_number, total_installments, installment_group_id, interest_rate,
+                                 applies_to_transaction_id)
+       VALUES (COALESCE($1::uuid, uuid_generate_v4()), $2, $3, $4, $5, $6, $7, $8,
+               COALESCE($9, NOW()), $10, $11, $12::jsonb, $13, $14, $15, $16, $17)
        ON CONFLICT (id) DO NOTHING
        RETURNING ${TX_COLUMNS}`,
-      [body.id ?? null, body.customer_id, req.user!.sub, body.type, status, body.amount, body.description,
+      [body.id ?? null, body.customer_id, c.owner_user_id, req.user!.sub, body.type, status, body.amount, body.description,
        toDate(body.occurred_at), toDate(body.due_date), body.payment_method ?? null,
        body.attachment ? JSON.stringify(body.attachment) : null,
        body.installment_number ?? null, body.total_installments ?? null,
-       body.installment_group_id ?? null, body.interest_rate ?? null]
+       body.installment_group_id ?? null, body.interest_rate ?? null,
+       body.applies_to_transaction_id ?? null]
     );
     if (!result.rows[0]) return next(new ApiError(409, 'Lançamento já existe', 'ALREADY_EXISTS'));
     await logEvent(result.rows[0].id, req.user!.sub, 'CREATED');
@@ -156,6 +184,9 @@ router.post('/:id/approve', decision('APPROVED', 'CONFIRMED'));
 // POST /api/transactions/:id/reject — só o usuário vinculado
 router.post('/:id/reject', decision('REJECTED', 'REJECTED'));
 
+// Quem aprova/recusa é sempre "a outra parte" em relação a quem criou:
+// dono criou (DEBT/pagamento contra o cliente) → aprova o vinculado;
+// vinculado criou (pagamento contra si mesmo) → aprova o dono.
 function decision(action: 'APPROVED' | 'REJECTED', newStatus: 'CONFIRMED' | 'REJECTED') {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
@@ -163,8 +194,11 @@ function decision(action: 'APPROVED' | 'REJECTED', newStatus: 'CONFIRMED' | 'REJ
       const result = await query(
         `UPDATE transactions t SET status = $3
            FROM customers c
-          WHERE t.id = $1 AND c.id = t.customer_id
-            AND c.linked_user_id = $2 AND t.status = 'PENDING'
+          WHERE t.id = $1 AND c.id = t.customer_id AND t.status = 'PENDING'
+            AND (
+                  (t.created_by_user_id = t.owner_user_id AND c.linked_user_id = $2)
+               OR (t.created_by_user_id = c.linked_user_id AND t.owner_user_id = $2)
+            )
           RETURNING t.id`,
         [req.params.id, req.user!.sub, newStatus]
       );
@@ -180,12 +214,12 @@ function decision(action: 'APPROVED' | 'REJECTED', newStatus: 'CONFIRMED' | 'REJ
   };
 }
 
-// POST /api/transactions/:id/resend — só o dono; REJECTED volta para PENDING
+// POST /api/transactions/:id/resend — só quem criou de fato; REJECTED volta para PENDING
 router.post('/:id/resend', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await query(
       `UPDATE transactions SET status = 'PENDING'
-        WHERE id = $1 AND owner_user_id = $2 AND status = 'REJECTED'
+        WHERE id = $1 AND created_by_user_id = $2 AND status = 'REJECTED'
         RETURNING id`,
       [req.params.id, req.user!.sub]
     );
