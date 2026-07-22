@@ -337,6 +337,61 @@ export async function fetchCounterparts(): Promise<Counterpart[]> {
   return data ? (data.counterparts as Counterpart[]) : [];
 }
 
+export interface CounterpartTransaction {
+  id: string;
+  type: Transaction['type'];
+  status: Transaction['status'];
+  amount: string | number;
+  description: string;
+  occurred_at: string;
+  due_date: string | null;
+  payment_method: Transaction['paymentMethod'] | null;
+  attachment: Transaction['attachment'] | null;
+  created_by_user_id: string;
+  applies_to_transaction_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Histórico completo (todos os status) do meu relacionamento com um comerciante. */
+export async function fetchCounterpartTransactions(customerId: string): Promise<CounterpartTransaction[]> {
+  const data = await jsonFetch(`/counterpart/${customerId}/transactions`);
+  return data ? (data.transactions as CounterpartTransaction[]) : [];
+}
+
+export interface CounterpartPaymentInput {
+  amount: number;
+  description: string;
+  type?: 'PAYMENT' | 'ABATIMENTO' | 'REFUND';
+  payment_method?: 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'COMPENSATION' | null;
+  attachment?: { data: string; mimeType: string; name: string } | null;
+  applies_to_transaction_id?: string | null;
+}
+
+/**
+ * Eu (contraparte/devedor) registro um pagamento contra o comerciante que
+ * me cadastrou. Nasce PENDING — o comerciante precisa aprovar, igual ao
+ * fluxo já existente (só que na direção contrária).
+ */
+export async function createCounterpartPayment(
+  customerId: string,
+  input: CounterpartPaymentInput
+): Promise<boolean> {
+  const result = await jsonFetch('/transactions', {
+    method: 'POST',
+    body: JSON.stringify({
+      customer_id: customerId,
+      type: input.type || 'PAYMENT',
+      amount: input.amount,
+      description: input.description,
+      payment_method: input.payment_method ?? null,
+      attachment: input.attachment ?? null,
+      applies_to_transaction_id: input.applies_to_transaction_id ?? null,
+    }),
+  });
+  return result !== null;
+}
+
 export async function approveTransaction(id: string, note?: string): Promise<boolean> {
   return (await jsonFetch(`/transactions/${id}/approve`, { method: 'POST', body: JSON.stringify({ note }) })) !== null;
 }
