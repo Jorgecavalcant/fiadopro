@@ -84,6 +84,7 @@ import InboxAprovacoes from './components/InboxAprovacoes';
 import MinhasDividas from './components/MinhasDividas';
 import { bootstrapSync, schedulePush, resetSyncState, fetchInbox, resendTransaction } from './services/syncService';
 import { calculateScore, computeRawBalance, buildChargeMessage, normalizeWhatsAppPhone } from './utils/credit';
+import { computeItemPrice, getItemQuantity, getItemUnitPrice, planEventSplitRecords, formatDateBR } from './utils/billSplit';
 
 const STORAGE_KEY = 'fiado_pro_data_v14';
 const API_URL = import.meta.env.VITE_API_URL || 'https://www.fiadopro.com.br/api';
@@ -1035,12 +1036,38 @@ const SplitBillView = ({ events, setEvents, setIsEventModalOpen, setSelectedEven
   </div>
 );
 
-const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, customers, setCustomers, setTransactions, setDebts, setOwnerExpenses, formatCurrency, t, user }: any) => {
+const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, customers, setCustomers, transactions, setTransactions, debts, setDebts, setOwnerExpenses, formatCurrency, t, user, addAuditEntry }: any) => {
   const [isScanning, setIsScanning] = useState(false);
   const [participantDropdown, setParticipantDropdown] = useState<string | null>(null);
   const [participantSearch, setParticipantSearch] = useState<Record<string, string>>({});
+  const [lastAddedParticipantId, setLastAddedParticipantId] = useState<string | null>(null);
+  const participantRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const event = events.find((e: any) => e.id === selectedEventId);
+
+  // Foca e rola até o participante recém-criado (adicionado via botão "Adicionar Pessoa").
+  useEffect(() => {
+    if (!lastAddedParticipantId) return;
+    const el = participantRefs.current.get(lastAddedParticipantId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.focus();
+    }
+    setLastAddedParticipantId(null);
+  }, [lastAddedParticipantId]);
+
   if (!event) return null;
+
+  // Aplica uma edição de conteúdo (itens/participantes) ao evento e marca splitDirty
+  // quando o evento já tinha sido confirmado antes (isCompleted) — sinaliza que a
+  // divisão precisa ser reconfirmada. Toggle manual de "Quitado/Pendente" (fora daqui)
+  // não passa por esta função, então não marca dirty.
+  const updateEventContent = (updater: (ev: BillEvent) => BillEvent) => {
+    setEvents((prev: BillEvent[]) => prev.map((ev: BillEvent) => {
+      if (ev.id !== event.id) return ev;
+      const updated = updater(ev);
+      return ev.isCompleted ? { ...updated, splitDirty: true } : updated;
+    }));
+  };
 
   const calculateShares = () => {
     const result: Record<string, number> = {};
@@ -1061,7 +1088,7 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
+    if (file.size > 15 * 1024 * 1024) {
       alert(t.fileTooLarge);
       return;
     }
@@ -1074,15 +1101,14 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
         const base64 = readerEvent.target?.result as string;
         const items = await extractItemsFromInvoice(base64, file.type);
         if (items && items.length > 0) {
-          setEvents((prev: BillEvent[]) => prev.map(ev => {
-            if (ev.id === selectedEventId) {
-              const newItems = [...ev.items];
-              items.forEach((it: any) => {
-                newItems.push({ id: generateId(), name: it.name, price: it.price });
-              });
-              return { ...ev, items: newItems };
-            }
-            return ev;
+          // A extração de nota fiscal não detecta quantidade — assume 1 por item lido,
+          // o usuário ajusta manualmente depois se precisar.
+          updateEventContent(ev => ({
+            ...ev,
+            items: [
+              ...ev.items,
+              ...items.map((it: any) => ({ id: generateId(), name: it.name, quantity: 1, unitPrice: it.price, price: it.price })),
+            ],
           }));
           alert(t.scanSuccess);
         } else {
@@ -1104,10 +1130,20 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
   };
 
   const handlePrintEvent = () => {
-    const printWindow = window.open('', '_blank', 'noopener,noreferrer');
-    if (!printWindow) return;
+    // Sem noopener/noreferrer: é uma janela de impressão própria (gerada por nós, não
+    // um link externo) — com noopener o navegador sempre retorna null de window.open,
+    // então a função saía em silêncio sem imprimir nem avisar (bug corrigido aqui).
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Ative popups no navegador para imprimir o recibo do evento.');
+      return;
+    }
 
-    const itemsList = event.items.map((i: any) => `<tr><td>${esc(i.name)}</td><td style="text-align:right">${formatCurrency(i.price)}</td></tr>`).join('');
+    const itemsList = event.items.map((i: any) => {
+      const quantity = getItemQuantity(i);
+      const unitPrice = getItemUnitPrice(i);
+      return `<tr><td>${esc(i.name)}</td><td style="text-align:right">${quantity}</td><td style="text-align:right">${formatCurrency(unitPrice)}</td><td style="text-align:right">${formatCurrency(i.price)}</td></tr>`;
+    }).join('');
     const participantsList = event.participants.map((p: any) => {
         const amount = shares[p.id] || 0;
         const pItems = event.items.filter((i: any) => p.itemIds.includes(i.id)).map((i: any) => esc(i.name)).join(', ');
@@ -1115,16 +1151,19 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
     }).join('');
 
     const statusColor = event.isCompleted ? '#10b981' : '#f59e0b';
-    const content = `<html><head><title>${esc(event.name)}</title><style>body { font-family: sans-serif; padding: 40px; color: #334155; } table { width: 100%; border-collapse: collapse; margin-bottom: 30px; } th, td { padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left; } th { font-size: 12px; text-transform: uppercase; color: #94a3b8; } .status { font-weight: bold; color: ${statusColor}; }</style></head><body><h1>${esc(event.name)} <span class="status">[${event.isCompleted ? 'QUITADO' : 'PENDENTE'}]</span></h1><p>Data: ${esc(new Date(event.date).toLocaleDateString())} | Total: ${formatCurrency(totalBill)}</p><h3>Itens Consumidos</h3><table><thead><tr><th>Item</th><th style="text-align:right">Valor</th></tr></thead><tbody>${itemsList}</tbody></table><h3>Divisão por Pessoa</h3><table><thead><tr><th>Nome</th><th>Itens</th><th style="text-align:right">Parte</th></tr></thead><tbody>${participantsList}</tbody></table><script>window.onload = () => window.print();<\/script></body></html>`;
+    const content = `<html><head><title>${esc(event.name)}</title><style>body { font-family: sans-serif; padding: 40px; color: #334155; } table { width: 100%; border-collapse: collapse; margin-bottom: 30px; } th, td { padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left; } th { font-size: 12px; text-transform: uppercase; color: #94a3b8; } .status { font-weight: bold; color: ${statusColor}; }</style></head><body><h1>${esc(event.name)} <span class="status">[${event.isCompleted ? 'QUITADO' : 'PENDENTE'}]</span></h1><p>Data: ${esc(new Date(event.date).toLocaleDateString())} | Total: ${formatCurrency(totalBill)}</p><h3>Itens Consumidos</h3><table><thead><tr><th>Item</th><th style="text-align:right">Qtd</th><th style="text-align:right">Valor Unit.</th><th style="text-align:right">Total</th></tr></thead><tbody>${itemsList}</tbody></table><h3>Divisão por Pessoa</h3><table><thead><tr><th>Nome</th><th>Itens</th><th style="text-align:right">Parte</th></tr></thead><tbody>${participantsList}</tbody></table><script>window.onload = () => window.print();<\/script></body></html>`;
     printWindow.document.write(content); printWindow.document.close();
   };
 
   const handleConfirmSplit = () => {
     if (!confirm(t.confirmSplitQuestion || (t.confirmSplit + "?"))) return;
 
+    const wasAlreadyConfirmed = event.isCompleted;
     const newCustomersList: Customer[] = [];
-    const newTransactionsList: Transaction[] = [];
-    const newDebtsList: Debt[] = [];
+    // Um item por participante com valor a pagar — usado por planEventSplitRecords para
+    // decidir se a transação/dívida deste evento deve ser ATUALIZADA (participante já
+    // tinha um registro para este evento) ou CRIADA (participante novo no rateio).
+    const participantShares: Array<{ participantId: string; customerId: string; amount: number; description: string }> = [];
 
     // Processar cada participante
     event.participants.forEach((p: Participant) => {
@@ -1173,65 +1212,102 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
           .join(', ');
         
         const desc = itemsNames ? `${event.name}: ${itemsNames}` : `${event.name} (Rateio)`;
-
-        // Registrar transação no extrato do cliente
-        newTransactionsList.push({
-          id: generateId(),
-          customerId: targetCustomerId,
-          amount: amount,
-          type: 'DEBT',
-          description: desc,
-          timestamp: Date.now(),
-          eventId: event.id,
-          status: 'CONFIRMED'
-        });
-
-        // Registrar na ficha de devedores
-        newDebtsList.push({
-          id: generateId(),
-          customerId: targetCustomerId,
-          eventId: event.id,
-          amount: amount,
-          description: desc,
-          createdAt: Date.now(),
-          isPaid: false,
-        });
+        participantShares.push({ participantId: p.id, customerId: targetCustomerId, amount, description: desc });
       }
     });
+
+    // Decide, por participante, se atualiza um registro já existente para este evento
+    // (reconfirmação) ou cria um novo — nunca duplica (ver utils/billSplit.ts).
+    const txPlan = planEventSplitRecords(participantShares, transactions, event.id);
+    const debtPlan = planEventSplitRecords(participantShares, debts, event.id);
+    const updatedCustomerIds = new Set(
+      txPlan.updates
+        .map(u => transactions.find((tx: Transaction) => tx.id === u.id)?.customerId)
+        .filter((id): id is string => Boolean(id))
+    );
 
     // Atualizar todos os estados
     if (newCustomersList.length > 0) {
       setCustomers((prev: Customer[]) => [...prev, ...newCustomersList]);
     }
 
-    if (newTransactionsList.length > 0) {
-      setTransactions((prev: Transaction[]) => [
-        ...prev.filter(tx => tx.eventId !== event.id),
-        ...newTransactionsList
-      ]);
+    setTransactions((prev: Transaction[]) => {
+      const updatesById = new Map(txPlan.updates.map(u => [u.id, u]));
+      const mapped = prev.map(tx => {
+        const upd = updatesById.get(tx.id);
+        return upd ? { ...tx, amount: upd.amount, description: upd.description } : tx;
+      });
+      const created: Transaction[] = txPlan.creates.map(c => ({
+        id: generateId(),
+        customerId: c.customerId,
+        amount: c.amount,
+        type: 'DEBT',
+        description: c.description,
+        timestamp: Date.now(),
+        eventId: event.id,
+        status: 'CONFIRMED',
+      }));
+      return created.length > 0 ? [...mapped, ...created] : mapped;
+    });
+
+    setDebts((prev: Debt[]) => {
+      const updatesById = new Map(debtPlan.updates.map(u => [u.id, u]));
+      const mapped = prev.map(d => {
+        const upd = updatesById.get(d.id);
+        return upd ? { ...d, amount: upd.amount, description: upd.description } : d;
+      });
+      const created: Debt[] = debtPlan.creates.map(c => ({
+        id: generateId(),
+        customerId: c.customerId,
+        eventId: event.id,
+        amount: c.amount,
+        description: c.description,
+        createdAt: Date.now(),
+        isPaid: false,
+      }));
+      return created.length > 0 ? [...mapped, ...created] : mapped;
+    });
+
+    // Histórico da reconfirmação: só quando o evento já tinha sido confirmado antes e
+    // algum participante teve a transação ATUALIZADA (não criada agora pela 1ª vez).
+    if (wasAlreadyConfirmed && updatedCustomerIds.size > 0) {
+      const noteText = `Divisão atualizada em ${formatDateBR()}`;
+      setCustomers((prev: Customer[]) => prev.map(c =>
+        updatedCustomerIds.has(c.id)
+          ? { ...c, notes: [...(c.notes || []), { id: generateId(), text: noteText, createdAt: Date.now() }] }
+          : c
+      ));
+      if (addAuditEntry) {
+        updatedCustomerIds.forEach(customerId => {
+          addAuditEntry('SPLIT_CONFIRMED', 'CUSTOMER', customerId as string, noteText);
+        });
+      }
     }
 
-    if (newDebtsList.length > 0) {
-      setDebts((prev: Debt[]) => [...prev, ...newDebtsList]);
-    }
-    
-    setEvents((prev: BillEvent[]) => prev.map(e => e.id === event.id ? { ...e, isCompleted: true } : e));
+    setEvents((prev: BillEvent[]) => prev.map(e => e.id === event.id ? { ...e, isCompleted: true, splitDirty: false } : e));
 
-    // If owner participating, create owner expense
+    // If owner participating, create (or update, numa reconfirmação) owner expense
     if (event.ownerParticipating) {
       const ownerParticipant = event.participants.find((p: Participant) => p.isOwner);
       if (ownerParticipant) {
         const ownerShare = shares[ownerParticipant.id] || 0;
         if (ownerShare > 0 && setOwnerExpenses) {
-          setOwnerExpenses((prev: OwnerExpense[]) => [...prev, {
-            id: generateId(),
-            eventId: event.id,
-            eventName: event.name,
-            amount: Math.round(ownerShare * 100) / 100,
-            description: `Minha parte — ${event.name}`,
-            date: Date.now(),
-            isPaid: false,
-          }]);
+          const roundedShare = Math.round(ownerShare * 100) / 100;
+          setOwnerExpenses((prev: OwnerExpense[]) => {
+            const existingIdx = prev.findIndex(oe => oe.eventId === event.id);
+            if (existingIdx >= 0) {
+              return prev.map((oe, idx) => idx === existingIdx ? { ...oe, amount: roundedShare } : oe);
+            }
+            return [...prev, {
+              id: generateId(),
+              eventId: event.id,
+              eventName: event.name,
+              amount: roundedShare,
+              description: `Minha parte — ${event.name}`,
+              date: Date.now(),
+              isPaid: false,
+            }];
+          });
         }
       }
     }
@@ -1274,10 +1350,42 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
                       {isScanning ? t.thinking : t.scanInvoice}
                       <input type="file" accept="image/*" className="hidden" onChange={handleScanInvoice} disabled={isScanning} />
                     </label>
-                    <button onClick={() => setEvents((prev: any) => prev.map((ev: any) => ev.id === event.id ? { ...ev, items: [...ev.items, { id: generateId(), name: '', price: 0 }] } : ev))} className="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-100 transition-all">{t.addItem}</button>
+                    <button onClick={() => updateEventContent((ev: BillEvent) => ({ ...ev, items: [...ev.items, { id: generateId(), name: '', price: 0, quantity: 1, unitPrice: 0 }] }))} className="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-100 transition-all">{t.addItem}</button>
                   </div>
                </div>
-               <div className="space-y-3">{event.items.map((item: any) => (<div key={item.id} className="flex gap-3"><input value={item.name} onChange={(e) => setEvents((prev: any) => prev.map((ev: any) => ev.id === event.id ? { ...ev, items: ev.items.map((i: any) => i.id === item.id ? { ...i, name: e.target.value } : i) } : ev))} placeholder={t.itemName} className="flex-1 px-5 py-3 bg-slate-50 border-none rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500" /><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span><input type="number" step="0.01" value={item.price === 0 ? '' : item.price} onChange={(e) => setEvents((prev: any) => prev.map((ev: any) => ev.id === event.id ? { ...ev, items: ev.items.map((i: any) => i.id === item.id ? { ...i, price: parseFloat(e.target.value) || 0 } : i) } : ev))} placeholder="0,00" className="w-28 pl-9 pr-4 py-3 bg-slate-50 border-none rounded-2xl font-black text-sm text-right outline-none focus:ring-2 focus:ring-indigo-500" /></div><button onClick={() => setEvents((prev: any) => prev.map((ev: any) => ev.id === event.id ? { ...ev, items: ev.items.filter((i: any) => i.id !== item.id) } : ev))} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><XCircle className="w-5 h-5" /></button></div>))}</div>
+               <div className="space-y-3">{event.items.map((item: any) => {
+                  const quantity = getItemQuantity(item);
+                  const unitPrice = getItemUnitPrice(item);
+                  return (
+                    <div key={item.id} className="flex flex-col gap-2 bg-slate-50 rounded-2xl p-3">
+                      <div className="flex gap-3">
+                        <input value={item.name} onChange={(e) => updateEventContent((ev: BillEvent) => ({ ...ev, items: ev.items.map((i: any) => i.id === item.id ? { ...i, name: e.target.value } : i) }))} placeholder={t.itemName} className="flex-1 px-5 py-3 bg-white border-none rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                        <button onClick={() => updateEventContent((ev: BillEvent) => ({ ...ev, items: ev.items.filter((i: any) => i.id !== item.id) }))} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><XCircle className="w-5 h-5" /></button>
+                      </div>
+                      <div className="flex gap-3 items-center">
+                        <div className="flex flex-col">
+                          <label className="text-[9px] text-slate-400 font-black uppercase mb-1">{t.quantity}</label>
+                          <input type="number" step="1" min="0" value={quantity === 0 ? '' : quantity} onChange={(e) => {
+                            const newQuantity = parseFloat(e.target.value) || 0;
+                            updateEventContent((ev: BillEvent) => ({ ...ev, items: ev.items.map((i: any) => i.id === item.id ? { ...i, quantity: newQuantity, unitPrice: getItemUnitPrice(i), price: computeItemPrice({ quantity: newQuantity, unitPrice: getItemUnitPrice(i), price: i.price }) } : i) }));
+                          }} placeholder="1" className="w-16 px-3 py-2 bg-white border-none rounded-xl font-black text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500" />
+                        </div>
+                        <div className="relative flex-1">
+                          <label className="text-[9px] text-slate-400 font-black uppercase mb-1 block">{t.unitPrice}</label>
+                          <span className="absolute left-3 top-1/2 translate-y-1 text-slate-400 font-bold text-xs">R$</span>
+                          <input type="number" step="0.01" value={unitPrice === 0 ? '' : unitPrice} onChange={(e) => {
+                            const newUnitPrice = parseFloat(e.target.value) || 0;
+                            updateEventContent((ev: BillEvent) => ({ ...ev, items: ev.items.map((i: any) => i.id === item.id ? { ...i, unitPrice: newUnitPrice, quantity: getItemQuantity(i), price: computeItemPrice({ quantity: getItemQuantity(i), unitPrice: newUnitPrice, price: i.price }) } : i) }));
+                          }} placeholder="0,00" className="w-full pl-9 pr-4 py-2 bg-white border-none rounded-xl font-black text-sm text-right outline-none focus:ring-2 focus:ring-indigo-500" />
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <label className="text-[9px] text-slate-400 font-black uppercase mb-1">{t.itemTotal}</label>
+                          <p className="px-2 py-2 font-black text-sm text-indigo-600 whitespace-nowrap">{formatCurrency(item.price)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}</div>
             </div>
             <div className="space-y-8">
                <div className="flex justify-between items-center pb-4 border-b border-slate-100">
@@ -1286,22 +1394,23 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={event.ownerParticipating} onChange={(e) => {
                         const isChecked = e.target.checked;
-                        setEvents((prev: any) => prev.map((ev: any) => {
-                          if (ev.id === event.id) {
-                            let newParticipants = [...ev.participants];
-                            if (isChecked && !newParticipants.some(p => p.isOwner)) {
-                              newParticipants = [{ id: generateId(), name: user?.name || 'Eu', itemIds: [], isOwner: true }, ...newParticipants];
-                            } else if (!isChecked) {
-                              newParticipants = newParticipants.filter(p => !p.isOwner);
-                            }
-                            return { ...ev, ownerParticipating: isChecked, participants: newParticipants };
+                        updateEventContent((ev: BillEvent) => {
+                          let newParticipants = [...ev.participants];
+                          if (isChecked && !newParticipants.some(p => p.isOwner)) {
+                            newParticipants = [{ id: generateId(), name: user?.name || 'Eu', itemIds: [], isOwner: true }, ...newParticipants];
+                          } else if (!isChecked) {
+                            newParticipants = newParticipants.filter(p => !p.isOwner);
                           }
-                          return ev;
-                        }));
+                          return { ...ev, ownerParticipating: isChecked, participants: newParticipants };
+                        });
                       }} className="w-4 h-4 rounded text-indigo-600" />
                       <span className="text-[10px] font-black uppercase text-slate-500">{t.ownerParticipating}</span>
                     </label>
-                    <button onClick={() => setEvents((prev: any) => prev.map((ev: any) => ev.id === event.id ? { ...ev, participants: [...ev.participants, { id: generateId(), name: '', itemIds: [] }] } : ev))} className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase hover:bg-emerald-100 transition-all">{t.addParticipant}</button>
+                    <button onClick={() => {
+                      const newParticipantId = generateId();
+                      updateEventContent((ev: BillEvent) => ({ ...ev, participants: [...ev.participants, { id: newParticipantId, name: '', itemIds: [] }] }));
+                      setLastAddedParticipantId(newParticipantId);
+                    }} className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase hover:bg-emerald-100 transition-all">{t.addParticipant}</button>
                   </div>
                </div>
                
@@ -1311,6 +1420,7 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
                     <div className="flex items-center gap-3 mb-4">
                       <div className="flex-1 relative">
                         <input
+                          ref={(el) => { if (el) participantRefs.current.set(p.id, el); else participantRefs.current.delete(p.id); }}
                           value={p.isOwner ? p.name : (participantSearch[p.id] !== undefined ? participantSearch[p.id] : p.name)}
                           onChange={(e) => {
                             if (p.isOwner) return;
@@ -1355,19 +1465,19 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
                         <p className="text-[9px] text-slate-400 font-black uppercase">{t.sharePerPerson}</p>
                         <p className="text-sm font-black text-indigo-600">{formatCurrency(shares[p.id] || 0)}</p>
                       </div>
-                      {!p.isOwner && <button onClick={() => setEvents((prev: any) => prev.map((ev: any) => ev.id === event.id ? { ...ev, participants: ev.participants.filter((par: any) => par.id !== p.id) } : ev))} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><XCircle className="w-5 h-5" /></button>}
+                      {!p.isOwner && <button onClick={() => updateEventContent((ev: BillEvent) => ({ ...ev, participants: ev.participants.filter((par: any) => par.id !== p.id) }))} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><XCircle className="w-5 h-5" /></button>}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {event.items.map((it: any) => (
-                        <button key={it.id} onClick={() => { 
-                          const newParts = event.participants.map((par: any) => { 
-                            if (par.id === p.id) { 
-                              const itemIds = par.itemIds.includes(it.id) ? par.itemIds.filter((id: string) => id !== it.id) : [...par.itemIds, it.id]; 
-                              return { ...par, itemIds }; 
-                            } 
-                            return par; 
-                          }); 
-                          setEvents((prev: any) => prev.map((ev: any) => ev.id === event.id ? { ...ev, participants: newParts } : ev)); 
+                        <button key={it.id} onClick={() => {
+                          updateEventContent((ev: BillEvent) => ({
+                            ...ev,
+                            participants: ev.participants.map((par: any) => {
+                              if (par.id !== p.id) return par;
+                              const itemIds = par.itemIds.includes(it.id) ? par.itemIds.filter((id: string) => id !== it.id) : [...par.itemIds, it.id];
+                              return { ...par, itemIds };
+                            }),
+                          }));
                         }} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all border-2 ${p.itemIds.includes(it.id) ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-slate-400 border-slate-200 hover:border-indigo-200'}`}>{it.name || '...'}</button>
                       ))}
                     </div>
@@ -1378,6 +1488,9 @@ const EventDetailView = ({ selectedEventId, events, setEvents, setActiveView, cu
                <div className="bg-indigo-50 border-2 border-indigo-200 rounded-[2.5rem] p-8 shadow-sm">
                   <p className="text-indigo-400 font-black uppercase tracking-widest text-[10px] mb-4">CÁLCULO FINAL</p>
                   <button onClick={handleConfirmSplit} disabled={totalBill <= 0 || event.isCompleted} className="w-full bg-green-600 hover:bg-green-700 text-white py-5 rounded-2xl font-black text-lg transition-all shadow-lg active:scale-95 disabled:opacity-50">{event.isCompleted ? '✓ Divisão já confirmada' : (t.confirmSplitBtn || "Confirmar Divisão")}</button>
+                  {event.splitDirty && (
+                    <button onClick={handleConfirmSplit} className="w-full mt-3 bg-amber-500 hover:bg-amber-600 text-white py-5 rounded-2xl font-black text-lg transition-all shadow-lg active:scale-95">{t.updateSplitBtn || "Atualizar Divisão"}</button>
+                  )}
                </div>
             </div>
          </div>
@@ -3267,7 +3380,7 @@ const App: React.FC = () => {
         />
       )}
       {activeView === AppView.SPLIT_BILL && <SplitBillView events={events} setEvents={setEvents} setIsEventModalOpen={setIsEventModalOpen} setSelectedEventId={setSelectedEventId} setActiveView={setActiveView} formatCurrency={formatCurrency} t={t} setTransactions={setTransactions} setDebts={setDebts} />}
-      {activeView === AppView.EVENT_DETAIL && <EventDetailView selectedEventId={selectedEventId} events={events} setEvents={setEvents} setActiveView={setActiveView} customers={customers} setCustomers={setCustomers} setTransactions={setTransactions} setDebts={setDebts} setOwnerExpenses={setOwnerExpenses} formatCurrency={formatCurrency} t={t} user={user} />}
+      {activeView === AppView.EVENT_DETAIL && <EventDetailView selectedEventId={selectedEventId} events={events} setEvents={setEvents} setActiveView={setActiveView} customers={customers} setCustomers={setCustomers} transactions={transactions} setTransactions={setTransactions} debts={debts} setDebts={setDebts} setOwnerExpenses={setOwnerExpenses} formatCurrency={formatCurrency} t={t} user={user} addAuditEntry={addAuditEntry} />}
       {activeView === AppView.RECEIVABLES_LIST && <ReceivablesListView receivables={customersWithBalance.filter(c => c.rawBalance > 0).sort((a,b) => b.rawBalance - a.rawBalance)} formatCurrency={formatCurrency} navigateToCustomer={navigateToCustomer} t={t} />}
       {activeView === AppView.DEBTORS_LIST && <DebtorsListView debts={debts} setDebts={setDebts} customers={customers} events={events} formatCurrency={formatCurrency} navigateToCustomer={navigateToCustomer} t={t} setTransactions={setTransactions} />}
 
@@ -3786,7 +3899,7 @@ const App: React.FC = () => {
             <form onSubmit={e => {
               e.preventDefault(); const fd = new FormData(e.currentTarget);
               const event: BillEvent = {
-                id: generateId(), name: fd.get('name') as string, date: Date.now(), items: [], participants: [{ id: generateId(), name: user?.name || 'Eu', itemIds: [], isOwner: true }], isCompleted: false, ownerParticipating: true
+                id: generateId(), name: fd.get('name') as string, date: Date.now(), items: [], participants: [{ id: generateId(), name: user?.name || 'Eu', itemIds: [], isOwner: true }], isCompleted: false, ownerParticipating: true, splitDirty: false
               };
               setEvents(prev => [...prev, event]);
               setSelectedEventId(event.id);
