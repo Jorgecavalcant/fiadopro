@@ -174,7 +174,9 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response, next: Nex
 router.post('/forgot-password', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email: rawEmail } = req.body;
-    if (!rawEmail) return next(new ApiError(400, 'E-mail obrigatorio', 'MISSING_EMAIL'));
+    if (!rawEmail || typeof rawEmail !== 'string') {
+      return next(new ApiError(400, 'E-mail obrigatorio', 'MISSING_EMAIL'));
+    }
     const email = normalizeEmail(rawEmail);
     const result = await query('SELECT id FROM users WHERE email = $1 AND is_active = true', [email]);
     if (result.rows.length === 0) {

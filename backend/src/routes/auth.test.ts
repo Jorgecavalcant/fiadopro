@@ -255,4 +255,18 @@ describe('normalizacao de e-mail em auth.ts (dedup auth)', () => {
     // Deve ter vinculado o google_id ao usuario existente
     expect(fakeDb.users[0].google_id).toBe('google-sub-123');
   });
+
+  it('forgot-password com e-mail nao-string retorna 400 controlado em vez de vazar erro interno 500', async () => {
+    const forgotHandler = getRouteHandler('post', '/forgot-password');
+    const req = createReq({ email: 12345 });
+    const res = createRes();
+    const next = vi.fn();
+
+    await forgotHandler(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    const err = next.mock.calls[0][0];
+    expect(err.statusCode).toBe(400);
+    expect(err.code).toBe('MISSING_EMAIL');
+  });
 });
