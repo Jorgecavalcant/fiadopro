@@ -3737,6 +3737,14 @@ const App: React.FC = () => {
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
           <div style={{ maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
+            {(transactionType === 'ABATIMENTO' || transactionType === 'REFUND') && selectedCustomer && (
+              <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo do cliente</span>
+                <span className={`text-lg font-black ${selectedCustomer.balance > 0 ? 'text-orange-600' : selectedCustomer.balance < 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                  Saldo: {formatCurrency(selectedCustomer.balance)}
+                </span>
+              </div>
+            )}
             <form onSubmit={addTransaction} className="space-y-6">
               {installmentPreFill && (
                 <div className="flex items-center gap-3 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
