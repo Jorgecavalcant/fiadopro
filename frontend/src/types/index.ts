@@ -112,7 +112,13 @@ export interface CustomerWithBalance extends Customer {
 export interface BillItem {
   id: string;
   name: string;
+  /** Derivado de quantity * unitPrice — sempre recalculado quando um dos dois muda.
+   * Itens legados (criados antes de quantity/unitPrice existirem) só têm price setado
+   * direto; nesse caso quantity/unitPrice ficam undefined e o fallback é quantity=1,
+   * unitPrice=price (ver utils/billSplit.ts). */
   price: number;
+  quantity?: number;
+  unitPrice?: number;
 }
 
 export interface Participant {
@@ -140,6 +146,10 @@ export interface BillEvent {
   participants: Participant[];
   isCompleted: boolean;
   ownerParticipating: boolean;
+  /** true quando o evento já foi confirmado (isCompleted) ao menos uma vez e sofreu
+   * uma edição relevante depois (item ou participante) — sinaliza que a divisão
+   * precisa ser recalculada e reaplicada via handleConfirmSplit. */
+  splitDirty?: boolean;
 }
 
 export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'PAYMENT_CONFIRM' | 'PAYMENT_REJECT' | 'SPLIT_CONFIRMED';
