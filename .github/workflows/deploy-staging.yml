@@ -20,22 +20,25 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: pnpm
+
+      - name: Instalar dependencias (workspace completo)
+        run: pnpm install --frozen-lockfile
 
       - name: Backend — typecheck
         working-directory: backend
-        run: |
-          npm ci
-          npx tsc --noEmit
+        run: npx tsc --noEmit
 
       - name: Frontend — testes + build (modo staging)
         working-directory: frontend
         run: |
-          npm ci
-          npm run test
-          npm run build:staging
+          pnpm run test
+          pnpm run build:staging
 
       - name: Verificar bundle sem chaves de API
         run: |
