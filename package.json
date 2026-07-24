@@ -1,0 +1,11 @@
+{
+  "name": "fiado-pro",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Fiado Pro — monorepo (backend + frontend) gerenciado via pnpm workspaces",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint"
+  }
+}
