@@ -8,17 +8,20 @@ interface RateLimitStore {
 export const createLimiter = (
   maxRequests: number,
   windowMs: number,
-  keyFn?: (req: Request) => string
+  keyFn?: (req: Request) => string,
 ) => {
   const store = new Map<string, RateLimitStore>();
 
   // Limpa entradas expiradas a cada 5 minutos
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, val] of store.entries()) {
-      if (val.resetAt < now) store.delete(key);
-    }
-  }, 5 * 60 * 1000);
+  setInterval(
+    () => {
+      const now = Date.now();
+      for (const [key, val] of store.entries()) {
+        if (val.resetAt < now) store.delete(key);
+      }
+    },
+    5 * 60 * 1000,
+  );
 
   return (req: Request, res: Response, next: NextFunction) => {
     const key = keyFn ? keyFn(req) : req.ip || 'unknown';
@@ -34,7 +37,10 @@ export const createLimiter = (
       const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
       res.set('Retry-After', String(retryAfter));
       return res.status(429).json({
-        error: { code: 'RATE_LIMIT', message: `Muitas requisições. Tente novamente em ${retryAfter}s.` },
+        error: {
+          code: 'RATE_LIMIT',
+          message: `Muitas requisições. Tente novamente em ${retryAfter}s.`,
+        },
       });
     }
 

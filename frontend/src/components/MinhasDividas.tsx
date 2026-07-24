@@ -50,7 +50,11 @@ export default function MinhasDividas({ formatCurrency }: MinhasDividasProps) {
     <div className="p-4 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-slate-800">Minhas dívidas</h2>
-        <button onClick={() => void reload()} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500" title="Atualizar">
+        <button
+          onClick={() => void reload()}
+          className="p-2 rounded-lg hover:bg-slate-100 text-slate-500"
+          title="Atualizar"
+        >
           <RefreshCw size={18} />
         </button>
       </div>
@@ -62,8 +66,8 @@ export default function MinhasDividas({ formatCurrency }: MinhasDividasProps) {
           <Wallet size={40} className="mx-auto mb-3" />
           <p>Você ainda não está vinculado como cliente de ninguém.</p>
           <p className="text-xs mt-2">
-            Quando alguém cadastrar seu telefone ou e-mail, você verá aqui: o saldo (a partir dos lançamentos já
-            aprovados) e as pendências aguardando sua aprovação.
+            Quando alguém cadastrar seu telefone ou e-mail, você verá aqui: o saldo (a partir dos
+            lançamentos já aprovados) e as pendências aguardando sua aprovação.
           </p>
         </div>
       )}
@@ -82,7 +86,9 @@ export default function MinhasDividas({ formatCurrency }: MinhasDividasProps) {
               <div className="flex justify-between items-center gap-3">
                 <div>
                   <p className="font-semibold text-slate-800">{cp.owner_name}</p>
-                  <p className={`text-lg font-bold mt-1 ${devo ? 'text-red-600' : balance < 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                  <p
+                    className={`text-lg font-bold mt-1 ${devo ? 'text-red-600' : balance < 0 ? 'text-emerald-600' : 'text-slate-500'}`}
+                  >
                     {devo
                       ? `Você deve ${formatCurrency(balance)}`
                       : balance < 0
@@ -112,7 +118,8 @@ export default function MinhasDividas({ formatCurrency }: MinhasDividasProps) {
               </div>
               {cp.owner_pix_key && (
                 <p className="text-xs text-slate-400 mt-2">
-                  PIX para pagamento: <span className="font-mono text-slate-600">{cp.owner_pix_key}</span>
+                  PIX para pagamento:{' '}
+                  <span className="font-mono text-slate-600">{cp.owner_pix_key}</span>
                 </p>
               )}
             </div>

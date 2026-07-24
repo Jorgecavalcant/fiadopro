@@ -18,7 +18,9 @@ const ImportCustomerSchema = z.object({
   pixKey: z.string().max(140).optional().nullable(),
   trusted: z.boolean().optional(),
   overpaymentStrategy: z.enum(['PROFIT', 'RETURN']).optional(),
-  notes: z.array(z.object({ id: z.string(), text: z.string().max(2000), createdAt: z.number() })).optional(),
+  notes: z
+    .array(z.object({ id: z.string(), text: z.string().max(2000), createdAt: z.number() }))
+    .optional(),
   score: z.number().int().min(0).max(1000).optional().nullable(),
   createdAt: z.number().optional(),
 });
@@ -33,7 +35,11 @@ const ImportTransactionSchema = z.object({
   dueDate: z.number().optional().nullable(),
   paymentMethod: z.enum(['PIX', 'CREDIT_CARD', 'DEBIT_CARD', 'COMPENSATION']).optional().nullable(),
   attachment: z
-    .object({ data: z.string().max(14 * 1024 * 1024), mimeType: z.string().max(100), name: z.string().max(255) })
+    .object({
+      data: z.string().max(14 * 1024 * 1024),
+      mimeType: z.string().max(100),
+      name: z.string().max(255),
+    })
     .optional()
     .nullable(),
   status: z.enum(['CONFIRMED', 'PENDING', 'REJECTED']).optional(),
@@ -65,17 +71,27 @@ router.post('/import', async (req: AuthRequest, res: Response, next: NextFunctio
         `INSERT INTO customers (id, owner_user_id, name, phone, email, pix_key, trusted, overpayment_strategy, notes, score, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, FALSE), COALESCE($8, 'RETURN'), COALESCE($9::jsonb, '[]'::jsonb), $10, COALESCE($11, NOW()))
          ON CONFLICT (id) DO NOTHING`,
-        [c.id, userId, c.name, c.phone, c.email ?? null, c.pixKey ?? null, c.trusted ?? null,
-         c.overpaymentStrategy ?? null, c.notes ? JSON.stringify(c.notes) : null, c.score ?? null,
-         c.createdAt ? new Date(c.createdAt) : null]
+        [
+          c.id,
+          userId,
+          c.name,
+          c.phone,
+          c.email ?? null,
+          c.pixKey ?? null,
+          c.trusted ?? null,
+          c.overpaymentStrategy ?? null,
+          c.notes ? JSON.stringify(c.notes) : null,
+          c.score ?? null,
+          c.createdAt ? new Date(c.createdAt) : null,
+        ],
       );
       customersImported += r.rowCount ?? 0;
     }
 
     const ownedIds = new Set<string>(
       (await query(`SELECT id FROM customers WHERE owner_user_id = $1`, [userId])).rows.map(
-        (r: { id: string }) => r.id
-      )
+        (r: { id: string }) => r.id,
+      ),
     );
 
     for (const t of body.transactions) {
@@ -86,11 +102,22 @@ router.post('/import', async (req: AuthRequest, res: Response, next: NextFunctio
                                    installment_number, total_installments, installment_group_id, interest_rate)
          VALUES ($1, $2, $3, $4, 'CONFIRMED', $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13, $14)
          ON CONFLICT (id) DO NOTHING`,
-        [t.id, t.customerId, userId, t.type, t.amount, t.description, new Date(t.timestamp),
-         t.dueDate ? new Date(t.dueDate) : null, t.paymentMethod ?? null,
-         t.attachment ? JSON.stringify(t.attachment) : null,
-         t.installmentNumber ?? null, t.totalInstallments ?? null,
-         t.installmentGroupId ?? null, t.interestRate ?? null]
+        [
+          t.id,
+          t.customerId,
+          userId,
+          t.type,
+          t.amount,
+          t.description,
+          new Date(t.timestamp),
+          t.dueDate ? new Date(t.dueDate) : null,
+          t.paymentMethod ?? null,
+          t.attachment ? JSON.stringify(t.attachment) : null,
+          t.installmentNumber ?? null,
+          t.totalInstallments ?? null,
+          t.installmentGroupId ?? null,
+          t.interestRate ?? null,
+        ],
       );
       transactionsImported += r.rowCount ?? 0;
     }
@@ -106,7 +133,8 @@ router.post('/import', async (req: AuthRequest, res: Response, next: NextFunctio
 
     res.json({ success: true, customersImported, transactionsImported });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });

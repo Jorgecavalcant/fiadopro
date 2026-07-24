@@ -22,7 +22,7 @@ export async function getUserPlan(userId: string): Promise<Plan> {
          FROM users u
          LEFT JOIN subscriptions s ON s.user_id = u.id
         WHERE u.id = $1`,
-      [userId]
+      [userId],
     );
     const row: PlanRow | undefined = result.rows[0];
     if (!row) return 'FREE';

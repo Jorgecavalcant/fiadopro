@@ -12,10 +12,15 @@ import { linkCustomer, relinkCustomersForUser, ensureAdminRole } from './linking
 const mockQuery = vi.mocked(query);
 
 describe('linkCustomer', () => {
-  beforeEach(() => { mockQuery.mockReset(); });
+  beforeEach(() => {
+    mockQuery.mockReset();
+  });
 
   it('retorna o linked_user_id quando o UPDATE encontra usuário que bate', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ linked_user_id: 'user-dyllan' }], rowCount: 1 } as never);
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ linked_user_id: 'user-dyllan' }],
+      rowCount: 1,
+    } as never);
     const result = await linkCustomer('customer-1');
     expect(result).toBe('user-dyllan');
     expect(mockQuery).toHaveBeenCalledTimes(1);
@@ -40,11 +45,16 @@ describe('linkCustomer', () => {
 });
 
 describe('relinkCustomersForUser', () => {
-  beforeEach(() => { mockQuery.mockReset(); });
+  beforeEach(() => {
+    mockQuery.mockReset();
+  });
 
   it('desfaz vínculos que não batem mais e cria os novos, retornando a contagem', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 2 } as never); // unlink
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'c1' }, { id: 'c2' }, { id: 'c3' }], rowCount: 3 } as never);
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'c1' }, { id: 'c2' }, { id: 'c3' }],
+      rowCount: 3,
+    } as never);
     const count = await relinkCustomersForUser('user-1');
     expect(count).toBe(3);
     expect(mockQuery).toHaveBeenCalledTimes(2);
@@ -54,7 +64,9 @@ describe('relinkCustomersForUser', () => {
 
 describe('ensureAdminRole', () => {
   const oldEnv = process.env.ADMIN_EMAIL;
-  beforeEach(() => { mockQuery.mockReset(); });
+  beforeEach(() => {
+    mockQuery.mockReset();
+  });
   afterEach(() => {
     process.env.ADMIN_EMAIL = oldEnv;
   });

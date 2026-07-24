@@ -58,12 +58,18 @@ function createFakeDb() {
       return { rows: users.filter((u) => u.email === email).map((u) => ({ id: u.id })) };
     }
 
-    if (sql.startsWith('SELECT id, email, full_name, password_hash, is_active, role FROM users WHERE email = $1')) {
+    if (
+      sql.startsWith(
+        'SELECT id, email, full_name, password_hash, is_active, role FROM users WHERE email = $1',
+      )
+    ) {
       const [email] = params as [string];
       return { rows: users.filter((u) => u.email === email) };
     }
 
-    if (sql.startsWith('INSERT INTO users (full_name, email, password_hash, consent_at, consent_ip)')) {
+    if (
+      sql.startsWith('INSERT INTO users (full_name, email, password_hash, consent_at, consent_ip)')
+    ) {
       const [full_name, email, password_hash] = params as [string, string, string];
       const user: FakeUser = {
         id: String(idCounter++),
@@ -77,16 +83,34 @@ function createFakeDb() {
         role: 'user',
       };
       users.push(user);
-      return { rows: [{ id: user.id, email: user.email, full_name: user.full_name, created_at: user.created_at }] };
+      return {
+        rows: [
+          {
+            id: user.id,
+            email: user.email,
+            full_name: user.full_name,
+            created_at: user.created_at,
+          },
+        ],
+      };
     }
 
-    if (sql.startsWith('SELECT id, email, full_name, is_active, role FROM users WHERE google_id = $1 OR email = $2')) {
+    if (
+      sql.startsWith(
+        'SELECT id, email, full_name, is_active, role FROM users WHERE google_id = $1 OR email = $2',
+      )
+    ) {
       const [google_id, email] = params as [string, string];
       return { rows: users.filter((u) => u.google_id === google_id || u.email === email) };
     }
 
     if (sql.startsWith('INSERT INTO users (email, full_name, avatar_url, google_id)')) {
-      const [email, full_name, avatar_url, google_id] = params as [string, string, string | null, string];
+      const [email, full_name, avatar_url, google_id] = params as [
+        string,
+        string,
+        string | null,
+        string,
+      ];
       const user: FakeUser = {
         id: String(idCounter++),
         email,
@@ -128,12 +152,10 @@ function createFakeDb() {
 // Helpers para invocar o handler de uma rota do Express Router
 // diretamente, sem subir um servidor HTTP real.
 // -----------------------------------------------------------------
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function getRouteHandler(method: 'get' | 'post', path: string): any {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const layer = (router as any).stack.find(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (l: any) => l.route && l.route.path === path && l.route.methods[method]
+    (l: any) => l.route && l.route.path === path && l.route.methods[method],
   );
   if (!layer) throw new Error(`Rota nao encontrada: ${method.toUpperCase()} ${path}`);
   const routeLayer = layer.route.stack[layer.route.stack.length - 1];
@@ -141,7 +163,11 @@ function getRouteHandler(method: 'get' | 'post', path: string): any {
 }
 
 function createRes() {
-  const res: Partial<Response> & { body?: unknown; statusCode: number; cookies: Record<string, unknown> } = {
+  const res: Partial<Response> & {
+    body?: unknown;
+    statusCode: number;
+    cookies: Record<string, unknown>;
+  } = {
     statusCode: 200,
     cookies: {},
   };

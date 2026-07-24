@@ -1,4 +1,3 @@
-
 export type TransactionType = 'DEBT' | 'PAYMENT' | 'REFUND' | 'ABATIMENTO';
 export type TransactionStatus = 'CONFIRMED' | 'PENDING' | 'REJECTED';
 export type Language = 'en' | 'pt-BR';
@@ -39,8 +38,8 @@ export interface Donation {
 
 export interface UserCredentials {
   passwordHash: string;
-  salt?: string;       // per-user random salt (PBKDF2); absent = legacy SHA-256
-  userId?: string;     // stable identity across logins
+  salt?: string; // per-user random salt (PBKDF2); absent = legacy SHA-256
+  userId?: string; // stable identity across logins
 }
 
 export interface User {
@@ -152,7 +151,8 @@ export interface BillEvent {
   splitDirty?: boolean;
 }
 
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'PAYMENT_CONFIRM' | 'PAYMENT_REJECT' | 'SPLIT_CONFIRMED';
+export type AuditAction =
+  'CREATE' | 'UPDATE' | 'DELETE' | 'PAYMENT_CONFIRM' | 'PAYMENT_REJECT' | 'SPLIT_CONFIRMED';
 export type AuditEntity = 'CUSTOMER' | 'TRANSACTION' | 'EVENT' | 'DEBT';
 
 export interface AuditEntry {

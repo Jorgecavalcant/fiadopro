@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { ReadDocumentSchema, AnalyzeCustomerSchema, estimateBase64Bytes, MAX_IMAGE_BYTES } from './ai.js';
+import {
+  ReadDocumentSchema,
+  AnalyzeCustomerSchema,
+  estimateBase64Bytes,
+  MAX_IMAGE_BYTES,
+} from './ai.js';
 
 describe('estimateBase64Bytes', () => {
   it('estima o tamanho real de um base64 sem padding', () => {

@@ -20,7 +20,10 @@ const RegisterSchema = z.object({
     .regex(/[A-Z]/, 'Precisa de pelo menos 1 letra maiuscula')
     .regex(/[0-9]/, 'Precisa de pelo menos 1 numero'),
   consent: z.literal(true, {
-    errorMap: () => ({ message: 'Voce precisa aceitar a Politica de Privacidade e os Termos de Uso para se cadastrar' }),
+    errorMap: () => ({
+      message:
+        'Voce precisa aceitar a Politica de Privacidade e os Termos de Uso para se cadastrar',
+    }),
   }),
 });
 
@@ -32,7 +35,8 @@ const LoginSchema = z.object({
 // POST /api/auth/register
 router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const rawEmail = typeof req.body?.email === 'string' ? normalizeEmail(req.body.email) : req.body?.email;
+    const rawEmail =
+      typeof req.body?.email === 'string' ? normalizeEmail(req.body.email) : req.body?.email;
     const body = RegisterSchema.parse({ ...req.body, email: rawEmail });
     const email = body.email;
     const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
@@ -40,10 +44,11 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
       return next(new ApiError(409, 'E-mail ja cadastrado', 'EMAIL_EXISTS'));
     }
     const hash = await bcrypt.hash(body.password, 12);
-    const consentIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || null;
+    const consentIp =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || null;
     const result = await query(
       'INSERT INTO users (full_name, email, password_hash, consent_at, consent_ip) VALUES ($1, $2, $3, NOW(), $4) RETURNING id, email, full_name, created_at',
-      [body.full_name, email, hash, consentIp]
+      [body.full_name, email, hash, consentIp],
     );
     const user = result.rows[0];
     // Vincular clientes já cadastrados por terceiros com este e-mail + promover admin se for o ADMIN_EMAIL
@@ -55,10 +60,16 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     setAuthCookie(res, token);
     res.status(201).json({
       success: true,
-      user: { id: user.id, email: user.email, full_name: user.full_name, role: roleResult.rows[0]?.role ?? 'user' },
+      user: {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        role: roleResult.rows[0]?.role ?? 'user',
+      },
     });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });
@@ -66,15 +77,20 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
 // POST /api/auth/login
 router.post('/login', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const rawEmail = typeof req.body?.email === 'string' ? normalizeEmail(req.body.email) : req.body?.email;
+    const rawEmail =
+      typeof req.body?.email === 'string' ? normalizeEmail(req.body.email) : req.body?.email;
     const body = LoginSchema.parse({ ...req.body, email: rawEmail });
     const email = body.email;
     const result = await query(
       'SELECT id, email, full_name, password_hash, is_active, role FROM users WHERE email = $1',
-      [email]
+      [email],
     );
     const user = result.rows[0];
-    if (!user || !user.password_hash || !(await bcrypt.compare(body.password, user.password_hash))) {
+    if (
+      !user ||
+      !user.password_hash ||
+      !(await bcrypt.compare(body.password, user.password_hash))
+    ) {
       return next(new ApiError(401, 'E-mail ou senha incorretos', 'INVALID_CREDENTIALS'));
     }
     if (!user.is_active) {
@@ -87,7 +103,8 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
       user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role },
     });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });
@@ -107,25 +124,26 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
     }
     const { sub: google_id, name: full_name, picture: avatar_url } = payload;
     const email = normalizeEmail(payload.email);
-    let result = await query(
+    const result = await query(
       'SELECT id, email, full_name, is_active, role FROM users WHERE google_id = $1 OR email = $2',
-      [google_id, email]
+      [google_id, email],
     );
     let user = result.rows[0];
     if (!user) {
       const insert = await query(
         'INSERT INTO users (email, full_name, avatar_url, google_id) VALUES ($1, $2, $3, $4) RETURNING id, email, full_name',
-        [email, full_name || email, avatar_url || null, google_id]
+        [email, full_name || email, avatar_url || null, google_id],
       );
       user = insert.rows[0];
       const { relinkCustomersForUser, ensureAdminRole } = await import('../services/linking.js');
       await ensureAdminRole();
       await relinkCustomersForUser(user.id);
-      user.role = (await query('SELECT role FROM users WHERE id = $1', [user.id])).rows[0]?.role ?? 'user';
+      user.role =
+        (await query('SELECT role FROM users WHERE id = $1', [user.id])).rows[0]?.role ?? 'user';
     } else {
       await query(
         'UPDATE users SET google_id = $1, avatar_url = COALESCE(avatar_url, $2) WHERE id = $3',
-        [google_id, avatar_url || null, user.id]
+        [google_id, avatar_url || null, user.id],
       );
       if (!user.is_active) {
         return next(new ApiError(403, 'Conta desativada', 'ACCOUNT_DISABLED'));
@@ -135,11 +153,19 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
     setAuthCookie(res, token);
     res.json({
       success: true,
-      user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role ?? 'user' },
+      user: {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        role: user.role ?? 'user',
+      },
     });
-  } catch (err: any) {
-    if (err.message?.includes('Token used too late') || err.message?.includes('Invalid token')) {
-      return next(new ApiError(401, 'Token do Google expirado ou invalido', 'INVALID_GOOGLE_TOKEN'));
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : '';
+    if (message.includes('Token used too late') || message.includes('Invalid token')) {
+      return next(
+        new ApiError(401, 'Token do Google expirado ou invalido', 'INVALID_GOOGLE_TOKEN'),
+      );
     }
     next(err);
   }
@@ -161,7 +187,7 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response, next: Nex
   try {
     const result = await query(
       'SELECT id, email, full_name, phone, pix_key, avatar_url, role, created_at FROM users WHERE id = $1',
-      [req.user!.sub]
+      [req.user!.sub],
     );
     if (!result.rows[0]) return next(new ApiError(404, 'Usuario nao encontrado', 'USER_NOT_FOUND'));
     res.json({ success: true, user: result.rows[0] });
@@ -178,15 +204,26 @@ router.post('/forgot-password', async (req: Request, res: Response, next: NextFu
       return next(new ApiError(400, 'E-mail obrigatorio', 'MISSING_EMAIL'));
     }
     const email = normalizeEmail(rawEmail);
-    const result = await query('SELECT id FROM users WHERE email = $1 AND is_active = true', [email]);
+    const result = await query('SELECT id FROM users WHERE email = $1 AND is_active = true', [
+      email,
+    ]);
     if (result.rows.length === 0) {
-      return res.json({ success: true, message: 'Se o e-mail existir, voce recebera o link em breve.' });
+      return res.json({
+        success: true,
+        message: 'Se o e-mail existir, voce recebera o link em breve.',
+      });
     }
     const userId = result.rows[0].id;
-    await query('UPDATE password_reset_tokens SET used = true WHERE user_id = $1 AND used = false', [userId]);
+    await query(
+      'UPDATE password_reset_tokens SET used = true WHERE user_id = $1 AND used = false',
+      [userId],
+    );
     const { v4: uuidv4 } = await import('uuid');
     const token = uuidv4().replace(/-/g, '');
-    await query('INSERT INTO password_reset_tokens (user_id, token) VALUES ($1, $2)', [userId, token]);
+    await query('INSERT INTO password_reset_tokens (user_id, token) VALUES ($1, $2)', [
+      userId,
+      token,
+    ]);
     const { sendPasswordResetEmail } = await import('../services/email.js');
     await sendPasswordResetEmail(email, token);
     res.json({ success: true, message: 'Se o e-mail existir, voce recebera o link em breve.' });
@@ -199,16 +236,24 @@ router.post('/forgot-password', async (req: Request, res: Response, next: NextFu
 router.post('/reset-password', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { token, password } = req.body;
-    if (!token || !password) return next(new ApiError(400, 'Token e senha obrigatorios', 'MISSING_FIELDS'));
-    if (password.length < 8) return next(new ApiError(400, 'Senha deve ter ao menos 8 caracteres', 'WEAK_PASSWORD'));
-    if (!/[A-Z]/.test(password)) return next(new ApiError(400, 'Senha precisa de pelo menos 1 letra maiuscula', 'WEAK_PASSWORD'));
-    if (!/[0-9]/.test(password)) return next(new ApiError(400, 'Senha precisa de pelo menos 1 numero', 'WEAK_PASSWORD'));
+    if (!token || !password)
+      return next(new ApiError(400, 'Token e senha obrigatorios', 'MISSING_FIELDS'));
+    if (password.length < 8)
+      return next(new ApiError(400, 'Senha deve ter ao menos 8 caracteres', 'WEAK_PASSWORD'));
+    if (!/[A-Z]/.test(password))
+      return next(
+        new ApiError(400, 'Senha precisa de pelo menos 1 letra maiuscula', 'WEAK_PASSWORD'),
+      );
+    if (!/[0-9]/.test(password))
+      return next(new ApiError(400, 'Senha precisa de pelo menos 1 numero', 'WEAK_PASSWORD'));
     const result = await query(
       'SELECT t.id, t.user_id, u.email, u.full_name FROM password_reset_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.used = false AND t.expires_at > NOW()',
-      [token]
+      [token],
     );
     if (result.rows.length === 0) {
-      return next(new ApiError(400, 'Link invalido ou expirado. Solicite um novo.', 'INVALID_TOKEN'));
+      return next(
+        new ApiError(400, 'Link invalido ou expirado. Solicite um novo.', 'INVALID_TOKEN'),
+      );
     }
     const { id: tokenId, user_id, email, full_name } = result.rows[0];
     const hash = await bcrypt.hash(password, 12);
@@ -231,7 +276,7 @@ router.post('/logout', (_req: Request, res: Response) => {
 // POST /api/auth/refresh
 router.post('/refresh', (req: Request, res: Response, next: NextFunction) => {
   try {
-    const token = (req as any).cookies?.fiado_token;
+    const token = req.cookies?.fiado_token;
     if (!token) return next(new ApiError(401, 'Sem sessao ativa', 'NO_TOKEN'));
     const payload = verifyToken(token);
     const newToken = signToken({ sub: payload.sub, email: payload.email });

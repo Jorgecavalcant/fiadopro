@@ -46,7 +46,8 @@ const AdminAIConfig: React.FC = () => {
         const result = await requestJson<{ success: boolean; config: AiConfigState }>('GET');
         if (!cancelled) setConfig(result.config);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Erro ao carregar configuração');
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : 'Erro ao carregar configuração');
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -78,7 +79,9 @@ const AdminAIConfig: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 24, color: '#64748B' }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 24, color: '#64748B' }}
+      >
         <Loader2 style={{ width: 18, height: 18 }} className="animate-spin" />
         Carregando configuração de IA...
       </div>
@@ -98,20 +101,36 @@ const AdminAIConfig: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
         <div
           style={{
-            width: 36, height: 36, borderRadius: 12,
+            width: 36,
+            height: 36,
+            borderRadius: 12,
             background: 'linear-gradient(135deg,#6366F1,#8B5CF6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
           <Bot style={{ width: 18, height: 18, color: 'white' }} />
         </div>
         <div>
-          <h2 style={{ fontSize: 16, fontWeight: 900, color: '#0F172A', margin: 0 }}>Configuração de IA</h2>
-          <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>Modelos via OpenRouter (gratuitos por padrão)</p>
+          <h2 style={{ fontSize: 16, fontWeight: 900, color: '#0F172A', margin: 0 }}>
+            Configuração de IA
+          </h2>
+          <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>
+            Modelos via OpenRouter (gratuitos por padrão)
+          </p>
         </div>
       </div>
 
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+      <label
+        style={{
+          display: 'block',
+          fontSize: 12,
+          fontWeight: 700,
+          color: '#334155',
+          marginBottom: 6,
+        }}
+      >
         Modelo de chat (análise de cliente / dicas de negócio)
       </label>
       <input
@@ -119,12 +138,24 @@ const AdminAIConfig: React.FC = () => {
         value={config.chat_model}
         onChange={(e) => setConfig({ ...config, chat_model: e.target.value })}
         style={{
-          width: '100%', padding: '10px 12px', borderRadius: 10,
-          border: '1px solid #E2E8F0', fontSize: 13, marginBottom: 16,
+          width: '100%',
+          padding: '10px 12px',
+          borderRadius: 10,
+          border: '1px solid #E2E8F0',
+          fontSize: 13,
+          marginBottom: 16,
         }}
       />
 
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+      <label
+        style={{
+          display: 'block',
+          fontSize: 12,
+          fontWeight: 700,
+          color: '#334155',
+          marginBottom: 6,
+        }}
+      >
         Modelo de visão (leitura de documento/imagem)
       </label>
       <input
@@ -132,12 +163,26 @@ const AdminAIConfig: React.FC = () => {
         value={config.vision_model}
         onChange={(e) => setConfig({ ...config, vision_model: e.target.value })}
         style={{
-          width: '100%', padding: '10px 12px', borderRadius: 10,
-          border: '1px solid #E2E8F0', fontSize: 13, marginBottom: 16,
+          width: '100%',
+          padding: '10px 12px',
+          borderRadius: 10,
+          border: '1px solid #E2E8F0',
+          fontSize: 13,
+          marginBottom: 16,
         }}
       />
 
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 20 }}>
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          fontSize: 13,
+          fontWeight: 700,
+          color: '#334155',
+          marginBottom: 20,
+        }}
+      >
         <input
           type="checkbox"
           checked={config.enabled}
@@ -146,9 +191,7 @@ const AdminAIConfig: React.FC = () => {
         IA ativada
       </label>
 
-      {error && (
-        <p style={{ color: '#B91C1C', fontSize: 12, marginBottom: 12 }}>{error}</p>
-      )}
+      {error && <p style={{ color: '#B91C1C', fontSize: 12, marginBottom: 12 }}>{error}</p>}
       {savedAt && !error && (
         <p style={{ color: '#15803D', fontSize: 12, marginBottom: 12 }}>Configuração salva.</p>
       )}
@@ -157,14 +200,25 @@ const AdminAIConfig: React.FC = () => {
         onClick={handleSave}
         disabled={isSaving}
         style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '10px 18px', borderRadius: 12, border: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '10px 18px',
+          borderRadius: 12,
+          border: 'none',
           background: 'linear-gradient(135deg,#6366F1,#8B5CF6)',
-          color: 'white', fontWeight: 800, fontSize: 13,
-          cursor: isSaving ? 'default' : 'pointer', opacity: isSaving ? 0.7 : 1,
+          color: 'white',
+          fontWeight: 800,
+          fontSize: 13,
+          cursor: isSaving ? 'default' : 'pointer',
+          opacity: isSaving ? 0.7 : 1,
         }}
       >
-        {isSaving ? <Loader2 style={{ width: 15, height: 15 }} className="animate-spin" /> : <Save style={{ width: 15, height: 15 }} />}
+        {isSaving ? (
+          <Loader2 style={{ width: 15, height: 15 }} className="animate-spin" />
+        ) : (
+          <Save style={{ width: 15, height: 15 }} />
+        )}
         Salvar
       </button>
     </div>
