@@ -214,7 +214,9 @@ describe('billing — subscribeHandler', () => {
     queryMock.mockResolvedValueOnce({
       rows: [{ id: 'u2', full_name: 'Fulano', email: 'f@x.com', cpf: '12345678900' }],
     });
-    vi.mocked(asaasService.createCustomer).mockRejectedValueOnce(new asaasService.AsaasNotConfiguredError());
+    vi.mocked(asaasService.createCustomer).mockRejectedValueOnce(
+      new asaasService.AsaasNotConfiguredError(),
+    );
     const req: any = { user: { sub: 'u2', email: 'f@x.com' }, body: {} };
     const res = fakeRes();
     const next = vi.fn();
@@ -229,10 +231,15 @@ describe('billing — subscribeHandler', () => {
 
   it('cria assinatura com sucesso e retorna invoiceUrl', async () => {
     queryMock
-      .mockResolvedValueOnce({ rows: [{ id: 'u3', full_name: 'Fulano', email: 'f@x.com', cpf: '12345678900' }] }) // SELECT user
+      .mockResolvedValueOnce({
+        rows: [{ id: 'u3', full_name: 'Fulano', email: 'f@x.com', cpf: '12345678900' }],
+      }) // SELECT user
       .mockResolvedValueOnce({ rows: [] }); // SELECT subscriptions (nao existente -> INSERT)
     vi.mocked(asaasService.createCustomer).mockResolvedValueOnce({ id: 'cus_1' } as any);
-    vi.mocked(asaasService.createSubscription).mockResolvedValueOnce({ id: 'sub_1', status: 'PENDING' } as any);
+    vi.mocked(asaasService.createSubscription).mockResolvedValueOnce({
+      id: 'sub_1',
+      status: 'PENDING',
+    } as any);
     vi.mocked(asaasService.getSubscription).mockResolvedValueOnce({
       id: 'sub_1',
       status: 'PENDING',
@@ -248,7 +255,7 @@ describe('billing — subscribeHandler', () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: true, invoiceUrl: 'https://asaas.com/i/xyz' })
+      expect.objectContaining({ success: true, invoiceUrl: 'https://asaas.com/i/xyz' }),
     );
   });
 });
@@ -275,7 +282,9 @@ describe('billing — cancelHandler', () => {
   it('e idempotente: se ja estava cancelada, nao chama o Asaas de novo', async () => {
     const periodEnd = new Date('2026-08-01T00:00:00Z');
     queryMock.mockResolvedValueOnce({
-      rows: [{ asaas_subscription_id: 'sub_9', current_period_end: periodEnd, canceled_at: new Date() }],
+      rows: [
+        { asaas_subscription_id: 'sub_9', current_period_end: periodEnd, canceled_at: new Date() },
+      ],
     });
     const req: any = { user: { sub: 'u2' } };
     const res = fakeRes();
@@ -285,14 +294,18 @@ describe('billing — cancelHandler', () => {
 
     expect(asaasService.cancelSubscription).not.toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: true, currentPeriodEnd: periodEnd })
+      expect.objectContaining({ success: true, currentPeriodEnd: periodEnd }),
     );
   });
 
   it('cancela no Asaas e marca canceled_at, mantendo current_period_end (carencia)', async () => {
     const periodEnd = new Date('2026-08-01T00:00:00Z');
     queryMock
-      .mockResolvedValueOnce({ rows: [{ asaas_subscription_id: 'sub_10', current_period_end: periodEnd, canceled_at: null }] })
+      .mockResolvedValueOnce({
+        rows: [
+          { asaas_subscription_id: 'sub_10', current_period_end: periodEnd, canceled_at: null },
+        ],
+      })
       .mockResolvedValueOnce({ rows: [] }); // UPDATE canceled_at
     vi.mocked(asaasService.cancelSubscription).mockResolvedValueOnce(undefined);
     const req: any = { user: { sub: 'u3' } };
@@ -305,9 +318,9 @@ describe('billing — cancelHandler', () => {
     expect(asaasService.cancelSubscription).toHaveBeenCalledWith('sub_10');
     const [updateSql] = queryMock.mock.calls[1];
     expect(updateSql).toContain('canceled_at = NOW()');
-    expect(updateSql).not.toContain("plan ="); // nao mexe no plano — a carencia e natural
+    expect(updateSql).not.toContain('plan ='); // nao mexe no plano — a carencia e natural
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: true, currentPeriodEnd: periodEnd })
+      expect.objectContaining({ success: true, currentPeriodEnd: periodEnd }),
     );
   });
 
@@ -315,7 +328,9 @@ describe('billing — cancelHandler', () => {
     queryMock.mockResolvedValueOnce({
       rows: [{ asaas_subscription_id: 'sub_11', current_period_end: null, canceled_at: null }],
     });
-    vi.mocked(asaasService.cancelSubscription).mockRejectedValueOnce(new asaasService.AsaasNotConfiguredError());
+    vi.mocked(asaasService.cancelSubscription).mockRejectedValueOnce(
+      new asaasService.AsaasNotConfiguredError(),
+    );
     const req: any = { user: { sub: 'u4' } };
     const res = fakeRes();
     const next = vi.fn();

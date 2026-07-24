@@ -44,7 +44,10 @@ export function classifyBillingEvent(event: string): 'ACTIVATE' | 'DEACTIVATE' |
 }
 
 /** Compara em tempo constante, mesmo com tamanhos diferentes (nao vaza tamanho via timing). */
-export function timingSafeEqualString(provided: string | undefined, expected: string | undefined): boolean {
+export function timingSafeEqualString(
+  provided: string | undefined,
+  expected: string | undefined,
+): boolean {
   if (!provided || !expected) return false;
   const providedBuf = Buffer.from(provided);
   const expectedBuf = Buffer.from(expected);
@@ -63,7 +66,7 @@ export async function getStatusHandler(req: AuthRequest, res: Response, next: Ne
     const plan = await getUserPlan(userId);
     const result = await query(
       'SELECT plan, status, current_period_end, canceled_at, asaas_subscription_id FROM subscriptions WHERE user_id = $1',
-      [userId]
+      [userId],
     );
     const sub = result.rows[0] || null;
 
@@ -89,7 +92,7 @@ export async function subscribeHandler(req: AuthRequest, res: Response, next: Ne
 
     const userResult = await query(
       'SELECT id, full_name, email, cpf FROM users WHERE id = $1 AND deleted_at IS NULL',
-      [userId]
+      [userId],
     );
     const user = userResult.rows[0];
     if (!user) return next(new ApiError(404, 'Usuario nao encontrado', 'USER_NOT_FOUND'));
@@ -132,23 +135,25 @@ export async function subscribeHandler(req: AuthRequest, res: Response, next: Ne
         `UPDATE subscriptions
             SET asaas_customer_id = $1, asaas_subscription_id = $2, status = $3, updated_at = NOW()
           WHERE user_id = $4`,
-        [customer.id, subscription.id, status, userId]
+        [customer.id, subscription.id, status, userId],
       );
     } else {
       await query(
         `INSERT INTO subscriptions (user_id, plan, asaas_customer_id, asaas_subscription_id, status)
          VALUES ($1, 'FREE', $2, $3, $4)`,
-        [userId, customer.id, subscription.id, status]
+        [userId, customer.id, subscription.id, status],
       );
     }
 
     res.json({ success: true, invoiceUrl, status });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     if (err instanceof AsaasNotConfiguredError) {
       return next(new ApiError(503, 'Pagamentos nao configurados', 'BILLING_NOT_CONFIGURED'));
     }
-    if (err instanceof AsaasRequestError) return next(new ApiError(502, err.message, 'ASAAS_ERROR'));
+    if (err instanceof AsaasRequestError)
+      return next(new ApiError(502, err.message, 'ASAAS_ERROR'));
     next(err);
   }
 }
@@ -160,7 +165,7 @@ export async function cancelHandler(req: AuthRequest, res: Response, next: NextF
     const userId = req.user!.sub;
     const result = await query(
       'SELECT asaas_subscription_id, current_period_end, canceled_at FROM subscriptions WHERE user_id = $1',
-      [userId]
+      [userId],
     );
     const sub = result.rows[0];
     if (!sub || !sub.asaas_subscription_id) {
@@ -175,7 +180,7 @@ export async function cancelHandler(req: AuthRequest, res: Response, next: NextF
 
     await query(
       `UPDATE subscriptions SET canceled_at = NOW(), updated_at = NOW() WHERE user_id = $1`,
-      [userId]
+      [userId],
     );
 
     res.json({ success: true, currentPeriodEnd: sub.current_period_end });
@@ -183,7 +188,8 @@ export async function cancelHandler(req: AuthRequest, res: Response, next: NextF
     if (err instanceof AsaasNotConfiguredError) {
       return next(new ApiError(503, 'Pagamentos nao configurados', 'BILLING_NOT_CONFIGURED'));
     }
-    if (err instanceof AsaasRequestError) return next(new ApiError(502, err.message, 'ASAAS_ERROR'));
+    if (err instanceof AsaasRequestError)
+      return next(new ApiError(502, err.message, 'ASAAS_ERROR'));
     next(err);
   }
 }
@@ -219,16 +225,20 @@ export async function webhookHandler(req: Request, res: Response) {
         `UPDATE subscriptions
             SET plan = 'PRO', status = 'active', current_period_end = $1, updated_at = NOW()
           WHERE asaas_subscription_id = $2`,
-        [periodEnd, subscriptionId]
+        [periodEnd, subscriptionId],
       );
     } else {
       const status =
-        event === 'PAYMENT_OVERDUE' ? 'overdue' : event === 'SUBSCRIPTION_DELETED' ? 'canceled' : 'refunded';
+        event === 'PAYMENT_OVERDUE'
+          ? 'overdue'
+          : event === 'SUBSCRIPTION_DELETED'
+            ? 'canceled'
+            : 'refunded';
       await query(
         `UPDATE subscriptions
             SET plan = 'FREE', status = $1, updated_at = NOW()
           WHERE asaas_subscription_id = $2`,
-        [status, subscriptionId]
+        [status, subscriptionId],
       );
     }
 

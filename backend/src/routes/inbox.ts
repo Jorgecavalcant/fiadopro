@@ -33,7 +33,7 @@ router.get('/inbox', async (req: AuthRequest, res: Response, next: NextFunction)
              OR (c.owner_user_id = $1 AND t.created_by_user_id = c.linked_user_id)
           )
         ORDER BY t.created_at DESC`,
-      [req.user!.sub]
+      [req.user!.sub],
     );
     res.json({ success: true, items: result.rows, total: result.rowCount });
   } catch (err) {
@@ -65,7 +65,7 @@ router.get('/counterpart', async (req: AuthRequest, res: Response, next: NextFun
         WHERE c.linked_user_id = $1 AND c.deleted_at IS NULL
         GROUP BY o.id, o.full_name, o.phone, o.pix_key, c.id
         ORDER BY o.full_name ASC`,
-      [req.user!.sub]
+      [req.user!.sub],
     );
     res.json({ success: true, counterparts: result.rows, total: result.rowCount });
   } catch (err) {
@@ -78,28 +78,32 @@ router.get('/counterpart', async (req: AuthRequest, res: Response, next: NextFun
  * os status) do MEU relacionamento como cliente com um comerciante
  * específico. Só o usuário vinculado a esse customer pode ver.
  */
-router.get('/counterpart/:customerId/transactions', async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const owns = await query(
-      `SELECT id FROM customers WHERE id = $1 AND linked_user_id = $2 AND deleted_at IS NULL`,
-      [req.params.customerId, req.user!.sub]
-    );
-    if (!owns.rows[0]) return next(new ApiError(404, 'Relacionamento não encontrado', 'NOT_FOUND'));
+router.get(
+  '/counterpart/:customerId/transactions',
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const owns = await query(
+        `SELECT id FROM customers WHERE id = $1 AND linked_user_id = $2 AND deleted_at IS NULL`,
+        [req.params.customerId, req.user!.sub],
+      );
+      if (!owns.rows[0])
+        return next(new ApiError(404, 'Relacionamento não encontrado', 'NOT_FOUND'));
 
-    const result = await query(
-      `SELECT id, type, status, amount, description, occurred_at, due_date,
+      const result = await query(
+        `SELECT id, type, status, amount, description, occurred_at, due_date,
               payment_method, attachment, created_by_user_id, applies_to_transaction_id,
               created_at, updated_at
          FROM transactions
         WHERE customer_id = $1
         ORDER BY occurred_at DESC
         LIMIT 2000`,
-      [req.params.customerId]
-    );
-    res.json({ success: true, transactions: result.rows, total: result.rowCount });
-  } catch (err) {
-    next(err);
-  }
-});
+        [req.params.customerId],
+      );
+      res.json({ success: true, transactions: result.rows, total: result.rowCount });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 export default router;

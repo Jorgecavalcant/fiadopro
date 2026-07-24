@@ -68,7 +68,7 @@ describe('bootstrapSync', () => {
               created_at: '2023-11-14T00:00:00.000Z',
             },
           ],
-        })
+        }),
       )
       .mockReturnValueOnce(
         ok({
@@ -91,7 +91,7 @@ describe('bootstrapSync', () => {
               interest_rate: null,
             },
           ],
-        })
+        }),
       );
 
     const result = await bootstrapSync([localCustomer], [localTx]);
@@ -173,7 +173,11 @@ describe('createCounterpartPayment', () => {
 describe('updateProfile', () => {
   it('envia PATCH /users/me com os campos informados', async () => {
     mockFetch.mockReturnValueOnce(ok({ success: true, user: { id: 'u1' } }));
-    const okResult = await updateProfile({ full_name: 'Jorge', phone: '11999999999', pix_key: null });
+    const okResult = await updateProfile({
+      full_name: 'Jorge',
+      phone: '11999999999',
+      pix_key: null,
+    });
 
     expect(okResult).toBe(true);
     expect(mockFetch.mock.calls[0][0]).toContain('/users/me');

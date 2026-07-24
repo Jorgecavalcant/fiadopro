@@ -39,7 +39,7 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
          FROM customers
         WHERE owner_user_id = $1 AND deleted_at IS NULL
         ORDER BY name ASC`,
-      [req.user!.sub]
+      [req.user!.sub],
     );
     res.json({ success: true, customers: result.rows, total: result.rowCount });
   } catch (err) {
@@ -56,16 +56,26 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
        VALUES (COALESCE($1::uuid, uuid_generate_v4()), $2, $3, $4, $5, $6, COALESCE($7, FALSE), COALESCE($8, 'RETURN'), COALESCE($9::jsonb, '[]'::jsonb), $10)
        ON CONFLICT (id) DO NOTHING
        RETURNING ${CUSTOMER_COLUMNS}`,
-      [body.id ?? null, req.user!.sub, body.name, body.phone, body.email ?? null, body.pix_key ?? null,
-       body.trusted ?? null, body.overpayment_strategy ?? null,
-       body.notes ? JSON.stringify(body.notes) : null, body.score ?? null]
+      [
+        body.id ?? null,
+        req.user!.sub,
+        body.name,
+        body.phone,
+        body.email ?? null,
+        body.pix_key ?? null,
+        body.trusted ?? null,
+        body.overpayment_strategy ?? null,
+        body.notes ? JSON.stringify(body.notes) : null,
+        body.score ?? null,
+      ],
     );
     if (!result.rows[0]) return next(new ApiError(409, 'Cliente já existe', 'ALREADY_EXISTS'));
     const customer = result.rows[0];
     customer.linked_user_id = await linkCustomer(customer.id);
     res.status(201).json({ success: true, customer });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });
@@ -76,7 +86,7 @@ router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
     const result = await query(
       `SELECT ${CUSTOMER_COLUMNS} FROM customers
         WHERE id = $1 AND owner_user_id = $2 AND deleted_at IS NULL`,
-      [req.params.id, req.user!.sub]
+      [req.params.id, req.user!.sub],
     );
     if (!result.rows[0]) return next(new ApiError(404, 'Cliente não encontrado', 'NOT_FOUND'));
     res.json({ success: true, customer: result.rows[0] });
@@ -90,7 +100,8 @@ router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction)
   try {
     const body = CustomerSchema.partial().omit({ id: true }).parse(req.body);
     const fields = Object.entries(body).filter(([, v]) => v !== undefined);
-    if (fields.length === 0) return next(new ApiError(400, 'Nenhum campo para atualizar', 'EMPTY_UPDATE'));
+    if (fields.length === 0)
+      return next(new ApiError(400, 'Nenhum campo para atualizar', 'EMPTY_UPDATE'));
 
     const setClause = fields
       .map(([k], i) => (k === 'notes' ? `${k} = $${i + 3}::jsonb` : `${k} = $${i + 3}`))
@@ -101,7 +112,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction)
       `UPDATE customers SET ${setClause}
         WHERE id = $1 AND owner_user_id = $2 AND deleted_at IS NULL
         RETURNING ${CUSTOMER_COLUMNS}`,
-      [req.params.id, req.user!.sub, ...values]
+      [req.params.id, req.user!.sub, ...values],
     );
     if (!result.rows[0]) return next(new ApiError(404, 'Cliente não encontrado', 'NOT_FOUND'));
     const customer = result.rows[0];
@@ -110,7 +121,8 @@ router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction)
     }
     res.json({ success: true, customer });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });
@@ -122,7 +134,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction
       `UPDATE customers SET deleted_at = NOW()
         WHERE id = $1 AND owner_user_id = $2 AND deleted_at IS NULL
         RETURNING id`,
-      [req.params.id, req.user!.sub]
+      [req.params.id, req.user!.sub],
     );
     if (!result.rows[0]) return next(new ApiError(404, 'Cliente não encontrado', 'NOT_FOUND'));
     res.json({ success: true });

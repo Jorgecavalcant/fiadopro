@@ -36,7 +36,10 @@ router.get('/users', async (req: AuthRequest, res: Response, next: NextFunction)
       whereClause += ` AND (full_name ILIKE $${params.length} OR email ILIKE $${params.length})`;
     }
 
-    const countResult = await query(`SELECT COUNT(*)::int AS total FROM users ${whereClause}`, params);
+    const countResult = await query(
+      `SELECT COUNT(*)::int AS total FROM users ${whereClause}`,
+      params,
+    );
     const total = countResult.rows[0]?.total ?? 0;
 
     const listParams = [...params, limit, offset];
@@ -44,7 +47,7 @@ router.get('/users', async (req: AuthRequest, res: Response, next: NextFunction)
       `SELECT ${SAFE_USER_FIELDS} FROM users ${whereClause}
        ORDER BY created_at DESC
        LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
-      listParams
+      listParams,
     );
 
     res.json({
@@ -53,7 +56,8 @@ router.get('/users', async (req: AuthRequest, res: Response, next: NextFunction)
       meta: { total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) },
     });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });
@@ -73,11 +77,15 @@ const UpdateUserSchema = z
 router.patch('/users/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (Object.prototype.hasOwnProperty.call(req.body ?? {}, 'role')) {
-      return next(new ApiError(400, 'Não é permitido alterar role por esta rota', 'ROLE_CHANGE_FORBIDDEN'));
+      return next(
+        new ApiError(400, 'Não é permitido alterar role por esta rota', 'ROLE_CHANGE_FORBIDDEN'),
+      );
     }
     const body = UpdateUserSchema.parse(req.body);
 
-    const own = await query('SELECT id FROM users WHERE id = $1 AND deleted_at IS NULL', [req.params.id]);
+    const own = await query('SELECT id FROM users WHERE id = $1 AND deleted_at IS NULL', [
+      req.params.id,
+    ]);
     if (!own.rows[0]) return next(new ApiError(404, 'Usuário não encontrado', 'USER_NOT_FOUND'));
 
     const fields = Object.entries(body).filter(([, v]) => v !== undefined);
@@ -86,36 +94,47 @@ router.patch('/users/:id', async (req: AuthRequest, res: Response, next: NextFun
 
     const result = await query(
       `UPDATE users SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING ${SAFE_USER_FIELDS}`,
-      [req.params.id, ...values]
+      [req.params.id, ...values],
     );
     res.json({ success: true, user: result.rows[0] });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });
 
 // POST /api/admin/users/:id/reset-password — gera token e envia e-mail (padrão do forgot-password)
-router.post('/users/:id/reset-password', async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const result = await query(
-      'SELECT id, email FROM users WHERE id = $1 AND deleted_at IS NULL AND is_active = true',
-      [req.params.id]
-    );
-    const user = result.rows[0];
-    if (!user) return next(new ApiError(404, 'Usuário não encontrado ou inativo', 'USER_NOT_FOUND'));
+router.post(
+  '/users/:id/reset-password',
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const result = await query(
+        'SELECT id, email FROM users WHERE id = $1 AND deleted_at IS NULL AND is_active = true',
+        [req.params.id],
+      );
+      const user = result.rows[0];
+      if (!user)
+        return next(new ApiError(404, 'Usuário não encontrado ou inativo', 'USER_NOT_FOUND'));
 
-    await query('UPDATE password_reset_tokens SET used = true WHERE user_id = $1 AND used = false', [user.id]);
-    const { v4: uuidv4 } = await import('uuid');
-    const token = uuidv4().replace(/-/g, '');
-    await query('INSERT INTO password_reset_tokens (user_id, token) VALUES ($1, $2)', [user.id, token]);
-    await sendPasswordResetEmail(user.email, token);
+      await query(
+        'UPDATE password_reset_tokens SET used = true WHERE user_id = $1 AND used = false',
+        [user.id],
+      );
+      const { v4: uuidv4 } = await import('uuid');
+      const token = uuidv4().replace(/-/g, '');
+      await query('INSERT INTO password_reset_tokens (user_id, token) VALUES ($1, $2)', [
+        user.id,
+        token,
+      ]);
+      await sendPasswordResetEmail(user.email, token);
 
-    res.json({ success: true, message: 'E-mail de redefinição de senha enviado.' });
-  } catch (err) {
-    next(err);
-  }
-});
+      res.json({ success: true, message: 'E-mail de redefinição de senha enviado.' });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // ===================== METRICS =====================
 
@@ -123,7 +142,9 @@ router.post('/users/:id/reset-password', async (req: AuthRequest, res: Response,
 router.get('/metrics', async (_req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const [activeUsers, customersCount, transactionsCount, monthlyVolume] = await Promise.all([
-      query(`SELECT COUNT(*)::int AS total FROM users WHERE is_active = true AND deleted_at IS NULL`),
+      query(
+        `SELECT COUNT(*)::int AS total FROM users WHERE is_active = true AND deleted_at IS NULL`,
+      ),
       query(`SELECT COUNT(*)::int AS total FROM customers WHERE deleted_at IS NULL`),
       query(`SELECT COUNT(*)::int AS total FROM transactions`),
       query(`
@@ -173,9 +194,15 @@ router.get('/settings/:key', async (req: AuthRequest, res: Response, next: NextF
     if (!result.rows[0]) {
       return res.json({ success: true, key, value: null, updated_at: null });
     }
-    res.json({ success: true, key, value: result.rows[0].value, updated_at: result.rows[0].updated_at });
+    res.json({
+      success: true,
+      key,
+      value: result.rows[0].value,
+      updated_at: result.rows[0].updated_at,
+    });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });
@@ -190,11 +217,12 @@ router.put('/settings/:key', async (req: AuthRequest, res: Response, next: NextF
       `INSERT INTO app_settings (key, value, updated_at) VALUES ($1, $2, NOW())
        ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()
        RETURNING key, value, updated_at`,
-      [key, JSON.stringify(value)]
+      [key, JSON.stringify(value)],
     );
     res.json({ success: true, ...result.rows[0] });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });
@@ -219,11 +247,12 @@ router.get('/reports', async (req: AuthRequest, res: Response, next: NextFunctio
        WHERE occurred_at >= date_trunc('month', NOW()) - ($1::int - 1) * INTERVAL '1 month'
        GROUP BY 1, type
        ORDER BY 1, type`,
-      [months]
+      [months],
     );
     res.json({ success: true, months, report: result.rows });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });

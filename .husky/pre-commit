@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+# Pré-commit: lint + format só nos arquivos staged de cada projeto.
+#
+# Não há package.json na raiz ainda (chega junto com a migração para pnpm
+# workspaces, PR separado) — por isso este hook roda lint-staged localmente
+# em backend/ e frontend/, cada um com seu próprio .lintstagedrc.json.
+#
+# Ativação: git config core.hooksPath .husky (documentado no CONTRIBUTING.md).
+
+set -e
+
+staged() {
+  git diff --cached --name-only --diff-filter=ACM
+}
+
+if staged | grep -q '^backend/'; then
+  (cd backend && npx lint-staged)
+fi
+
+if staged | grep -q '^frontend/'; then
+  (cd frontend && npx lint-staged)
+fi

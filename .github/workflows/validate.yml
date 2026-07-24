@@ -36,6 +36,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: npx tsc --noEmit
+      - run: npm run lint
       - name: Testes (se existirem)
         run: |
           if npm run | grep -qE '^  test$'; then pnpm test; else echo "sem testes de backend ainda"; fi
@@ -54,6 +55,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
       - run: pnpm run test
       - run: pnpm run build
       - name: Garantir que nenhuma chave de API vazou para o bundle

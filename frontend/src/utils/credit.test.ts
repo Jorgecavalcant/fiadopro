@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { calculateScore, computeRawBalance, buildChargeMessage, normalizeWhatsAppPhone } from './credit';
+import {
+  calculateScore,
+  computeRawBalance,
+  buildChargeMessage,
+  normalizeWhatsAppPhone,
+} from './credit';
 import type { Transaction, TransactionType, TransactionStatus } from '../types';
 
 const DAY = 86_400_000;
@@ -137,7 +142,7 @@ describe('buildChargeMessage', () => {
 
   it('nunca usa tom agressivo (sem palavras de pressão)', () => {
     const msg = buildChargeMessage({ ...base, balance: 100 }).toLowerCase();
-    ['imediatamente', 'urgente', 'regularize já', 'vencida', 'inadimplente'].forEach(palavra => {
+    ['imediatamente', 'urgente', 'regularize já', 'vencida', 'inadimplente'].forEach((palavra) => {
       expect(msg).not.toContain(palavra);
     });
   });

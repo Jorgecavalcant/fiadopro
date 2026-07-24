@@ -36,7 +36,7 @@ describe('TransactionSchema', () => {
       TransactionSchema.parse({
         ...base,
         attachment: { data: 'aGk=', mimeType: 'application/x-msdownload', name: 'virus.exe' },
-      })
+      }),
     ).toThrow();
   });
 
@@ -49,7 +49,9 @@ describe('TransactionSchema', () => {
   });
 
   it('rejeita customer_id que não é uuid', () => {
-    expect(() => TransactionSchema.parse({ ...base, customer_id: '1; DROP TABLE users' })).toThrow();
+    expect(() =>
+      TransactionSchema.parse({ ...base, customer_id: '1; DROP TABLE users' }),
+    ).toThrow();
   });
 });
 
@@ -65,7 +67,7 @@ describe('CustomerSchema', () => {
 
   it('rejeita estratégia de sobra desconhecida', () => {
     expect(() =>
-      CustomerSchema.parse({ name: 'X', phone: '1', overpayment_strategy: 'ROUBAR' })
+      CustomerSchema.parse({ name: 'X', phone: '1', overpayment_strategy: 'ROUBAR' }),
     ).toThrow();
   });
 });
