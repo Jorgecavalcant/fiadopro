@@ -20,6 +20,10 @@ coverage/
 *.log
 npm-debug.log*
 
+# pnpm
+.pnpm-store/
+.pnpm-debug.log*
+
 # Builds
 frontend/android/app/build/
 frontend/android/build/
