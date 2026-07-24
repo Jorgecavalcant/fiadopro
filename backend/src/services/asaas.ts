@@ -49,7 +49,9 @@ async function asaasFetch<T>(path: string, init: { method: string; body?: unknow
     });
   } catch {
     // Erro de rede/conexao — nunca expor detalhes internos nem a chave.
-    throw new AsaasRequestError('Nao foi possivel conectar ao Asaas. Tente novamente em instantes.');
+    throw new AsaasRequestError(
+      'Nao foi possivel conectar ao Asaas. Tente novamente em instantes.',
+    );
   }
 
   let payload: unknown = null;
@@ -107,7 +109,9 @@ export interface AsaasSubscription {
   [key: string]: unknown;
 }
 
-export async function createSubscription(input: AsaasSubscriptionInput): Promise<AsaasSubscription> {
+export async function createSubscription(
+  input: AsaasSubscriptionInput,
+): Promise<AsaasSubscription> {
   return asaasFetch<AsaasSubscription>('/subscriptions', {
     method: 'POST',
     body: {

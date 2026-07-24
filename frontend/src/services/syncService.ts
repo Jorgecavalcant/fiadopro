@@ -75,7 +75,10 @@ export interface Counterpart {
   last_activity: string | null;
 }
 
-const jsonFetch = async (path: string, init?: RequestInit): Promise<Record<string, unknown> | null> => {
+const jsonFetch = async (
+  path: string,
+  init?: RequestInit,
+): Promise<Record<string, unknown> | null> => {
   try {
     const res = await fetch(`${API_URL}${path}`, {
       credentials: 'include',
@@ -158,8 +161,7 @@ let shadowCustomers = new Map<string, string>();
 let shadowTransactions = new Map<string, string>();
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 
-const fingerprintCustomer = (c: Customer): string =>
-  JSON.stringify(toServerCustomerBody(c));
+const fingerprintCustomer = (c: Customer): string => JSON.stringify(toServerCustomerBody(c));
 const fingerprintTransaction = (t: Transaction): string =>
   JSON.stringify(toServerTransactionBody(t));
 
@@ -175,10 +177,13 @@ export interface BootstrapResult {
  */
 export async function bootstrapSync(
   localCustomers: Customer[],
-  localTransactions: Transaction[]
+  localTransactions: Transaction[],
 ): Promise<BootstrapResult> {
   // 1. Migração única do estado local pré-servidor
-  if (!localStorage.getItem(MIGRATED_FLAG) && (localCustomers.length > 0 || localTransactions.length > 0)) {
+  if (
+    !localStorage.getItem(MIGRATED_FLAG) &&
+    (localCustomers.length > 0 || localTransactions.length > 0)
+  ) {
     const imported = await jsonFetch('/sync/import', {
       method: 'POST',
       body: JSON.stringify({
@@ -227,10 +232,10 @@ export async function bootstrapSync(
   const localTransactionById = new Map(localTransactions.map((t) => [t.id, t]));
 
   const customers = (customersData.customers as ServerCustomer[]).map((s) =>
-    toClientCustomer(s, localCustomerById.get(s.id))
+    toClientCustomer(s, localCustomerById.get(s.id)),
   );
   const transactions = (transactionsData.transactions as ServerTransaction[]).map((s) =>
-    toClientTransaction(s, localTransactionById.get(s.id))
+    toClientTransaction(s, localTransactionById.get(s.id)),
   );
 
   // 3. Registrar shadow para o diff do push
@@ -251,7 +256,7 @@ export function schedulePush(
   loggedIn: boolean,
   customers: Customer[],
   transactions: Transaction[],
-  onStatusFromServer: (patches: StatusPatch[]) => void
+  onStatusFromServer: (patches: StatusPatch[]) => void,
 ): void {
   if (!loggedIn) return;
   if (pushTimer) clearTimeout(pushTimer);
@@ -263,7 +268,7 @@ export function schedulePush(
 async function pushDiffs(
   customers: Customer[],
   transactions: Transaction[],
-  onStatusFromServer: (patches: StatusPatch[]) => void
+  onStatusFromServer: (patches: StatusPatch[]) => void,
 ): Promise<void> {
   const patches: StatusPatch[] = [];
 
@@ -272,9 +277,13 @@ async function pushDiffs(
     const known = shadowCustomers.get(c.id);
     if (known === fp) continue;
     const body = toServerCustomerBody(c);
-    const result = known === undefined
-      ? await jsonFetch('/customers', { method: 'POST', body: JSON.stringify(body) })
-      : await jsonFetch(`/customers/${c.id}`, { method: 'PATCH', body: JSON.stringify({ ...body, id: undefined }) });
+    const result =
+      known === undefined
+        ? await jsonFetch('/customers', { method: 'POST', body: JSON.stringify(body) })
+        : await jsonFetch(`/customers/${c.id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ ...body, id: undefined }),
+          });
     if (result) shadowCustomers.set(c.id, fp);
   }
 
@@ -292,12 +301,13 @@ async function pushDiffs(
     const known = shadowTransactions.get(t.id);
     if (known === fp) continue;
     const body = toServerTransactionBody(t);
-    const result = known === undefined
-      ? await jsonFetch('/transactions', { method: 'POST', body: JSON.stringify(body) })
-      : await jsonFetch(`/transactions/${t.id}`, {
-          method: 'PATCH',
-          body: JSON.stringify({ ...body, id: undefined, customer_id: undefined }),
-        });
+    const result =
+      known === undefined
+        ? await jsonFetch('/transactions', { method: 'POST', body: JSON.stringify(body) })
+        : await jsonFetch(`/transactions/${t.id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ ...body, id: undefined, customer_id: undefined }),
+          });
     if (result) {
       shadowTransactions.set(t.id, fp);
       const serverTx = result.transaction as ServerTransaction | undefined;
@@ -357,7 +367,9 @@ export interface CounterpartTransaction {
 }
 
 /** Histórico completo (todos os status) do meu relacionamento com um comerciante. */
-export async function fetchCounterpartTransactions(customerId: string): Promise<CounterpartTransaction[]> {
+export async function fetchCounterpartTransactions(
+  customerId: string,
+): Promise<CounterpartTransaction[]> {
   const data = await jsonFetch(`/counterpart/${customerId}/transactions`);
   return data ? (data.transactions as CounterpartTransaction[]) : [];
 }
@@ -378,7 +390,7 @@ export interface CounterpartPaymentInput {
  */
 export async function createCounterpartPayment(
   customerId: string,
-  input: CounterpartPaymentInput
+  input: CounterpartPaymentInput,
 ): Promise<boolean> {
   const result = await jsonFetch('/transactions', {
     method: 'POST',
@@ -396,15 +408,30 @@ export async function createCounterpartPayment(
 }
 
 export async function approveTransaction(id: string, note?: string): Promise<boolean> {
-  return (await jsonFetch(`/transactions/${id}/approve`, { method: 'POST', body: JSON.stringify({ note }) })) !== null;
+  return (
+    (await jsonFetch(`/transactions/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    })) !== null
+  );
 }
 
 export async function rejectTransaction(id: string, note?: string): Promise<boolean> {
-  return (await jsonFetch(`/transactions/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) })) !== null;
+  return (
+    (await jsonFetch(`/transactions/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    })) !== null
+  );
 }
 
 export async function resendTransaction(id: string): Promise<boolean> {
-  return (await jsonFetch(`/transactions/${id}/resend`, { method: 'POST', body: JSON.stringify({}) })) !== null;
+  return (
+    (await jsonFetch(`/transactions/${id}/resend`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    })) !== null
+  );
 }
 
 export interface ProfileUpdateInput {

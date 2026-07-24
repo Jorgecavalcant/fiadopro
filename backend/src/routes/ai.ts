@@ -27,21 +27,26 @@ const logInteraction = async (
   userId: string,
   prompt: string,
   response: string,
-  tokensUsed: number | null
+  tokensUsed: number | null,
 ): Promise<void> => {
   try {
     await query(
       'INSERT INTO ai_interactions (user_id, prompt, response, tokens_used) VALUES ($1, $2, $3, $4)',
-      [userId, prompt.slice(0, 8000), response.slice(0, 8000), tokensUsed]
+      [userId, prompt.slice(0, 8000), response.slice(0, 8000), tokensUsed],
     );
   } catch (err) {
-    console.error('[AI] Falha ao gravar ai_interactions:', err instanceof Error ? err.message : err);
+    console.error(
+      '[AI] Falha ao gravar ai_interactions:',
+      err instanceof Error ? err.message : err,
+    );
   }
 };
 
 const mapError = (err: unknown, next: NextFunction) => {
   if (err instanceof z.ZodError) {
-    return next(new ApiError(400, err.errors[0]?.message || 'Requisição inválida', 'VALIDATION_ERROR'));
+    return next(
+      new ApiError(400, err.errors[0]?.message || 'Requisição inválida', 'VALIDATION_ERROR'),
+    );
   }
   if (err instanceof OpenRouterError) {
     return next(new ApiError(err.statusCode, err.message, err.code));
@@ -53,7 +58,11 @@ const mapError = (err: unknown, next: NextFunction) => {
 
 const router = Router();
 
-const aiRateLimiter = createLimiter(20, 60 * 1000, (req) => (req as AuthRequest).user?.sub || req.ip || 'unknown');
+const aiRateLimiter = createLimiter(
+  20,
+  60 * 1000,
+  (req) => (req as AuthRequest).user?.sub || req.ip || 'unknown',
+);
 
 router.use(requireAuth);
 router.use(aiRateLimiter);
@@ -74,7 +83,7 @@ export const AnalyzeCustomerSchema = z.object({
         amount: z.number(),
         description: z.string().optional(),
         timestamp: z.number().optional(),
-      })
+      }),
     )
     .default([]),
   language: z.enum(['pt-BR', 'en']).default('pt-BR'),
@@ -96,12 +105,15 @@ export const AnalyzeCustomerSchema = z.object({
 router.post('/analyze-customer', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const body = AnalyzeCustomerSchema.parse(req.body);
-    const langInstruction = body.language === 'pt-BR' ? 'Responda em Português do Brasil.' : 'Respond in English.';
+    const langInstruction =
+      body.language === 'pt-BR' ? 'Responda em Português do Brasil.' : 'Respond in English.';
 
     let prompt: string;
     if (body.mode === 'business' || !body.customer) {
       if (!body.stats) {
-        return next(new ApiError(400, 'stats é obrigatório para mode=business', 'VALIDATION_ERROR'));
+        return next(
+          new ApiError(400, 'stats é obrigatório para mode=business', 'VALIDATION_ERROR'),
+        );
       }
       prompt = `Sou dono de um pequeno negócio que usa fiado (crédito informal) com clientes.
 Atualmente tenho R$ ${body.stats.totalReceivable.toFixed(2)} a receber, com ${body.stats.activeCustomers} clientes ativos.
@@ -112,7 +124,7 @@ ${langInstruction}`;
       const history = body.transactions
         .map(
           (t) =>
-            `${t.timestamp ? new Date(t.timestamp).toLocaleDateString() : '(sem data)'}: ${t.type} de R$ ${t.amount.toFixed(2)} - ${t.description || ''}`
+            `${t.timestamp ? new Date(t.timestamp).toLocaleDateString() : '(sem data)'}: ${t.type} de R$ ${t.amount.toFixed(2)} - ${t.description || ''}`,
         )
         .join('\n');
 
@@ -157,7 +169,11 @@ export const ReadDocumentSchema = z
   })
   .superRefine((val, ctx) => {
     if (estimateBase64Bytes(val.image.data) > MAX_IMAGE_BYTES) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Arquivo maior que 15MB', path: ['image', 'data'] });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Arquivo maior que 15MB',
+        path: ['image', 'data'],
+      });
     }
   });
 
@@ -172,10 +188,11 @@ const ReadDocumentResultSchema = z.object({
 // POST /api/ai/read-document
 router.post('/read-document', async (req: AuthRequest, res: Response, next: NextFunction) => {
   // Descrição curta para auditoria — nunca logamos o base64 da imagem/documento.
-  const auditPrompt = `[read-document] mime=${req.body?.image?.mimeType || '?'} hint=${req.body?.hint || ''}`.slice(
-    0,
-    8000
-  );
+  const auditPrompt =
+    `[read-document] mime=${req.body?.image?.mimeType || '?'} hint=${req.body?.hint || ''}`.slice(
+      0,
+      8000,
+    );
 
   try {
     const body = ReadDocumentSchema.parse(req.body);
@@ -213,7 +230,11 @@ Retorne APENAS o JSON, sem nenhum texto adicional.`;
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         parsedJson = JSON.parse(jsonMatch ? jsonMatch[0] : content);
       } catch {
-        throw new OpenRouterError(502, 'IA não conseguiu interpretar o documento.', 'AI_PARSE_ERROR');
+        throw new OpenRouterError(
+          502,
+          'IA não conseguiu interpretar o documento.',
+          'AI_PARSE_ERROR',
+        );
       }
 
       const result = ReadDocumentResultSchema.parse(parsedJson);
@@ -276,12 +297,14 @@ adminAiConfigRouter.put('/ai-config', async (req, res, next) => {
 
     const result = await query(
       `UPDATE ai_config SET ${setClause}, updated_at = NOW() WHERE id = 1 RETURNING *`,
-      values
+      values,
     );
     res.json({ success: true, config: result.rows[0] });
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return next(new ApiError(400, err.errors[0]?.message || 'Requisição inválida', 'VALIDATION_ERROR'));
+      return next(
+        new ApiError(400, err.errors[0]?.message || 'Requisição inválida', 'VALIDATION_ERROR'),
+      );
     }
     next(err);
   }

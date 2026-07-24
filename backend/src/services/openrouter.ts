@@ -10,7 +10,7 @@ export class OpenRouterError extends Error {
   constructor(
     public statusCode: number,
     message: string,
-    public code: string
+    public code: string,
   ) {
     super(message);
     this.name = 'OpenRouterError';
@@ -28,7 +28,9 @@ export interface AiConfig {
 // gratuitos para não derrubar a funcionalidade de IA.
 export const getAiConfig = async (): Promise<AiConfig> => {
   try {
-    const result = await query('SELECT chat_model, vision_model, enabled FROM ai_config WHERE id = 1');
+    const result = await query(
+      'SELECT chat_model, vision_model, enabled FROM ai_config WHERE id = 1',
+    );
     const row = result.rows[0];
     if (!row) {
       return { chatModel: DEFAULT_CHAT_MODEL, visionModel: DEFAULT_VISION_MODEL, enabled: true };
@@ -39,14 +41,16 @@ export const getAiConfig = async (): Promise<AiConfig> => {
       enabled: row.enabled !== false,
     };
   } catch (err) {
-    console.error('[AI] Falha ao ler ai_config, usando defaults:', err instanceof Error ? err.message : err);
+    console.error(
+      '[AI] Falha ao ler ai_config, usando defaults:',
+      err instanceof Error ? err.message : err,
+    );
     return { chatModel: DEFAULT_CHAT_MODEL, visionModel: DEFAULT_VISION_MODEL, enabled: true };
   }
 };
 
 export type ChatMessageContentPart =
-  | { type: 'text'; text: string }
-  | { type: 'image_url'; image_url: { url: string } };
+  { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
 
 export interface ChatMessage {
   role: 'system' | 'user';
@@ -62,7 +66,7 @@ export interface OpenRouterResult {
 const callOpenRouter = async (
   model: string,
   messages: ChatMessage[],
-  jsonMode: boolean
+  jsonMode: boolean,
 ): Promise<OpenRouterResult> => {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
@@ -92,19 +96,35 @@ const callOpenRouter = async (
     });
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new OpenRouterError(504, 'IA demorou demais para responder. Tente novamente.', 'AI_TIMEOUT');
+      throw new OpenRouterError(
+        504,
+        'IA demorou demais para responder. Tente novamente.',
+        'AI_TIMEOUT',
+      );
     }
-    throw new OpenRouterError(502, 'Não foi possível conectar ao serviço de IA.', 'AI_CONNECTION_ERROR');
+    throw new OpenRouterError(
+      502,
+      'Não foi possível conectar ao serviço de IA.',
+      'AI_CONNECTION_ERROR',
+    );
   } finally {
     clearTimeout(timeoutId);
   }
 
   if (!response.ok) {
     if (response.status === 429) {
-      throw new OpenRouterError(429, 'IA temporariamente sobrecarregada. Tente novamente em instantes.', 'AI_RATE_LIMIT');
+      throw new OpenRouterError(
+        429,
+        'IA temporariamente sobrecarregada. Tente novamente em instantes.',
+        'AI_RATE_LIMIT',
+      );
     }
     if (response.status === 402) {
-      throw new OpenRouterError(402, 'Cota de IA esgotada no momento. Tente novamente mais tarde.', 'AI_QUOTA_EXCEEDED');
+      throw new OpenRouterError(
+        402,
+        'Cota de IA esgotada no momento. Tente novamente mais tarde.',
+        'AI_QUOTA_EXCEEDED',
+      );
     }
     if (response.status === 401 || response.status === 403) {
       throw new OpenRouterError(503, 'IA não configurada corretamente.', 'AI_AUTH_ERROR');

@@ -16,12 +16,9 @@ function fakeRes(): Response {
   return res as Response;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getRouteHandler(method: 'get' | 'post' | 'patch' | 'delete', path: string): any {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const layer = (router as any).stack.find(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (l: any) => l.route && l.route.path === path && l.route.methods[method]
+    (l: any) => l.route && l.route.path === path && l.route.methods[method],
   );
   if (!layer) throw new Error(`Rota nao encontrada: ${method.toUpperCase()} ${path}`);
   const routeLayer = layer.route.stack[layer.route.stack.length - 1];
@@ -42,8 +39,12 @@ describe('transactions — POST / (criação por dono e por contraparte vinculad
 
   it('dono cria DEBT contra cliente vinculado → nasce PENDING, created_by = dono', async () => {
     queryMock
-      .mockResolvedValueOnce({ rows: [{ id: CUSTOMER_ID, owner_user_id: OWNER_ID, linked_user_id: LINKED_ID }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'tx-1', status: 'PENDING', created_by_user_id: OWNER_ID }] })
+      .mockResolvedValueOnce({
+        rows: [{ id: CUSTOMER_ID, owner_user_id: OWNER_ID, linked_user_id: LINKED_ID }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 'tx-1', status: 'PENDING', created_by_user_id: OWNER_ID }],
+      })
       .mockResolvedValueOnce({ rows: [] }); // logEvent
 
     const req: any = {
@@ -58,15 +59,19 @@ describe('transactions — POST / (criação por dono e por contraparte vinculad
     expect(next).not.toHaveBeenCalled();
     const insertCall = queryMock.mock.calls[1];
     expect(insertCall[1]).toEqual(
-      expect.arrayContaining([CUSTOMER_ID, OWNER_ID, OWNER_ID, 'DEBT', 'PENDING'])
+      expect.arrayContaining([CUSTOMER_ID, OWNER_ID, OWNER_ID, 'DEBT', 'PENDING']),
     );
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
   it('contraparte vinculada cria PAYMENT contra si mesma → owner_user_id fica com o DONO, created_by = contraparte', async () => {
     queryMock
-      .mockResolvedValueOnce({ rows: [{ id: CUSTOMER_ID, owner_user_id: OWNER_ID, linked_user_id: LINKED_ID }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'tx-2', status: 'PENDING', created_by_user_id: LINKED_ID }] })
+      .mockResolvedValueOnce({
+        rows: [{ id: CUSTOMER_ID, owner_user_id: OWNER_ID, linked_user_id: LINKED_ID }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 'tx-2', status: 'PENDING', created_by_user_id: LINKED_ID }],
+      })
       .mockResolvedValueOnce({ rows: [] });
 
     const req: any = {
@@ -122,12 +127,17 @@ describe('transactions — POST / (criação por dono e por contraparte vinculad
 
   it('applies_to_transaction_id invalido (nao pertence ao mesmo cliente) → 400', async () => {
     queryMock
-      .mockResolvedValueOnce({ rows: [{ id: CUSTOMER_ID, owner_user_id: OWNER_ID, linked_user_id: LINKED_ID }] })
+      .mockResolvedValueOnce({
+        rows: [{ id: CUSTOMER_ID, owner_user_id: OWNER_ID, linked_user_id: LINKED_ID }],
+      })
       .mockResolvedValueOnce({ rows: [] }); // referencia nao encontrada
     const req: any = {
       user: { sub: LINKED_ID },
       body: {
-        customer_id: CUSTOMER_ID, type: 'PAYMENT', amount: 10, description: 'x',
+        customer_id: CUSTOMER_ID,
+        type: 'PAYMENT',
+        amount: 10,
+        description: 'x',
         applies_to_transaction_id: '22222222-2222-2222-2222-222222222222',
       },
     };

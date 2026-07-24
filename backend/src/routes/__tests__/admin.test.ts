@@ -103,14 +103,26 @@ describe('GET /api/admin/users', () => {
         expect(params).toContain(10); // offset = (page-1)*limit = (2-1)*10
         return {
           rows: [
-            { id: 'u1', email: 'a@b.com', full_name: 'A', phone: null, avatar_url: null, role: 'user', is_active: true, created_at: 'x', updated_at: 'x' },
+            {
+              id: 'u1',
+              email: 'a@b.com',
+              full_name: 'A',
+              phone: null,
+              avatar_url: null,
+              role: 'user',
+              is_active: true,
+              created_at: 'x',
+              updated_at: 'x',
+            },
           ],
         };
       }
       return { rows: [] };
     });
 
-    const res = await fetch(`${baseUrl}/api/admin/users?page=2&limit=10`, { headers: withCookie(adminToken) });
+    const res = await fetch(`${baseUrl}/api/admin/users?page=2&limit=10`, {
+      headers: withCookie(adminToken),
+    });
     const body = await json(res);
 
     expect(res.status).toBe(200);
@@ -124,7 +136,8 @@ describe('GET /api/admin/users', () => {
 
   it('aplica busca (search) construindo ILIKE sobre nome/email', async () => {
     mockedQuery.mockImplementation(async (sql: string, params: unknown[] = []) => {
-      if (sql.includes('SELECT role FROM users WHERE id = $1')) return { rows: [{ role: 'admin' }] };
+      if (sql.includes('SELECT role FROM users WHERE id = $1'))
+        return { rows: [{ role: 'admin' }] };
       if (sql.includes('COUNT(*)::int AS total FROM users')) {
         expect(sql).toContain('ILIKE');
         expect(params).toEqual(['%joao%']);
@@ -133,7 +146,9 @@ describe('GET /api/admin/users', () => {
       return { rows: [] };
     });
 
-    const res = await fetch(`${baseUrl}/api/admin/users?search=joao`, { headers: withCookie(adminToken) });
+    const res = await fetch(`${baseUrl}/api/admin/users?search=joao`, {
+      headers: withCookie(adminToken),
+    });
     const body = await json(res);
     expect(res.status).toBe(200);
     expect(body.meta.total).toBe(0);
@@ -155,10 +170,26 @@ describe('PATCH /api/admin/users/:id', () => {
 
   it('atualiza is_active/full_name/phone quando payload e valido', async () => {
     mockedQuery.mockImplementation(async (sql: string) => {
-      if (sql.includes('SELECT role FROM users WHERE id = $1')) return { rows: [{ role: 'admin' }] };
-      if (sql.startsWith('SELECT id FROM users WHERE id = $1 AND deleted_at IS NULL')) return { rows: [{ id: USER_ID }] };
+      if (sql.includes('SELECT role FROM users WHERE id = $1'))
+        return { rows: [{ role: 'admin' }] };
+      if (sql.startsWith('SELECT id FROM users WHERE id = $1 AND deleted_at IS NULL'))
+        return { rows: [{ id: USER_ID }] };
       if (sql.startsWith('UPDATE users SET')) {
-        return { rows: [{ id: USER_ID, email: 'u@x.com', full_name: 'Novo Nome', phone: null, avatar_url: null, role: 'user', is_active: false, created_at: 'x', updated_at: 'x' }] };
+        return {
+          rows: [
+            {
+              id: USER_ID,
+              email: 'u@x.com',
+              full_name: 'Novo Nome',
+              phone: null,
+              avatar_url: null,
+              role: 'user',
+              is_active: false,
+              created_at: 'x',
+              updated_at: 'x',
+            },
+          ],
+        };
       }
       return { rows: [] };
     });
@@ -176,8 +207,10 @@ describe('PATCH /api/admin/users/:id', () => {
 
   it('retorna 404 quando usuario nao existe', async () => {
     mockedQuery.mockImplementation(async (sql: string) => {
-      if (sql.includes('SELECT role FROM users WHERE id = $1')) return { rows: [{ role: 'admin' }] };
-      if (sql.startsWith('SELECT id FROM users WHERE id = $1 AND deleted_at IS NULL')) return { rows: [] };
+      if (sql.includes('SELECT role FROM users WHERE id = $1'))
+        return { rows: [{ role: 'admin' }] };
+      if (sql.startsWith('SELECT id FROM users WHERE id = $1 AND deleted_at IS NULL'))
+        return { rows: [] };
       return { rows: [] };
     });
     const res = await fetch(`${baseUrl}/api/admin/users/${USER_ID}`, {
@@ -192,8 +225,10 @@ describe('PATCH /api/admin/users/:id', () => {
 describe('POST /api/admin/users/:id/reset-password', () => {
   it('gera token e envia e-mail no padrao do forgot-password', async () => {
     mockedQuery.mockImplementation(async (sql: string) => {
-      if (sql.includes('SELECT role FROM users WHERE id = $1')) return { rows: [{ role: 'admin' }] };
-      if (sql.includes('SELECT id, email FROM users WHERE id = $1')) return { rows: [{ id: USER_ID, email: 'u@x.com' }] };
+      if (sql.includes('SELECT role FROM users WHERE id = $1'))
+        return { rows: [{ role: 'admin' }] };
+      if (sql.includes('SELECT id, email FROM users WHERE id = $1'))
+        return { rows: [{ id: USER_ID, email: 'u@x.com' }] };
       return { rows: [] };
     });
     const res = await fetch(`${baseUrl}/api/admin/users/${USER_ID}/reset-password`, {
@@ -209,7 +244,8 @@ describe('POST /api/admin/users/:id/reset-password', () => {
 
   it('retorna 404 se usuario nao existe ou esta inativo', async () => {
     mockedQuery.mockImplementation(async (sql: string) => {
-      if (sql.includes('SELECT role FROM users WHERE id = $1')) return { rows: [{ role: 'admin' }] };
+      if (sql.includes('SELECT role FROM users WHERE id = $1'))
+        return { rows: [{ role: 'admin' }] };
       if (sql.includes('SELECT id, email FROM users WHERE id = $1')) return { rows: [] };
       return { rows: [] };
     });
@@ -225,11 +261,14 @@ describe('POST /api/admin/users/:id/reset-password', () => {
 describe('GET /api/admin/metrics', () => {
   it('agrega contagens e volume mensal para admin', async () => {
     mockedQuery.mockImplementation(async (sql: string) => {
-      if (sql.includes('SELECT role FROM users WHERE id = $1')) return { rows: [{ role: 'admin' }] };
+      if (sql.includes('SELECT role FROM users WHERE id = $1'))
+        return { rows: [{ role: 'admin' }] };
       if (sql.includes('FROM users WHERE is_active = true')) return { rows: [{ total: 7 }] };
       if (sql.includes('FROM customers')) return { rows: [{ total: 3 }] };
-      if (sql.includes('FROM transactions') && sql.includes('COUNT(*)::int AS total')) return { rows: [{ total: 100 }] };
-      if (sql.includes('date_trunc')) return { rows: [{ month: '2026-07', volume: '500.00', count: 4 }] };
+      if (sql.includes('FROM transactions') && sql.includes('COUNT(*)::int AS total'))
+        return { rows: [{ total: 100 }] };
+      if (sql.includes('date_trunc'))
+        return { rows: [{ month: '2026-07', volume: '500.00', count: 4 }] };
       return { rows: [] };
     });
     const res = await fetch(`${baseUrl}/api/admin/metrics`, { headers: withCookie(adminToken) });
@@ -245,7 +284,9 @@ describe('GET /api/admin/metrics', () => {
 describe('GET/PUT /api/admin/settings/:key — allowlist', () => {
   it('rejeita chave fora da allowlist com 400', async () => {
     mockRoleAs('admin');
-    const res = await fetch(`${baseUrl}/api/admin/settings/nao-permitida`, { headers: withCookie(adminToken) });
+    const res = await fetch(`${baseUrl}/api/admin/settings/nao-permitida`, {
+      headers: withCookie(adminToken),
+    });
     const body = await json(res);
     expect(res.status).toBe(400);
     expect(body.error.code).toBe('VALIDATION_ERROR');
@@ -253,7 +294,8 @@ describe('GET/PUT /api/admin/settings/:key — allowlist', () => {
 
   it('aceita chave da allowlist e faz upsert', async () => {
     mockedQuery.mockImplementation(async (sql: string) => {
-      if (sql.includes('SELECT role FROM users WHERE id = $1')) return { rows: [{ role: 'admin' }] };
+      if (sql.includes('SELECT role FROM users WHERE id = $1'))
+        return { rows: [{ role: 'admin' }] };
       if (sql.includes('INSERT INTO app_settings')) {
         return { rows: [{ key: 'features', value: { betaAI: true }, updated_at: 'x' }] };
       }
@@ -272,11 +314,14 @@ describe('GET/PUT /api/admin/settings/:key — allowlist', () => {
 
   it('GET de chave inexistente retorna value:null sem erro', async () => {
     mockedQuery.mockImplementation(async (sql: string) => {
-      if (sql.includes('SELECT role FROM users WHERE id = $1')) return { rows: [{ role: 'admin' }] };
+      if (sql.includes('SELECT role FROM users WHERE id = $1'))
+        return { rows: [{ role: 'admin' }] };
       if (sql.includes('SELECT value, updated_at FROM app_settings')) return { rows: [] };
       return { rows: [] };
     });
-    const res = await fetch(`${baseUrl}/api/admin/settings/limits`, { headers: withCookie(adminToken) });
+    const res = await fetch(`${baseUrl}/api/admin/settings/limits`, {
+      headers: withCookie(adminToken),
+    });
     const body = await json(res);
     expect(res.status).toBe(200);
     expect(body.value).toBeNull();
@@ -286,7 +331,9 @@ describe('GET/PUT /api/admin/settings/:key — allowlist', () => {
 describe('GET /api/admin/reports', () => {
   it('limita months a 60 e rejeita valores maiores', async () => {
     mockRoleAs('admin');
-    const res = await fetch(`${baseUrl}/api/admin/reports?months=61`, { headers: withCookie(adminToken) });
+    const res = await fetch(`${baseUrl}/api/admin/reports?months=61`, {
+      headers: withCookie(adminToken),
+    });
     const body = await json(res);
     expect(res.status).toBe(400);
     expect(body.error.code).toBe('VALIDATION_ERROR');
@@ -294,7 +341,8 @@ describe('GET /api/admin/reports', () => {
 
   it('retorna agregado por mes/tipo dentro do limite', async () => {
     mockedQuery.mockImplementation(async (sql: string, params: unknown[] = []) => {
-      if (sql.includes('SELECT role FROM users WHERE id = $1')) return { rows: [{ role: 'admin' }] };
+      if (sql.includes('SELECT role FROM users WHERE id = $1'))
+        return { rows: [{ role: 'admin' }] };
       if (sql.includes('FROM transactions')) {
         expect(params).toEqual([12]);
         return { rows: [{ month: '2026-07', type: 'DEBT', total: '120.00', count: 2 }] };

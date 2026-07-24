@@ -1,6 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { CheckCircle, XCircle, Clock, RefreshCw, Paperclip } from 'lucide-react';
-import { InboxItem, fetchInbox, approveTransaction, rejectTransaction } from '../services/syncService';
+import {
+  InboxItem,
+  fetchInbox,
+  approveTransaction,
+  rejectTransaction,
+} from '../services/syncService';
 
 interface InboxAprovacoesProps {
   formatCurrency: (v: number) => string;
@@ -76,13 +81,20 @@ export default function InboxAprovacoes({ formatCurrency, onChanged }: InboxApro
             <div className="flex justify-between items-start gap-3">
               <div>
                 <p className="text-sm font-semibold text-slate-800">
-                  {typeLabel[item.type] ?? item.type} por <span className="text-indigo-600">{item.counterpart_name}</span>
+                  {typeLabel[item.type] ?? item.type} por{' '}
+                  <span className="text-indigo-600">{item.counterpart_name}</span>
                 </p>
-                <p className="text-lg font-bold text-slate-900 mt-1">{formatCurrency(Number(item.amount))}</p>
-                {item.description && <p className="text-sm text-slate-500 mt-1">{item.description}</p>}
+                <p className="text-lg font-bold text-slate-900 mt-1">
+                  {formatCurrency(Number(item.amount))}
+                </p>
+                {item.description && (
+                  <p className="text-sm text-slate-500 mt-1">{item.description}</p>
+                )}
                 <p className="text-xs text-slate-400 mt-1">
                   {new Date(item.occurred_at).toLocaleDateString('pt-BR')}
-                  {item.due_date ? ` · vence ${new Date(item.due_date).toLocaleDateString('pt-BR')}` : ''}
+                  {item.due_date
+                    ? ` · vence ${new Date(item.due_date).toLocaleDateString('pt-BR')}`
+                    : ''}
                 </p>
                 {item.attachment && (
                   <p className="text-xs text-indigo-500 mt-1 flex items-center gap-1">

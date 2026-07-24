@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createCustomer, createSubscription, getSubscription, AsaasNotConfiguredError, AsaasRequestError } from './asaas.js';
+import {
+  createCustomer,
+  createSubscription,
+  getSubscription,
+  AsaasNotConfiguredError,
+  AsaasRequestError,
+} from './asaas.js';
 
 const FAKE_KEY = 'sk_test_super_secret_key_12345';
 
@@ -28,7 +34,7 @@ describe('asaas service', () => {
     delete process.env.ASAAS_API_KEY;
 
     await expect(
-      createCustomer({ name: 'Fulano', email: 'fulano@example.com', cpfCnpj: '12345678900' })
+      createCustomer({ name: 'Fulano', email: 'fulano@example.com', cpfCnpj: '12345678900' }),
     ).rejects.toBeInstanceOf(AsaasNotConfiguredError);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -41,7 +47,11 @@ describe('asaas service', () => {
       json: async () => ({ id: 'cus_000001' }),
     });
 
-    const result = await createCustomer({ name: 'Fulano', email: 'fulano@example.com', cpfCnpj: '123.456.789-00' });
+    const result = await createCustomer({
+      name: 'Fulano',
+      email: 'fulano@example.com',
+      cpfCnpj: '123.456.789-00',
+    });
 
     expect(result.id).toBe('cus_000001');
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -59,7 +69,11 @@ describe('asaas service', () => {
       json: async () => ({ id: 'sub_000001', status: 'PENDING' }),
     });
 
-    const result = await createSubscription({ customer: 'cus_000001', value: 19.9, nextDueDate: '2026-07-20' });
+    const result = await createSubscription({
+      customer: 'cus_000001',
+      value: 19.9,
+      nextDueDate: '2026-07-20',
+    });
 
     expect(result.id).toBe('sub_000001');
     const [, init] = fetchMock.mock.calls[0];
@@ -74,7 +88,11 @@ describe('asaas service', () => {
     process.env.ASAAS_BASE_URL = 'https://api-sandbox.asaas.com/v3';
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ id: 'sub_000001', status: 'ACTIVE', invoiceUrl: 'https://asaas.com/i/abc' }),
+      json: async () => ({
+        id: 'sub_000001',
+        status: 'ACTIVE',
+        invoiceUrl: 'https://asaas.com/i/abc',
+      }),
     });
 
     const result = await getSubscription('sub_000001');
@@ -93,7 +111,7 @@ describe('asaas service', () => {
     });
 
     await expect(
-      createCustomer({ name: 'Fulano', email: 'fulano@example.com', cpfCnpj: '000' })
+      createCustomer({ name: 'Fulano', email: 'fulano@example.com', cpfCnpj: '000' }),
     ).rejects.toThrow('CPF invalido');
 
     try {
@@ -110,7 +128,7 @@ describe('asaas service', () => {
     fetchMock.mockRejectedValue(new Error('ECONNREFUSED'));
 
     await expect(
-      createCustomer({ name: 'Fulano', email: 'fulano@example.com', cpfCnpj: '12345678900' })
+      createCustomer({ name: 'Fulano', email: 'fulano@example.com', cpfCnpj: '12345678900' }),
     ).rejects.toThrow('Nao foi possivel conectar ao Asaas');
   });
 
@@ -119,10 +137,13 @@ describe('asaas service', () => {
     fetchMock.mockRejectedValue(new Error('boom'));
 
     await expect(
-      createCustomer({ name: 'Fulano', email: 'fulano@example.com', cpfCnpj: '12345678900' })
+      createCustomer({ name: 'Fulano', email: 'fulano@example.com', cpfCnpj: '12345678900' }),
     ).rejects.toThrow();
 
-    const allLoggedText = JSON.stringify([...consoleErrorSpy.mock.calls, ...consoleLogSpy.mock.calls]);
+    const allLoggedText = JSON.stringify([
+      ...consoleErrorSpy.mock.calls,
+      ...consoleLogSpy.mock.calls,
+    ]);
     expect(allLoggedText).not.toContain(FAKE_KEY);
   });
 });

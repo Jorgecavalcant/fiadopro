@@ -16,8 +16,9 @@ export const getItemUnitPrice = (item: Pick<BillItem, 'unitPrice' | 'price'>): n
  * Itens sem quantity/unitPrice (legados) recalculam para o mesmo price que já tinham
  * (quantity=1 * unitPrice=price), então nunca quebram dados existentes.
  */
-export const computeItemPrice = (item: Pick<BillItem, 'quantity' | 'unitPrice' | 'price'>): number =>
-  round2(getItemQuantity(item) * getItemUnitPrice(item));
+export const computeItemPrice = (
+  item: Pick<BillItem, 'quantity' | 'unitPrice' | 'price'>,
+): number => round2(getItemQuantity(item) * getItemUnitPrice(item));
 
 export interface ParticipantShare {
   participantId: string;
@@ -61,18 +62,22 @@ export interface SplitRecordsPlan {
 export function planEventSplitRecords(
   shares: ParticipantShare[],
   existingRecords: ExistingLinkedRecord[],
-  eventId: string
+  eventId: string,
 ): SplitRecordsPlan {
-  const existingForEvent = existingRecords.filter(r => r.eventId === eventId);
+  const existingForEvent = existingRecords.filter((r) => r.eventId === eventId);
   const updates: RecordUpdate[] = [];
   const creates: RecordCreate[] = [];
 
-  shares.forEach(share => {
-    const existing = existingForEvent.find(r => r.customerId === share.customerId);
+  shares.forEach((share) => {
+    const existing = existingForEvent.find((r) => r.customerId === share.customerId);
     if (existing) {
       updates.push({ id: existing.id, amount: share.amount, description: share.description });
     } else {
-      creates.push({ customerId: share.customerId, amount: share.amount, description: share.description });
+      creates.push({
+        customerId: share.customerId,
+        amount: share.amount,
+        description: share.description,
+      });
     }
   });
 

@@ -21,14 +21,15 @@ router.patch('/me', requireAuth, async (req: AuthRequest, res: Response, next: N
   try {
     const body = UpdateProfileSchema.parse(req.body);
     const fields = Object.entries(body).filter(([, v]) => v !== undefined);
-    if (fields.length === 0) return next(new ApiError(400, 'Nenhum campo para atualizar', 'EMPTY_UPDATE'));
+    if (fields.length === 0)
+      return next(new ApiError(400, 'Nenhum campo para atualizar', 'EMPTY_UPDATE'));
 
     const setClause = fields.map(([k], i) => `${k} = $${i + 2}`).join(', ');
     const result = await query(
       `UPDATE users SET ${setClause}
         WHERE id = $1 AND deleted_at IS NULL
         RETURNING id, email, full_name, phone, pix_key, avatar_url, role`,
-      [req.user!.sub, ...fields.map(([, v]) => v)]
+      [req.user!.sub, ...fields.map(([, v]) => v)],
     );
     if (!result.rows[0]) return next(new ApiError(404, 'Usuario nao encontrado', 'USER_NOT_FOUND'));
 
@@ -38,7 +39,8 @@ router.patch('/me', requireAuth, async (req: AuthRequest, res: Response, next: N
     }
     res.json({ success: true, user: result.rows[0] });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });
@@ -56,7 +58,7 @@ router.delete('/me', requireAuth, async (req: AuthRequest, res: Response, next: 
 
     const result = await query(
       'SELECT id, email, full_name, password_hash, google_id FROM users WHERE id = $1 AND deleted_at IS NULL',
-      [userId]
+      [userId],
     );
     const user = result.rows[0];
     if (!user) return next(new ApiError(404, 'Usuario nao encontrado', 'USER_NOT_FOUND'));
@@ -80,7 +82,7 @@ router.delete('/me', requireAuth, async (req: AuthRequest, res: Response, next: 
         password_hash = NULL,
         google_id = NULL
        WHERE id = $3`,
-      [body.reason || null, anonEmail, userId]
+      [body.reason || null, anonEmail, userId],
     );
 
     // Enviar email de confirmacao (para o email ORIGINAL antes de anonimizar)
@@ -96,7 +98,8 @@ router.delete('/me', requireAuth, async (req: AuthRequest, res: Response, next: 
 
     res.json({ success: true, message: 'Conta excluida com sucesso.' });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });

@@ -34,7 +34,7 @@ interface AnalyzeCustomerResponse {
 export const getFinancialAdvice = async (
   customer: CustomerWithBalance,
   transactions: Transaction[],
-  language: Language
+  language: Language,
 ): Promise<string> => {
   const customerTransactions = transactions
     .filter((t) => t.customerId === customer.id)
@@ -58,7 +58,7 @@ export const getFinancialAdvice = async (
 export const getGeneralBusinessAdvice = async (
   totalReceivable: number,
   activeCustomers: number,
-  language: Language
+  language: Language,
 ): Promise<string> => {
   const result = await postJson<AnalyzeCustomerResponse>('/analyze-customer', {
     mode: 'business',
@@ -85,7 +85,7 @@ interface ReadDocumentResponse {
 
 export const extractItemsFromInvoice = async (
   base64DataWithHeader: string,
-  mimeType: string
+  mimeType: string,
 ): Promise<ReadDocumentItem[]> => {
   const base64Data = base64DataWithHeader.split(',')[1] || base64DataWithHeader;
 
@@ -104,7 +104,7 @@ export const extractItemsFromInvoice = async (
 export const readDocument = async (
   base64DataWithHeader: string,
   mimeType: string,
-  hint?: string
+  hint?: string,
 ): Promise<ReadDocumentResponse> => {
   const base64Data = base64DataWithHeader.split(',')[1] || base64DataWithHeader;
 

@@ -22,7 +22,7 @@ export async function linkCustomer(customerId: string): Promise<string | null> {
            OR (fn_norm_phone(c.phone) <> '' AND fn_norm_phone(u.phone) = fn_norm_phone(c.phone))
         )
       RETURNING c.linked_user_id`,
-    [customerId]
+    [customerId],
   );
   if (result.rows[0]?.linked_user_id) return result.rows[0].linked_user_id as string;
 
@@ -37,7 +37,7 @@ export async function linkCustomer(customerId: string): Promise<string | null> {
              AND ((c.email IS NOT NULL AND c.email <> '' AND lower(u.email) = lower(c.email))
                OR (fn_norm_phone(c.phone) <> '' AND fn_norm_phone(u.phone) = fn_norm_phone(c.phone)))
         )`,
-    [customerId]
+    [customerId],
   );
   return null;
 }
@@ -57,7 +57,7 @@ export async function relinkCustomersForUser(userId: string): Promise<number> {
              AND ((c.email IS NOT NULL AND c.email <> '' AND lower(u.email) = lower(c.email))
                OR (fn_norm_phone(c.phone) <> '' AND fn_norm_phone(u.phone) = fn_norm_phone(c.phone)))
         )`,
-    [userId]
+    [userId],
   );
 
   // 2. Criar vínculos novos onde o usuário agora bate
@@ -72,7 +72,7 @@ export async function relinkCustomersForUser(userId: string): Promise<number> {
         AND ((c.email IS NOT NULL AND c.email <> '' AND lower(u.email) = lower(c.email))
           OR (fn_norm_phone(c.phone) <> '' AND fn_norm_phone(u.phone) = fn_norm_phone(c.phone)))
       RETURNING c.id`,
-    [userId]
+    [userId],
   );
   return linked.rowCount ?? 0;
 }
@@ -84,10 +84,13 @@ export async function ensureAdminRole(): Promise<void> {
   try {
     await query(
       `UPDATE users SET role = 'admin' WHERE lower(email) = lower($1) AND role <> 'admin'`,
-      [adminEmail]
+      [adminEmail],
     );
   } catch (err) {
-    console.error('[bootstrap] Falha ao promover ADMIN_EMAIL:', err instanceof Error ? err.message : err);
+    console.error(
+      '[bootstrap] Falha ao promover ADMIN_EMAIL:',
+      err instanceof Error ? err.message : err,
+    );
   }
 }
 

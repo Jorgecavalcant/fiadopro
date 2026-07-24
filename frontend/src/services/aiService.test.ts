@@ -22,12 +22,34 @@ describe('aiService', () => {
       global.fetch = fetchSpy as unknown as typeof fetch;
 
       const customer: CustomerWithBalance = {
-        id: 'c1', name: 'Maria', phone: '11999999999', createdAt: 0,
-        balance: 100, rawBalance: 100, lastActivity: 0, isOverdue: false,
+        id: 'c1',
+        name: 'Maria',
+        phone: '11999999999',
+        createdAt: 0,
+        balance: 100,
+        rawBalance: 100,
+        lastActivity: 0,
+        isOverdue: false,
       };
       const transactions: Transaction[] = [
-        { id: 't1', customerId: 'c1', amount: 100, type: 'DEBT', description: 'Fiado', timestamp: 1, status: 'CONFIRMED' },
-        { id: 't2', customerId: 'other', amount: 50, type: 'DEBT', description: 'Outro cliente', timestamp: 1, status: 'CONFIRMED' },
+        {
+          id: 't1',
+          customerId: 'c1',
+          amount: 100,
+          type: 'DEBT',
+          description: 'Fiado',
+          timestamp: 1,
+          status: 'CONFIRMED',
+        },
+        {
+          id: 't2',
+          customerId: 'other',
+          amount: 50,
+          type: 'DEBT',
+          description: 'Outro cliente',
+          timestamp: 1,
+          status: 'CONFIRMED',
+        },
       ];
 
       const result = await getFinancialAdvice(customer, transactions, 'pt-BR');
@@ -54,8 +76,14 @@ describe('aiService', () => {
       }) as unknown as typeof fetch;
 
       const customer: CustomerWithBalance = {
-        id: 'c1', name: 'Maria', phone: '11999999999', createdAt: 0,
-        balance: 100, rawBalance: 100, lastActivity: 0, isOverdue: false,
+        id: 'c1',
+        name: 'Maria',
+        phone: '11999999999',
+        createdAt: 0,
+        balance: 100,
+        rawBalance: 100,
+        lastActivity: 0,
+        isOverdue: false,
       };
 
       await expect(getFinancialAdvice(customer, [], 'pt-BR')).rejects.toThrow('IA não configurada');

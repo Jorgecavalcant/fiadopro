@@ -63,7 +63,7 @@ router.get('/summary', async (req: AuthRequest, res: Response, next: NextFunctio
         MIN(due_date) FILTER (WHERE status = 'active' AND due_date >= CURRENT_DATE) AS next_due_date
       FROM debts
       WHERE user_id = $1`,
-      [req.user!.sub]
+      [req.user!.sub],
     );
     res.json({ success: true, summary: result.rows[0] });
   } catch (err) {
@@ -79,7 +79,7 @@ router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
        FROM debts d LEFT JOIN payments p ON p.debt_id = d.id
        WHERE d.id = $1 AND d.user_id = $2
        GROUP BY d.id`,
-      [req.params.id, req.user!.sub]
+      [req.params.id, req.user!.sub],
     );
     if (!result.rows[0]) return next(new ApiError(404, 'Dívida não encontrada', 'NOT_FOUND'));
     res.json({ success: true, debt: result.rows[0] });
@@ -96,12 +96,20 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
       `INSERT INTO debts (user_id, creditor_name, original_amount, current_amount, due_date, interest_rate, notes)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [req.user!.sub, body.creditor_name, body.original_amount, body.current_amount,
-       body.due_date, body.interest_rate ?? null, body.notes ?? null]
+      [
+        req.user!.sub,
+        body.creditor_name,
+        body.original_amount,
+        body.current_amount,
+        body.due_date,
+        body.interest_rate ?? null,
+        body.notes ?? null,
+      ],
     );
     res.status(201).json({ success: true, debt: result.rows[0] });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });
@@ -110,23 +118,28 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
 router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     // Checar que pertence ao usuário
-    const own = await query('SELECT id FROM debts WHERE id = $1 AND user_id = $2', [req.params.id, req.user!.sub]);
+    const own = await query('SELECT id FROM debts WHERE id = $1 AND user_id = $2', [
+      req.params.id,
+      req.user!.sub,
+    ]);
     if (!own.rows[0]) return next(new ApiError(404, 'Dívida não encontrada', 'NOT_FOUND'));
 
     const body = DebtSchema.partial().parse(req.body);
     const fields = Object.entries(body).filter(([, v]) => v !== undefined);
-    if (fields.length === 0) return next(new ApiError(400, 'Nenhum campo para atualizar', 'EMPTY_UPDATE'));
+    if (fields.length === 0)
+      return next(new ApiError(400, 'Nenhum campo para atualizar', 'EMPTY_UPDATE'));
 
     const setClause = fields.map(([k], i) => `${k} = $${i + 2}`).join(', ');
     const values = fields.map(([, v]) => v);
 
     const result = await query(
       `UPDATE debts SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING *`,
-      [req.params.id, ...values]
+      [req.params.id, ...values],
     );
     res.json({ success: true, debt: result.rows[0] });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });
@@ -134,10 +147,10 @@ router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction)
 // DELETE /api/debts/:id
 router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await query(
-      'DELETE FROM debts WHERE id = $1 AND user_id = $2 RETURNING id',
-      [req.params.id, req.user!.sub]
-    );
+    const result = await query('DELETE FROM debts WHERE id = $1 AND user_id = $2 RETURNING id', [
+      req.params.id,
+      req.user!.sub,
+    ]);
     if (!result.rows[0]) return next(new ApiError(404, 'Dívida não encontrada', 'NOT_FOUND'));
     res.json({ success: true, message: 'Dívida removida' });
   } catch (err) {
@@ -148,20 +161,25 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction
 // POST /api/debts/:id/payments  — registrar pagamento
 router.post('/:id/payments', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const own = await query('SELECT id, current_amount FROM debts WHERE id = $1 AND user_id = $2', [req.params.id, req.user!.sub]);
+    const own = await query('SELECT id, current_amount FROM debts WHERE id = $1 AND user_id = $2', [
+      req.params.id,
+      req.user!.sub,
+    ]);
     if (!own.rows[0]) return next(new ApiError(404, 'Dívida não encontrada', 'NOT_FOUND'));
 
-    const { amount, payment_date, payment_method, notes } = z.object({
-      amount: z.number().positive(),
-      payment_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      payment_method: z.string().optional(),
-      notes: z.string().optional(),
-    }).parse(req.body);
+    const { amount, payment_date, payment_method, notes } = z
+      .object({
+        amount: z.number().positive(),
+        payment_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        payment_method: z.string().optional(),
+        notes: z.string().optional(),
+      })
+      .parse(req.body);
 
     // Registra pagamento
     const payment = await query(
       'INSERT INTO payments (debt_id, amount, payment_date, payment_method, notes) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [req.params.id, amount, payment_date, payment_method ?? null, notes ?? null]
+      [req.params.id, amount, payment_date, payment_method ?? null, notes ?? null],
     );
 
     // Atualiza saldo da dívida
@@ -169,12 +187,13 @@ router.post('/:id/payments', async (req: AuthRequest, res: Response, next: NextF
     const newStatus = newAmount === 0 ? 'paid' : 'active';
     await query(
       'UPDATE debts SET current_amount = $1, status = $2, updated_at = NOW() WHERE id = $3',
-      [newAmount, newStatus, req.params.id]
+      [newAmount, newStatus, req.params.id],
     );
 
     res.status(201).json({ success: true, payment: payment.rows[0], remaining: newAmount });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });
@@ -182,12 +201,15 @@ router.post('/:id/payments', async (req: AuthRequest, res: Response, next: NextF
 // GET /api/debts/:id/payments
 router.get('/:id/payments', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const own = await query('SELECT id FROM debts WHERE id = $1 AND user_id = $2', [req.params.id, req.user!.sub]);
+    const own = await query('SELECT id FROM debts WHERE id = $1 AND user_id = $2', [
+      req.params.id,
+      req.user!.sub,
+    ]);
     if (!own.rows[0]) return next(new ApiError(404, 'Dívida não encontrada', 'NOT_FOUND'));
 
     const result = await query(
       'SELECT * FROM payments WHERE debt_id = $1 ORDER BY payment_date DESC',
-      [req.params.id]
+      [req.params.id],
     );
     res.json({ success: true, payments: result.rows });
   } catch (err) {
