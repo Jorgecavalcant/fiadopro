@@ -143,7 +143,7 @@ const UpgradePlano: React.FC = () => {
       window.alert(
         data.currentPeriodEnd
           ? `Assinatura cancelada. Você ainda pode usar o plano PRO até ${formatDate(data.currentPeriodEnd)}.`
-          : 'Assinatura cancelada.'
+          : 'Assinatura cancelada.',
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível cancelar a assinatura.');
@@ -175,19 +175,31 @@ const UpgradePlano: React.FC = () => {
       {!isLoadingStatus && statusData && (
         <div className="flex items-center justify-between flex-wrap gap-3 bg-slate-50 rounded-2xl p-4">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Plano atual</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Plano atual
+            </p>
             <p className="text-xl font-black text-slate-800">
-              {statusData.plan === 'ADMIN' ? 'Administrador' : statusData.plan === 'PRO' ? 'PRO' : 'Gratuito'}
+              {statusData.plan === 'ADMIN'
+                ? 'Administrador'
+                : statusData.plan === 'PRO'
+                  ? 'PRO'
+                  : 'Gratuito'}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Relatórios até</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Relatórios até
+            </p>
             <p className="text-sm font-bold text-slate-600">{statusData.maxReportMonths} meses</p>
           </div>
           {statusData.currentPeriodEnd && (
             <div className="text-right">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Válido até</p>
-              <p className="text-sm font-bold text-slate-600">{formatDate(statusData.currentPeriodEnd)}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Válido até
+              </p>
+              <p className="text-sm font-bold text-slate-600">
+                {formatDate(statusData.currentPeriodEnd)}
+              </p>
             </div>
           )}
         </div>
@@ -197,7 +209,10 @@ const UpgradePlano: React.FC = () => {
         <>
           <ul className="space-y-2">
             {PRO_BENEFITS.map((benefit) => (
-              <li key={benefit} className="text-sm font-bold text-slate-600 flex items-center gap-2">
+              <li
+                key={benefit}
+                className="text-sm font-bold text-slate-600 flex items-center gap-2"
+              >
                 <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" /> {benefit}
               </li>
             ))}
@@ -205,7 +220,9 @@ const UpgradePlano: React.FC = () => {
 
           {needsCpf && (
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">CPF ou CNPJ</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                CPF ou CNPJ
+              </label>
               <input
                 value={cpf}
                 onChange={(e) => setCpf(e.target.value)}
@@ -222,7 +239,11 @@ const UpgradePlano: React.FC = () => {
             disabled={isSubscribing}
             className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white py-4 rounded-2xl font-black text-base shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
           >
-            {isSubscribing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crown className="w-4 h-4" />}
+            {isSubscribing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Crown className="w-4 h-4" />
+            )}
             Assinar PRO
           </button>
         </>
@@ -231,7 +252,8 @@ const UpgradePlano: React.FC = () => {
       {isPro && statusData?.canceledAt && (
         <p className="text-sm font-bold text-amber-600 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4" />
-          Assinatura cancelada — você ainda pode usar o PRO até {formatDate(statusData.currentPeriodEnd)}.
+          Assinatura cancelada — você ainda pode usar o PRO até{' '}
+          {formatDate(statusData.currentPeriodEnd)}.
         </p>
       )}
 

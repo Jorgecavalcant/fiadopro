@@ -8,30 +8,39 @@ import type { Transaction } from '../types';
  */
 export const calculateScore = (
   customer: { id: string; trusted?: boolean },
-  transactions: Transaction[]
+  transactions: Transaction[],
 ): number => {
   if (customer.trusted) return 850;
-  const cTx = transactions.filter(t => t.customerId === customer.id && t.status === 'CONFIRMED');
+  const cTx = transactions.filter((t) => t.customerId === customer.id && t.status === 'CONFIRMED');
   if (cTx.length === 0) return 700;
   let score = 700;
-  const debts = cTx.filter(t => t.type === 'DEBT');
-  const payments = cTx.filter(t => t.type === 'PAYMENT' || t.type === 'ABATIMENTO');
+  const debts = cTx.filter((t) => t.type === 'DEBT');
+  const payments = cTx.filter((t) => t.type === 'PAYMENT' || t.type === 'ABATIMENTO');
   // Avalia pontualidade: compara data do pagamento com o dueDate do débito mais próximo
-  payments.forEach(payment => {
+  payments.forEach((payment) => {
     const relatedDebt = debts
-      .filter(d => d.dueDate && d.timestamp <= payment.timestamp)
-      .sort((a, b) => Math.abs(a.timestamp - payment.timestamp) - Math.abs(b.timestamp - payment.timestamp))[0];
+      .filter((d) => d.dueDate && d.timestamp <= payment.timestamp)
+      .sort(
+        (a, b) =>
+          Math.abs(a.timestamp - payment.timestamp) - Math.abs(b.timestamp - payment.timestamp),
+      )[0];
     if (relatedDebt?.dueDate) {
       const daysDiff = (relatedDebt.dueDate - payment.timestamp) / 86400000;
-      if (daysDiff > 7) score += 20;        // Pagou muito antes do vencimento
-      else if (daysDiff >= 0) score += 10;  // Pagou no prazo
-      else if (daysDiff > -7) score -= 15;  // Atrasou até 7 dias
-      else if (daysDiff > -30) score -= 40; // Atrasou até 30 dias
-      else score -= 80;                      // Atrasou mais de 30 dias
+      if (daysDiff > 7)
+        score += 20; // Pagou muito antes do vencimento
+      else if (daysDiff >= 0)
+        score += 10; // Pagou no prazo
+      else if (daysDiff > -7)
+        score -= 15; // Atrasou até 7 dias
+      else if (daysDiff > -30)
+        score -= 40; // Atrasou até 30 dias
+      else score -= 80; // Atrasou mais de 30 dias
     }
   });
-  const currentBalance = cTx.reduce((acc, t) =>
-    t.type === 'DEBT' ? acc + t.amount : acc - t.amount, 0);
+  const currentBalance = cTx.reduce(
+    (acc, t) => (t.type === 'DEBT' ? acc + t.amount : acc - t.amount),
+    0,
+  );
   if (currentBalance > 5000) score -= 100;
   else if (currentBalance > 1000) score -= 50;
   const totalDebtAmt = debts.reduce((a, b) => a + b.amount, 0);
@@ -51,7 +60,7 @@ export const calculateScore = (
 export const computeRawBalance = (customerConfirmedTransactions: Transaction[]): number =>
   customerConfirmedTransactions.reduce(
     (acc, curr) => (curr.type === 'DEBT' ? acc + curr.amount : acc - curr.amount),
-    0
+    0,
   );
 
 export interface ChargeMessageParams {
@@ -74,15 +83,29 @@ export interface ChargeMessageParams {
  * Tom acolhedor e sem pressão (DNA Tech42), de acordo com o saldo do cliente.
  */
 export const buildChargeMessage = (params: ChargeMessageParams): string => {
-  const { customerName, creditorName, balance, totalDebt, totalPaid, recentDebts, pixKey, formatCurrency } = params;
+  const {
+    customerName,
+    creditorName,
+    balance,
+    totalDebt,
+    totalPaid,
+    recentDebts,
+    pixKey,
+    formatCurrency,
+  } = params;
   const date = params.date ?? new Date().toLocaleDateString('pt-BR');
   const pixInfo = pixKey ? `\n💳 *Pix:* ${pixKey}` : '';
 
   let recentList = '';
   if (recentDebts.length > 0) {
-    recentList = '\n\n📋 *Lançamentos recentes:*\n' + recentDebts.map(t =>
-      `• ${new Date(t.timestamp).toLocaleDateString('pt-BR')} — ${t.description}: ${formatCurrency(t.amount)}`
-    ).join('\n');
+    recentList =
+      '\n\n📋 *Lançamentos recentes:*\n' +
+      recentDebts
+        .map(
+          (t) =>
+            `• ${new Date(t.timestamp).toLocaleDateString('pt-BR')} — ${t.description}: ${formatCurrency(t.amount)}`,
+        )
+        .join('\n');
   }
 
   if (balance > 0) {

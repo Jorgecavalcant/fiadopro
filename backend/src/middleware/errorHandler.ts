@@ -4,7 +4,7 @@ export class ApiError extends Error {
   constructor(
     public statusCode: number,
     message: string,
-    public code?: string
+    public code?: string,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -15,7 +15,7 @@ export const errorHandler = (
   err: Error | ApiError,
   _req: Request,
   res: Response,
-  _next: NextFunction
+  _next: NextFunction,
 ) => {
   const statusCode = err instanceof ApiError ? err.statusCode : 500;
   const message = err.message || 'Internal Server Error';

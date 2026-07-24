@@ -35,10 +35,12 @@ const PORT = process.env.PORT || 4000;
 // ===== MIDDLEWARE =====
 
 // CORS
-app.use(cors({
-  origin: process.env.CORS_ORIGIN?.split(',') || 'http://localhost:3000',
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN?.split(',') || 'http://localhost:3000',
+    credentials: true,
+  }),
+);
 
 // Body parsing
 // Limite maior só para /api/ai/read-document: imagem/documento em base64 (até

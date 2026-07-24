@@ -13,7 +13,9 @@ const ALLOWED_ATTACHMENT_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'appl
 
 const AttachmentSchema = z.object({
   data: z.string().min(1).max(MAX_ATTACHMENT_BASE64, 'Anexo excede o limite de 10MB'),
-  mimeType: z.string().refine((m) => ALLOWED_ATTACHMENT_MIMES.includes(m), 'Tipo de anexo não suportado'),
+  mimeType: z
+    .string()
+    .refine((m) => ALLOWED_ATTACHMENT_MIMES.includes(m), 'Tipo de anexo não suportado'),
   name: z.string().max(255),
 });
 
@@ -25,7 +27,10 @@ export const TransactionSchema = z.object({
   description: z.string().max(2000).default(''),
   occurred_at: z.union([z.number(), z.string()]).optional(),
   due_date: z.union([z.number(), z.string()]).optional().nullable(),
-  payment_method: z.enum(['PIX', 'CREDIT_CARD', 'DEBIT_CARD', 'COMPENSATION']).optional().nullable(),
+  payment_method: z
+    .enum(['PIX', 'CREDIT_CARD', 'DEBIT_CARD', 'COMPENSATION'])
+    .optional()
+    .nullable(),
   attachment: AttachmentSchema.optional().nullable(),
   installment_number: z.number().int().positive().optional().nullable(),
   total_installments: z.number().int().positive().optional().nullable(),
@@ -51,7 +56,7 @@ const TX_COLUMNS = `id, customer_id, owner_user_id, created_by_user_id, type, st
 async function logEvent(transactionId: string, actorUserId: string, action: string, note?: string) {
   await query(
     `INSERT INTO transaction_events (transaction_id, actor_user_id, action, note) VALUES ($1, $2, $3, $4)`,
-    [transactionId, actorUserId, action, note ?? null]
+    [transactionId, actorUserId, action, note ?? null],
   );
 }
 
@@ -66,7 +71,7 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
     }
     const result = await query(
       `SELECT ${TX_COLUMNS} FROM transactions WHERE ${where} ORDER BY occurred_at DESC LIMIT 2000`,
-      params
+      params,
     );
     res.json({ success: true, transactions: result.rows, total: result.rowCount });
   } catch (err) {
@@ -85,9 +90,10 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
     const customer = await query(
       `SELECT id, owner_user_id, linked_user_id FROM customers
         WHERE id = $1 AND deleted_at IS NULL`,
-      [body.customer_id]
+      [body.customer_id],
     );
-    if (!customer.rows[0]) return next(new ApiError(404, 'Cliente não encontrado', 'CUSTOMER_NOT_FOUND'));
+    if (!customer.rows[0])
+      return next(new ApiError(404, 'Cliente não encontrado', 'CUSTOMER_NOT_FOUND'));
     const c = customer.rows[0];
 
     const isOwner = c.owner_user_id === req.user!.sub;
@@ -96,14 +102,21 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
       return next(new ApiError(404, 'Cliente não encontrado', 'CUSTOMER_NOT_FOUND'));
     }
     if (isLinkedCounterpart && body.type === 'DEBT') {
-      return next(new ApiError(400, 'Você não pode lançar uma dívida contra o comerciante — apenas pagamentos', 'INVALID_TYPE_FOR_COUNTERPART'));
+      return next(
+        new ApiError(
+          400,
+          'Você não pode lançar uma dívida contra o comerciante — apenas pagamentos',
+          'INVALID_TYPE_FOR_COUNTERPART',
+        ),
+      );
     }
     if (body.applies_to_transaction_id) {
-      const ref = await query(
-        `SELECT id FROM transactions WHERE id = $1 AND customer_id = $2`,
-        [body.applies_to_transaction_id, body.customer_id]
-      );
-      if (!ref.rows[0]) return next(new ApiError(400, 'Lançamento de referência inválido', 'INVALID_REFERENCE'));
+      const ref = await query(`SELECT id FROM transactions WHERE id = $1 AND customer_id = $2`, [
+        body.applies_to_transaction_id,
+        body.customer_id,
+      ]);
+      if (!ref.rows[0])
+        return next(new ApiError(400, 'Lançamento de referência inválido', 'INVALID_REFERENCE'));
     }
 
     // Sempre PENDING quando há vínculo — a outra parte precisa aprovar.
@@ -117,18 +130,32 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
                COALESCE($9, NOW()), $10, $11, $12::jsonb, $13, $14, $15, $16, $17)
        ON CONFLICT (id) DO NOTHING
        RETURNING ${TX_COLUMNS}`,
-      [body.id ?? null, body.customer_id, c.owner_user_id, req.user!.sub, body.type, status, body.amount, body.description,
-       toDate(body.occurred_at), toDate(body.due_date), body.payment_method ?? null,
-       body.attachment ? JSON.stringify(body.attachment) : null,
-       body.installment_number ?? null, body.total_installments ?? null,
-       body.installment_group_id ?? null, body.interest_rate ?? null,
-       body.applies_to_transaction_id ?? null]
+      [
+        body.id ?? null,
+        body.customer_id,
+        c.owner_user_id,
+        req.user!.sub,
+        body.type,
+        status,
+        body.amount,
+        body.description,
+        toDate(body.occurred_at),
+        toDate(body.due_date),
+        body.payment_method ?? null,
+        body.attachment ? JSON.stringify(body.attachment) : null,
+        body.installment_number ?? null,
+        body.total_installments ?? null,
+        body.installment_group_id ?? null,
+        body.interest_rate ?? null,
+        body.applies_to_transaction_id ?? null,
+      ],
     );
     if (!result.rows[0]) return next(new ApiError(409, 'Lançamento já existe', 'ALREADY_EXISTS'));
     await logEvent(result.rows[0].id, req.user!.sub, 'CREATED');
     res.status(201).json({ success: true, transaction: result.rows[0] });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });
@@ -138,13 +165,14 @@ router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction)
   try {
     const body = TransactionSchema.partial().omit({ id: true, customer_id: true }).parse(req.body);
     const fields = Object.entries(body).filter(([, v]) => v !== undefined);
-    if (fields.length === 0) return next(new ApiError(400, 'Nenhum campo para atualizar', 'EMPTY_UPDATE'));
+    if (fields.length === 0)
+      return next(new ApiError(400, 'Nenhum campo para atualizar', 'EMPTY_UPDATE'));
 
     const own = await query(
       `SELECT t.id, c.linked_user_id FROM transactions t
         JOIN customers c ON c.id = t.customer_id
        WHERE t.id = $1 AND t.owner_user_id = $2`,
-      [req.params.id, req.user!.sub]
+      [req.params.id, req.user!.sub],
     );
     if (!own.rows[0]) return next(new ApiError(404, 'Lançamento não encontrado', 'NOT_FOUND'));
 
@@ -158,7 +186,9 @@ router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction)
       } else {
         values.push(v);
       }
-      setParts.push(k === 'attachment' ? `${k} = $${values.length + 2}::jsonb` : `${k} = $${values.length + 2}`);
+      setParts.push(
+        k === 'attachment' ? `${k} = $${values.length + 2}::jsonb` : `${k} = $${values.length + 2}`,
+      );
     }
     // Cliente vinculado: alteração exige nova aprovação
     if (own.rows[0].linked_user_id) setParts.push(`status = 'PENDING'`);
@@ -167,12 +197,14 @@ router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction)
       `UPDATE transactions SET ${setParts.join(', ')}
         WHERE id = $1 AND owner_user_id = $2
         RETURNING ${TX_COLUMNS}`,
-      [req.params.id, req.user!.sub, ...values]
+      [req.params.id, req.user!.sub, ...values],
     );
-    if (own.rows[0].linked_user_id) await logEvent(req.params.id, req.user!.sub, 'RESENT', 'Editado pelo dono');
+    if (own.rows[0].linked_user_id)
+      await logEvent(req.params.id, req.user!.sub, 'RESENT', 'Editado pelo dono');
     res.json({ success: true, transaction: result.rows[0] });
   } catch (err) {
-    if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
 });
@@ -200,7 +232,7 @@ function decision(action: 'APPROVED' | 'REJECTED', newStatus: 'CONFIRMED' | 'REJ
                OR (t.created_by_user_id = c.linked_user_id AND t.owner_user_id = $2)
             )
           RETURNING t.id`,
-        [req.params.id, req.user!.sub, newStatus]
+        [req.params.id, req.user!.sub, newStatus],
       );
       if (!result.rows[0]) {
         return next(new ApiError(404, 'Lançamento pendente não encontrado para você', 'NOT_FOUND'));
@@ -208,7 +240,8 @@ function decision(action: 'APPROVED' | 'REJECTED', newStatus: 'CONFIRMED' | 'REJ
       await logEvent(req.params.id, req.user!.sub, action, body.note);
       res.json({ success: true, status: newStatus });
     } catch (err) {
-      if (err instanceof z.ZodError) return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+      if (err instanceof z.ZodError)
+        return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
       next(err);
     }
   };
@@ -221,7 +254,7 @@ router.post('/:id/resend', async (req: AuthRequest, res: Response, next: NextFun
       `UPDATE transactions SET status = 'PENDING'
         WHERE id = $1 AND created_by_user_id = $2 AND status = 'REJECTED'
         RETURNING id`,
-      [req.params.id, req.user!.sub]
+      [req.params.id, req.user!.sub],
     );
     if (!result.rows[0]) {
       return next(new ApiError(404, 'Lançamento recusado não encontrado', 'NOT_FOUND'));
@@ -238,7 +271,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction
   try {
     const result = await query(
       `DELETE FROM transactions WHERE id = $1 AND owner_user_id = $2 RETURNING id`,
-      [req.params.id, req.user!.sub]
+      [req.params.id, req.user!.sub],
     );
     if (!result.rows[0]) return next(new ApiError(404, 'Lançamento não encontrado', 'NOT_FOUND'));
     res.json({ success: true });
@@ -258,7 +291,7 @@ router.get('/:id/events', async (req: AuthRequest, res: Response, next: NextFunc
          JOIN users u ON u.id = e.actor_user_id
         WHERE e.transaction_id = $1 AND (t.owner_user_id = $2 OR c.linked_user_id = $2)
         ORDER BY e.created_at ASC`,
-      [req.params.id, req.user!.sub]
+      [req.params.id, req.user!.sub],
     );
     res.json({ success: true, events: result.rows });
   } catch (err) {

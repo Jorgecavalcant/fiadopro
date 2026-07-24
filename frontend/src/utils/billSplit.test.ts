@@ -43,12 +43,14 @@ describe('planEventSplitRecords', () => {
       expect.arrayContaining([
         { customerId: 'c1', amount: 50, description: 'Rateio' },
         { customerId: 'c2', amount: 30, description: 'Rateio' },
-      ])
+      ]),
     );
   });
 
   it('atualiza (em vez de duplicar) a transação existente do mesmo evento+participante', () => {
-    const shares = [{ participantId: 'p1', customerId: 'c1', amount: 75, description: 'Rateio novo' }];
+    const shares = [
+      { participantId: 'p1', customerId: 'c1', amount: 75, description: 'Rateio novo' },
+    ];
     const existing = [{ id: 'tx-old', customerId: 'c1', eventId }];
     const plan = planEventSplitRecords(shares, existing, eventId);
     expect(plan.creates).toHaveLength(0);

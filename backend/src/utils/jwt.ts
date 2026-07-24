@@ -29,7 +29,10 @@ export const verifyToken = (token: string): Payload => {
   if (parts.length !== 3) throw new Error('Invalid token format');
 
   const [header, body, sig] = parts;
-  const expected = crypto.createHmac('sha256', SECRET).update(`${header}.${body}`).digest('base64url');
+  const expected = crypto
+    .createHmac('sha256', SECRET)
+    .update(`${header}.${body}`)
+    .digest('base64url');
 
   if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
     throw new Error('Invalid token signature');

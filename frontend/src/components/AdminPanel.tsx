@@ -65,13 +65,18 @@ interface ReportRow {
 /* ============================================================
  * Cliente HTTP mínimo — sempre credentials:'include' (cookie httpOnly)
  * ============================================================ */
+interface ApiEnvelope {
+  success?: boolean;
+  error?: { message?: string };
+}
+
 async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}/admin${path}`, {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     ...init,
   });
-  let data: any = null;
+  let data: ApiEnvelope | null = null;
   try {
     data = await res.json();
   } catch {
@@ -100,7 +105,9 @@ const AdminPanel: React.FC = () => {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
         <h2 className="text-2xl font-black text-slate-900">Painel Administrativo</h2>
-        <p className="text-slate-400 font-semibold text-sm">Usuários, métricas, configurações e relatórios do sistema</p>
+        <p className="text-slate-400 font-semibold text-sm">
+          Usuários, métricas, configurações e relatórios do sistema
+        </p>
       </div>
 
       <div className="flex gap-1 border-b border-slate-200 overflow-x-auto">
@@ -166,7 +173,9 @@ const UsersTab: React.FC = () => {
     try {
       const params = new URLSearchParams({ page: String(page), limit: String(limit) });
       if (search) params.set('search', search);
-      const data = await adminFetch<{ users: AdminUser[]; meta: UsersMeta }>(`/users?${params.toString()}`);
+      const data = await adminFetch<{ users: AdminUser[]; meta: UsersMeta }>(
+        `/users?${params.toString()}`,
+      );
       setUsers(data.users);
       setMeta(data.meta);
     } catch (err) {
@@ -176,7 +185,9 @@ const UsersTab: React.FC = () => {
     }
   }, [page, search]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,14 +197,15 @@ const UsersTab: React.FC = () => {
 
   const toggleActive = async (user: AdminUser) => {
     const nextActive = !user.is_active;
-    if (!nextActive && !window.confirm(`Desativar o acesso de ${user.full_name || user.email}?`)) return;
+    if (!nextActive && !window.confirm(`Desativar o acesso de ${user.full_name || user.email}?`))
+      return;
     setSavingId(user.id);
     try {
       const data = await adminFetch<{ user: AdminUser }>(`/users/${user.id}`, {
         method: 'PATCH',
         body: JSON.stringify({ is_active: nextActive }),
       });
-      setUsers(prev => prev.map(u => (u.id === user.id ? data.user : u)));
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? data.user : u)));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao atualizar usuário');
     } finally {
@@ -215,7 +227,7 @@ const UsersTab: React.FC = () => {
         method: 'PATCH',
         body: JSON.stringify({ full_name: editForm.full_name, phone: editForm.phone || null }),
       });
-      setUsers(prev => prev.map(u => (u.id === editingUser.id ? data.user : u)));
+      setUsers((prev) => prev.map((u) => (u.id === editingUser.id ? data.user : u)));
       setEditingUser(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao salvar usuário');
@@ -244,12 +256,14 @@ const UsersTab: React.FC = () => {
           <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
+            onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Buscar por nome ou e-mail..."
             className="fp-input pl-10"
           />
         </div>
-        <button type="submit" className="fp-btn fp-btn-primary">Buscar</button>
+        <button type="submit" className="fp-btn fp-btn-primary">
+          Buscar
+        </button>
       </form>
 
       {error && <ErrorBanner message={error} />}
@@ -270,18 +284,22 @@ const UsersTab: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {users.map(u => (
+              {users.map((u) => (
                 <tr key={u.id}>
                   <td className="font-bold text-slate-800">{u.full_name || '—'}</td>
                   <td>{u.email}</td>
                   <td>{u.phone || '—'}</td>
                   <td>
-                    <span className={`fp-badge ${u.role === 'admin' ? 'fp-badge-purple' : 'fp-badge-muted'}`}>
+                    <span
+                      className={`fp-badge ${u.role === 'admin' ? 'fp-badge-purple' : 'fp-badge-muted'}`}
+                    >
                       {u.role}
                     </span>
                   </td>
                   <td>
-                    <span className={`fp-badge ${u.is_active ? 'fp-badge-success' : 'fp-badge-danger'}`}>
+                    <span
+                      className={`fp-badge ${u.is_active ? 'fp-badge-success' : 'fp-badge-danger'}`}
+                    >
                       {u.is_active ? 'Ativo' : 'Inativo'}
                     </span>
                   </td>
@@ -301,7 +319,11 @@ const UsersTab: React.FC = () => {
                         disabled={savingId === u.id}
                         className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 disabled:opacity-50"
                       >
-                        {u.is_active ? <ShieldOff className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+                        {u.is_active ? (
+                          <ShieldOff className="w-4 h-4" />
+                        ) : (
+                          <ShieldCheck className="w-4 h-4" />
+                        )}
                       </button>
                       <button
                         title="Redefinir senha"
@@ -317,7 +339,9 @@ const UsersTab: React.FC = () => {
               ))}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center text-slate-400 py-10">Nenhum usuário encontrado.</td>
+                  <td colSpan={6} className="text-center text-slate-400 py-10">
+                    Nenhum usuário encontrado.
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -327,17 +351,19 @@ const UsersTab: React.FC = () => {
 
       {meta && meta.totalPages > 1 && (
         <div className="flex items-center justify-between text-sm font-semibold text-slate-500">
-          <span>{meta.total} usuário(s) — página {meta.page} de {meta.totalPages}</span>
+          <span>
+            {meta.total} usuário(s) — página {meta.page} de {meta.totalPages}
+          </span>
           <div className="flex gap-2">
             <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
               className="fp-btn fp-btn-ghost disabled:opacity-40"
             >
               Anterior
             </button>
             <button
-              onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
+              onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
               disabled={page >= meta.totalPages}
               className="fp-btn fp-btn-ghost disabled:opacity-40"
             >
@@ -348,15 +374,20 @@ const UsersTab: React.FC = () => {
       )}
 
       {editingUser && (
-        <div className="fp-overlay flex items-center justify-center p-4" onClick={() => setEditingUser(null)}>
-          <div className="fp-modal w-full max-w-md p-8" onClick={e => e.stopPropagation()}>
+        <div
+          className="fp-overlay flex items-center justify-center p-4"
+          onClick={() => setEditingUser(null)}
+        >
+          <div className="fp-modal w-full max-w-md p-8" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-black text-slate-900 mb-6">Editar usuário</h3>
             <form onSubmit={saveEdit} className="space-y-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome completo</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Nome completo
+                </label>
                 <input
                   value={editForm.full_name}
-                  onChange={e => setEditForm(f => ({ ...f, full_name: e.target.value }))}
+                  onChange={(e) => setEditForm((f) => ({ ...f, full_name: e.target.value }))}
                   className="fp-input"
                   minLength={2}
                   maxLength={100}
@@ -364,17 +395,29 @@ const UsersTab: React.FC = () => {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Telefone</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Telefone
+                </label>
                 <input
                   value={editForm.phone}
-                  onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                  onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
                   className="fp-input"
                   maxLength={20}
                 />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setEditingUser(null)} className="fp-btn fp-btn-ghost flex-1">Cancelar</button>
-                <button type="submit" disabled={savingId === editingUser.id} className="fp-btn fp-btn-primary flex-1 disabled:opacity-60">
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="fp-btn fp-btn-ghost flex-1"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingId === editingUser.id}
+                  className="fp-btn fp-btn-primary flex-1 disabled:opacity-60"
+                >
                   Salvar
                 </button>
               </div>
@@ -408,14 +451,16 @@ const MetricsTab: React.FC = () => {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading) return <LoadingBlock />;
   if (error) return <ErrorBanner message={error} />;
   if (!metrics) return null;
 
-  const maxVolume = Math.max(1, ...metrics.monthlyVolume.map(m => Number(m.volume) || 0));
+  const maxVolume = Math.max(1, ...metrics.monthlyVolume.map((m) => Number(m.volume) || 0));
 
   return (
     <div className="space-y-6">
@@ -428,14 +473,17 @@ const MetricsTab: React.FC = () => {
       <div className="fp-card p-6">
         <h3 className="fp-section-title">Volume mensal (últimos 12 meses)</h3>
         <div className="space-y-2 mt-4">
-          {metrics.monthlyVolume.map(row => {
+          {metrics.monthlyVolume.map((row) => {
             const volume = Number(row.volume) || 0;
             const pct = Math.max(2, Math.round((volume / maxVolume) * 100));
             return (
               <div key={row.month} className="flex items-center gap-3">
                 <span className="w-16 text-xs font-bold text-slate-400 shrink-0">{row.month}</span>
                 <div className="flex-1 fp-progress">
-                  <div className="fp-progress-fill" style={{ width: `${pct}%`, background: 'var(--fp-primary)' }} />
+                  <div
+                    className="fp-progress-fill"
+                    style={{ width: `${pct}%`, background: 'var(--fp-primary)' }}
+                  />
                 </div>
                 <span className="w-32 text-right text-xs font-bold text-slate-600 shrink-0">
                   R$ {volume.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({row.count})
@@ -476,7 +524,9 @@ const SettingsTab: React.FC = () => {
     setError('');
     setSavedMessage('');
     try {
-      const data = await adminFetch<{ value: unknown; updated_at: string | null }>(`/settings/${k}`);
+      const data = await adminFetch<{ value: unknown; updated_at: string | null }>(
+        `/settings/${k}`,
+      );
       setRawValue(JSON.stringify(data.value ?? {}, null, 2));
       setUpdatedAt(data.updated_at);
     } catch (err) {
@@ -486,7 +536,9 @@ const SettingsTab: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { load(key); }, [key, load]);
+  useEffect(() => {
+    load(key);
+  }, [key, load]);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -503,7 +555,13 @@ const SettingsTab: React.FC = () => {
       setUpdatedAt(data.updated_at);
       setSavedMessage('Configuração salva com sucesso.');
     } catch (err) {
-      setError(err instanceof SyntaxError ? 'JSON inválido — corrija antes de salvar.' : err instanceof Error ? err.message : 'Erro ao salvar configuração');
+      setError(
+        err instanceof SyntaxError
+          ? 'JSON inválido — corrija antes de salvar.'
+          : err instanceof Error
+            ? err.message
+            : 'Erro ao salvar configuração',
+      );
     } finally {
       setSaving(false);
     }
@@ -512,7 +570,7 @@ const SettingsTab: React.FC = () => {
   return (
     <div className="fp-card p-6 max-w-2xl space-y-4">
       <div className="flex gap-2">
-        {SETTINGS_KEYS.map(k => (
+        {SETTINGS_KEYS.map((k) => (
           <button
             key={k}
             onClick={() => setKey(k)}
@@ -532,19 +590,25 @@ const SettingsTab: React.FC = () => {
       ) : (
         <form onSubmit={save} className="space-y-3">
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            Valor (JSON) — chave "{key}"
+            Valor (JSON) — chave &quot;{key}&quot;
           </label>
           <textarea
             value={rawValue}
-            onChange={e => setRawValue(e.target.value)}
+            onChange={(e) => setRawValue(e.target.value)}
             rows={10}
             className="fp-input font-mono text-xs"
             spellCheck={false}
           />
           {updatedAt && (
-            <p className="text-xs text-slate-400">Última atualização: {new Date(updatedAt).toLocaleString('pt-BR')}</p>
+            <p className="text-xs text-slate-400">
+              Última atualização: {new Date(updatedAt).toLocaleString('pt-BR')}
+            </p>
           )}
-          <button type="submit" disabled={saving} className="fp-btn fp-btn-primary disabled:opacity-60">
+          <button
+            type="submit"
+            disabled={saving}
+            className="fp-btn fp-btn-primary disabled:opacity-60"
+          >
             {saving ? 'Salvando...' : 'Salvar'}
           </button>
         </form>
@@ -566,7 +630,9 @@ const ReportsTab: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const data = await adminFetch<{ months: number; report: ReportRow[] }>(`/reports?months=${m}`);
+      const data = await adminFetch<{ months: number; report: ReportRow[] }>(
+        `/reports?months=${m}`,
+      );
       setReport(data.report);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar relatório');
@@ -575,7 +641,9 @@ const ReportsTab: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { load(months); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    load(months);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -586,17 +654,21 @@ const ReportsTab: React.FC = () => {
     <div className="space-y-4">
       <form onSubmit={handleSubmit} className="flex items-end gap-3">
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meses (máx. 60)</label>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            Meses (máx. 60)
+          </label>
           <input
             type="number"
             min={1}
             max={60}
             value={months}
-            onChange={e => setMonths(Math.min(60, Math.max(1, Number(e.target.value) || 1)))}
+            onChange={(e) => setMonths(Math.min(60, Math.max(1, Number(e.target.value) || 1)))}
             className="fp-input w-32"
           />
         </div>
-        <button type="submit" className="fp-btn fp-btn-primary">Gerar</button>
+        <button type="submit" className="fp-btn fp-btn-primary">
+          Gerar
+        </button>
       </form>
 
       {error && <ErrorBanner message={error} />}
@@ -619,13 +691,18 @@ const ReportsTab: React.FC = () => {
                 <tr key={`${row.month}-${row.type}-${i}`}>
                   <td className="font-bold text-slate-800">{row.month}</td>
                   <td>{row.type}</td>
-                  <td>R$ {(Number(row.total) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                  <td>
+                    R${' '}
+                    {(Number(row.total) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </td>
                   <td>{row.count}</td>
                 </tr>
               ))}
               {report.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="text-center text-slate-400 py-10">Sem dados no período selecionado.</td>
+                  <td colSpan={4} className="text-center text-slate-400 py-10">
+                    Sem dados no período selecionado.
+                  </td>
                 </tr>
               )}
             </tbody>
