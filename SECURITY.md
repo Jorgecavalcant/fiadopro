@@ -8,9 +8,9 @@ seus clientes/devedores — dados financeiros e pessoais sensíveis sob a LGPD
 
 **Não abra uma issue pública** para relatar uma vulnerabilidade de segurança.
 
-Envie um e-mail para **security@tech42.com.br (a confirmar — endereço
-dedicado ainda não configurado; até lá, use o contato de suporte do produto:
-suportejc.planejamento@gmail.com)** com:
+Envie um e-mail para **suportejc.planejamento@gmail.com** (contato de
+suporte do produto — ainda não existe um e-mail de segurança dedicado)
+com:
 
 - Descrição da vulnerabilidade e impacto potencial
 - Passos para reproduzir (ou prova de conceito, se aplicável)
@@ -43,10 +43,8 @@ de segurança — use os canais normais de suporte para esses casos.
 ## Práticas de segurança já em vigor
 
 - **Scan de segredos em todo PR e push em `main`**: o workflow `Validate`
-  (`.github/workflows/validate.yml`) roda `gitleaks` contra o histórico do
-  diff. Ferramentas adicionais de scan de segredos (ex.: GitGuardian) podem
-  ser adotadas no futuro — nenhuma está confirmada como ativa hoje além do
-  gitleaks em CI.
+  (`.github/workflows/validate.yml`) roda `gitleaks` contra o diff, e o
+  GitGuardian (GitHub App) roda como checagem adicional em todo PR.
 - **Nenhuma chave de API no bundle do frontend**: os workflows de CI e de
   deploy (`validate.yml`, `deploy.yml`, `deploy-staging.yml`) rodam uma
   checagem automatizada que falha o build se detectar padrões de chave
