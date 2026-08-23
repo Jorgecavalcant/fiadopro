@@ -13,8 +13,9 @@ A paleta foi selecionada para transmitir profissionalismo e segurança financeir
 
 | Categoria | Nome | HEX | RGB | Aplicação |
 | :--- | :--- | :--- | :--- | :--- |
-| **Primária** | `brand-indigo` | `#4F46E5` | `79, 70, 229` | Botões principais, branding, navegação ativa. |
-| **Primária (Dark)**| `brand-deep` | `#312E81` | `49, 46, 129` | Headlines, estados de hover em botões primários. |
+| **Primária** | `primary-600` | `#4654C4` | `70, 84, 196` | Botões principais, branding, navegação ativa (paleta Tech 42 navy/cobalt/violet). |
+| **Primária (Navy)**| `navy-800` | `#1C2446` | `28, 36, 70` | Headlines, botão "Nova Compra", superfícies de destaque escuro. |
+| **Primária (Accent)**| `accent-500` | `#7252E2` | `114, 82, 226` | Ações secundárias de marca (ex: Abatimento), variação de destaque. |
 | **Secundária** | `accent-amber` | `#F59E0B` | `245, 158, 11` | Planos Pro, notificações importantes, badging de anúncios. |
 | **Sucesso** | `semantic-green` | `#10B981` | `16, 185, 129` | Pagamentos confirmados, score excelente, lucro. |
 | **Erro** | `semantic-red` | `#EF4444` | `239, 68, 68` | Dívidas em atraso, score baixo, ações destrutivas. |
@@ -121,9 +122,9 @@ Estrutura composta por:
   "tokens": {
     "colors": {
       "primary": {
-        "base": "#4F46E5",
-        "dark": "#312E81",
-        "light": "#EEF2FF"
+        "base": "#4654C4",
+        "dark": "#1C2446",
+        "light": "#F0F3FD"
       },
       "secondary": {
         "base": "#F59E0B",
