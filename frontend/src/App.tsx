@@ -2936,7 +2936,7 @@ const CustomerDetailView = ({
               setEditTransactionData(null);
               setIsTransactionModalOpen(true);
             }}
-            className="flex items-center justify-center gap-2.5 bg-white text-sm py-3 min-h-[48px] rounded-t42lg font-semibold hover:bg-gray-50 transition-all active:scale-95"
+            className="md:col-span-2 flex items-center justify-center gap-2.5 bg-white text-sm py-3 min-h-[48px] rounded-t42lg font-semibold hover:bg-gray-50 transition-all active:scale-95"
             style={{ color: '#7252E2', border: '1.5px solid #7252E2' }}
           >
             <RefreshCcw className="w-5 h-5" /> Abatimento
@@ -2947,7 +2947,7 @@ const CustomerDetailView = ({
               setEditTransactionData(null);
               setIsTransactionModalOpen(true);
             }}
-            className="flex items-center justify-center gap-2.5 bg-white text-sm py-3 min-h-[48px] rounded-t42lg font-semibold hover:bg-gray-50 transition-all active:scale-95"
+            className="md:col-span-2 flex items-center justify-center gap-2.5 bg-white text-sm py-3 min-h-[48px] rounded-t42lg font-semibold hover:bg-gray-50 transition-all active:scale-95"
             style={{ color: '#3D559C', border: '1.5px solid #3D559C' }}
           >
             <ArrowDownCircle className="w-5 h-5" /> Devolução
