@@ -2914,7 +2914,7 @@ const CustomerDetailView = ({
               setEditTransactionData(null);
               setIsTransactionModalOpen(true);
             }}
-            className="flex-1 flex items-center justify-center gap-2.5 text-white py-4 rounded-t42lg font-bold text-base shadow-t42sm hover:brightness-110 transition-all active:scale-95"
+            className="md:col-span-2 flex items-center justify-center gap-2.5 text-white py-4 rounded-t42lg font-bold text-base shadow-t42sm hover:brightness-110 transition-all active:scale-95"
             style={{ background: '#1C2446' }}
           >
             <ArrowUpRight className="w-5 h-5" /> {t.newPurchase}
@@ -2925,7 +2925,7 @@ const CustomerDetailView = ({
               setEditTransactionData(null);
               setIsTransactionModalOpen(true);
             }}
-            className="flex-1 flex items-center justify-center gap-2.5 text-white py-4 rounded-t42lg font-bold text-base shadow-t42sm hover:brightness-110 transition-all active:scale-95"
+            className="md:col-span-2 flex items-center justify-center gap-2.5 text-white py-4 rounded-t42lg font-bold text-base shadow-t42sm hover:brightness-110 transition-all active:scale-95"
             style={{ background: '#2E9D6F' }}
           >
             <ArrowDownLeft className="w-5 h-5" /> {t.logPayment}
@@ -2936,8 +2936,8 @@ const CustomerDetailView = ({
               setEditTransactionData(null);
               setIsTransactionModalOpen(true);
             }}
-            className="flex-1 flex items-center justify-center gap-2.5 text-white py-4 rounded-t42lg font-bold text-base shadow-t42sm hover:brightness-110 transition-all active:scale-95"
-            style={{ background: '#7252E2' }}
+            className="flex items-center justify-center gap-2.5 bg-white text-sm py-3 min-h-[48px] rounded-t42lg font-semibold hover:bg-gray-50 transition-all active:scale-95"
+            style={{ color: '#7252E2', border: '1.5px solid #7252E2' }}
           >
             <RefreshCcw className="w-5 h-5" /> Abatimento
           </button>
@@ -2947,8 +2947,8 @@ const CustomerDetailView = ({
               setEditTransactionData(null);
               setIsTransactionModalOpen(true);
             }}
-            className="flex-1 flex items-center justify-center gap-2.5 text-white py-4 rounded-t42lg font-bold text-base shadow-t42sm hover:brightness-110 transition-all active:scale-95"
-            style={{ background: '#3D559C' }}
+            className="flex items-center justify-center gap-2.5 bg-white text-sm py-3 min-h-[48px] rounded-t42lg font-semibold hover:bg-gray-50 transition-all active:scale-95"
+            style={{ color: '#3D559C', border: '1.5px solid #3D559C' }}
           >
             <ArrowDownCircle className="w-5 h-5" /> Devolução
           </button>
