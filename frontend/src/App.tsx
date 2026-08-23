@@ -3271,19 +3271,19 @@ const CustomerDetailView = ({
                           </div>
                         ) : (
                           <>
-                            <p className="text-sm font-bold text-slate-700 leading-relaxed pr-12">
+                            <p className="text-sm font-bold text-slate-700 leading-relaxed pr-24">
                               {note.text}
                             </p>
                             <p className="text-[10px] text-slate-400 mt-3 font-black uppercase tracking-wider">
                               {new Date(note.createdAt).toLocaleString()}
                             </p>
-                            <div className="absolute top-4 right-4 flex gap-1 opacity-60 hover:opacity-100 transition-all">
+                            <div className="absolute top-4 right-4 flex gap-1">
                               <button
                                 onClick={() => {
                                   setEditingNoteId(note.id);
                                   setEditingNoteText(note.text);
                                 }}
-                                className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-colors"
+                                className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-500 hover:text-indigo-600 transition-colors"
                               >
                                 <Edit3 className="w-4 h-4" />
                               </button>
@@ -3303,7 +3303,7 @@ const CustomerDetailView = ({
                                       ),
                                     );
                                 }}
-                                className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
+                                className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-500 hover:text-red-500 transition-colors"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
