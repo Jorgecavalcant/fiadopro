@@ -231,9 +231,12 @@ export async function bootstrapSync(
   const localCustomerById = new Map(localCustomers.map((c) => [c.id, c]));
   const localTransactionById = new Map(localTransactions.map((t) => [t.id, t]));
 
-  const customers = (customersData.customers as ServerCustomer[]).map((s) =>
-    toClientCustomer(s, localCustomerById.get(s.id)),
-  );
+  const serverCustomerIds = new Set((customersData.customers as ServerCustomer[]).map((s) => s.id));
+  const customers = (customersData.customers as ServerCustomer[])
+    .map((s) => toClientCustomer(s, localCustomerById.get(s.id)))
+    // Clientes que só existem localmente (ex.: sem telefone, nunca sincronizados)
+    // não podem ser descartados aqui — senão o pull apaga o que ainda não subiu.
+    .concat(localCustomers.filter((c) => !serverCustomerIds.has(c.id)));
   const transactions = (transactionsData.transactions as ServerTransaction[]).map((s) =>
     toClientTransaction(s, localTransactionById.get(s.id)),
   );
@@ -273,6 +276,9 @@ async function pushDiffs(
   const patches: StatusPatch[] = [];
 
   for (const c of customers) {
+    // Sem telefone, o servidor rejeita (campo obrigatório) — não tenta
+    // enviar; o cliente fica só local até o telefone ser preenchido.
+    if (!c.phone || !c.phone.trim()) continue;
     const fp = fingerprintCustomer(c);
     const known = shadowCustomers.get(c.id);
     if (known === fp) continue;
