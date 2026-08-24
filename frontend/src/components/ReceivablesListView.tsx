@@ -52,7 +52,11 @@ const ReceivablesListView = ({
                 <h3 className="font-black text-slate-900 text-lg group-hover:text-indigo-600 transition-colors">
                   {c.name}
                 </h3>
-                <p className="text-xs text-slate-400 font-bold">{c.phone}</p>
+                {c.phone ? (
+                  <p className="text-xs text-slate-400 font-bold">{c.phone}</p>
+                ) : (
+                  <p className="text-xs text-amber-600 font-bold">Telefone pendente</p>
+                )}
               </div>
             </div>
             <div className="pt-6 border-t border-slate-50 flex justify-between items-center">

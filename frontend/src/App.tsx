@@ -2845,9 +2845,15 @@ const CustomerDetailView = ({
             <div>
               <h2 className="text-3xl font-black text-slate-900 mb-1">{selectedCustomer.name}</h2>
               <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                <p className="text-slate-400 font-bold flex items-center gap-1.5">
-                  <Phone className="w-4 h-4" /> {selectedCustomer.phone}
-                </p>
+                {selectedCustomer.phone ? (
+                  <p className="text-slate-400 font-bold flex items-center gap-1.5">
+                    <Phone className="w-4 h-4" /> {selectedCustomer.phone}
+                  </p>
+                ) : (
+                  <p className="text-amber-600 font-bold flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 text-sm">
+                    <Phone className="w-4 h-4" /> Telefone pendente — adicione para não perder este cadastro
+                  </p>
+                )}
                 {selectedCustomer.email && (
                   <p className="text-slate-400 font-bold flex items-center gap-1.5">
                     <Mail className="w-4 h-4" /> {selectedCustomer.email}
