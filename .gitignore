@@ -12,6 +12,7 @@
 keystore.properties
 google-services.json
 GoogleService-Info.plist
+service-account*.json
 
 # Node
 node_modules/
