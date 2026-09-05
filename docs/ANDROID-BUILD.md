@@ -30,7 +30,7 @@
    ```properties
    storeFile=fiado-pro-release.jks
    storePassword=...sua senha...
-   keyAlias=fiado-pro
+   keyAlias=fiadopro-release
    keyPassword=...sua senha...
    ```
    > `keystore.properties` e `*.jks` estão no `.gitignore` — não vão para o GitHub.
@@ -58,7 +58,7 @@ Com o `keystore.properties` configurado, esse AAB já sai **assinado**.
 ## Passo 4 — Após gerar o keystore: atualizar o assetlinks.json
 Pegue o SHA-256 do keystore:
 ```bash
-keytool -list -v -keystore app/fiado-pro-release.jks -alias fiado-pro
+keytool -list -v -keystore app/fiado-pro-release.jks -alias fiadopro-release
 ```
 Copie a linha `SHA256:` e **me mande** — eu atualizo
 `frontend/public/.well-known/assetlinks.json` (hoje com placeholder) e refaço o build.
@@ -69,24 +69,30 @@ Use o conteúdo pronto em `docs/STORE-LISTING.md` e os assets de `docs/ASSETS-SP
 Upload do `app-release.aab` em **Produção > Criar nova versão**.
 
 ---
-## Alternativa — Build na nuvem (Codemagic, sem Android Studio)
+## Alternativa — Build na nuvem (GitHub Actions, sem Android Studio)
 
-O workflow `android-release` em `codemagic.yaml` gera o AAB assinado na nuvem e
-pode publicar direto na faixa de **teste interno** da Play Console.
+> **Migrado do Codemagic (2026-09).** Decisão do CEO: reduzir terceiros com
+> acesso ao keystore de assinatura. O workflow `codemagic.yaml` continua no
+> repositório só como referência histórica (marcado obsoleto no topo do
+> arquivo) — **não é mais usado**.
 
-**Variáveis a configurar no Codemagic UI** (grupo `google_play`, todas *encrypted*):
+O workflow `.github/workflows/android-release.yml` gera o AAB assinado na
+nuvem, via `workflow_dispatch` manual (não publica na Play Store — o `.aab`
+sai como artifact do próprio workflow run, para download e upload manual).
 
-| Variável | O que é | Como obter |
+**Secrets a configurar em Settings → Secrets and variables → Actions** (repo `fiadopro`):
+
+| Secret | O que é | Como obter |
 |---|---|---|
-| `CM_KEYSTORE` | o `.jks` em **base64** | `base64 fiado-pro-release.jks` (copiar a saída) |
-| `CM_KEYSTORE_PASSWORD` | senha do keystore | a que você definiu ao gerar |
-| `CM_KEY_ALIAS` | `fiado-pro` | alias do keystore |
-| `CM_KEY_PASSWORD` | senha da chave | normalmente igual à do keystore |
-| `GCLOUD_SERVICE_ACCOUNT_CREDENTIALS` | JSON da conta de serviço do Google Play | Play Console > Configurações > Acesso via API > criar conta de serviço |
+| `ANDROID_KEYSTORE_BASE64` | o `.jks` em **base64** | `base64 -i fiado-pro-release.jks` (copiar a saída) |
+| `ANDROID_KEYSTORE_PASSWORD` | senha do keystore | a definida ao gerar o keystore |
+| `ANDROID_KEY_ALIAS` | `fiadopro-release` | alias do keystore |
+| `ANDROID_KEY_PASSWORD` | senha da chave | normalmente igual à do keystore |
 
-O workflow decodifica o keystore, escreve o `keystore.properties` e roda
-`./gradlew bundleRelease`. Publica como **rascunho** (`submit_as_draft`) na faixa
-`internal` — você revisa e promove para produção na Play Console.
+O workflow decodifica o keystore, escreve o `keystore.properties`, roda
+`./gradlew bundleRelease`, verifica ausência de chaves de API expostas no
+bundle e sobe o `.aab` como artifact do run. O upload na Play Console
+continua manual (Passo 5 acima).
 
 ---
 ### Checklist rápido

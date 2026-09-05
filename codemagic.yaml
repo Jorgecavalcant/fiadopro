@@ -1,3 +1,9 @@
+# OBSOLETO (2026-09) — NÃO USADO MAIS.
+# Migrado para .github/workflows/android-release.yml por decisão do CEO:
+# reduzir terceiros com acesso ao keystore de assinatura Android.
+# Mantido só como referência histórica — não apagar, não reativar sem
+# aprovação explícita do CEO. Ver docs/ANDROID-BUILD.md para o fluxo atual.
+
 workflows:
   android-release:
     name: Android Release (Google Play)

@@ -1,0 +1,102 @@
+name: Android Release (AAB)
+
+# Build manual do Android App Bundle assinado, isolado do deploy do site
+# (.github/workflows/deploy.yml). Não publica na Play Store — o .aab sai
+# como artifact deste run, para download e upload manual na Play Console.
+#
+# Migrado do Codemagic em 2026-09 (decisão do CEO: reduzir terceiros com
+# acesso ao keystore de assinatura). Ver docs/ANDROID-BUILD.md.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build AAB assinado
+    runs-on: ubuntu-latest
+    environment: producao
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Instalar dependencias (workspace completo)
+        run: pnpm install --frozen-lockfile
+
+      - name: Frontend — build web
+        working-directory: frontend
+        run: pnpm run build
+
+      - name: Verificar bundle web sem chaves de API
+        run: |
+          if grep -rEo 'AIza[A-Za-z0-9_-]{30,}|sk-or-v1-[a-f0-9]{16,}' dist/assets/ ; then
+            echo "::error::Chave de API detectada no bundle web — build abortado."
+            exit 1
+          fi
+
+      - name: Capacitor sync android
+        working-directory: frontend
+        run: npx cap sync android
+
+      - name: Decodificar keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > frontend/android/app/fiado-pro-release.jks
+
+      - name: Escrever keystore.properties
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cat > frontend/android/keystore.properties <<EOF
+          storeFile=fiado-pro-release.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+
+      - name: Gradle — bundleRelease
+        working-directory: frontend/android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon
+
+      - name: Verificar AAB sem chaves de API
+        run: |
+          AAB=frontend/android/app/build/outputs/bundle/release/app-release.aab
+          if unzip -p "$AAB" '**/*.js' 2>/dev/null | grep -rEo 'AIza[A-Za-z0-9_-]{30,}|sk-or-v1-[a-f0-9]{16,}' ; then
+            echo "::error::Chave de API detectada no bundle Android — build abortado."
+            exit 1
+          fi
+
+      - name: Limpar keystore do runner
+        if: always()
+        run: |
+          rm -f frontend/android/app/fiado-pro-release.jks
+          rm -f frontend/android/keystore.properties
+
+      - name: Upload do AAB como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fiadopro-release-aab
+          path: frontend/android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 14
