@@ -105,7 +105,7 @@ curl -X POST http://localhost:10004/api/gemini/chat \
 **Sintoma:** POST /api/gemini/chat retorna erro
 
 **Causas Possíveis:**
-- ❓ API key `AIzaSyDd_pP6pxN4Mp5itv5UbiULvqxZ4NaFo1k` não habilitada
+- ❓ API key `AIzaSy_EXEMPLO_NAO_REAL_1` não habilitada
 - ❓ Modelo `gemini-pro` descontinuado/não disponível
 - ❓ Limite de requisições atingido
 - ❓ Quota insuficiente no projeto Google Cloud
@@ -117,7 +117,7 @@ docker logs fiado-pro-api | grep -i gemini
 
 # Testar API key manualmente com curl
 curl https://generativelanguage.googleapis.com/v1beta/models:list \
-  -H "x-goog-api-key: AIzaSyDd_pP6pxN4Mp5itv5UbiULvqxZ4NaFo1k"
+  -H "x-goog-api-key: AIzaSy_EXEMPLO_NAO_REAL_1"
 ```
 
 **Solução Temporária:** Usar modelo alternativo (`gemini-1.5-flash`)
@@ -148,8 +148,8 @@ return `${header}.${payload}.${signed}`;
 **Sintoma:** Chaves visíveis no arquivo de configuração
 
 **Impacto:**
-- `AIzaSyDd_pP6pxN4Mp5itv5UbiULvqxZ4NaFo1k` pode ser revogada
-- `AIzaSyAC-5vBOOaN4lnZYUmE4Y-JPMYF4M15aJg` pode ser revogada
+- `AIzaSy_EXEMPLO_NAO_REAL_1` pode ser revogada
+- `AIzaSy_EXEMPLO_NAO_REAL_2` pode ser revogada
 
 **Fix Necessário:**
 1. Revogar ambas as chaves no Google Cloud Console

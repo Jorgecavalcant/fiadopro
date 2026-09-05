@@ -118,7 +118,7 @@ Content-Type: text/html
 **Problema:** As chaves fornecidas não têm permissão para acessar modelos Gemini em v1 API.
 
 **Causa Raiz:**
-- API key `AIzaSyDd_pP6pxN4Mp5itv5UbiULvqxZ4NaFo1k` está **restrita** a certos métodos
+- API key `AIzaSy_EXEMPLO_NAO_REAL_1` está **restrita** a certos métodos
 - Modelo `gemini-1.5-flash` não está habilitado no projeto
 - Versão da API (`v1` vs `v1beta`) pode estar incorreta
 
@@ -135,8 +135,8 @@ Content-Type: text/html
 3. Passos:
    a) Ir para "APIs & Services" → "Credentials"
    b) Revogar as 2 API keys antigas:
-      - AIzaSyAC-5vBOOaN4lnZYUmE4Y-JPMYF4M15aJg
-      - AIzaSyDd_pP6pxN4Mp5itv5UbiULvqxZ4NaFo1k
+      - AIzaSy_EXEMPLO_NAO_REAL_2
+      - AIzaSy_EXEMPLO_NAO_REAL_1
 
    c) Criar NOVA API key:
       - Tipo: "API Key"

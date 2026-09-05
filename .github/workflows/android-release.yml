@@ -83,7 +83,7 @@ jobs:
       - name: Verificar AAB sem chaves de API
         run: |
           AAB=frontend/android/app/build/outputs/bundle/release/app-release.aab
-          if unzip -p "$AAB" '**/*.js' 2>/dev/null | grep -rEo 'AIza[A-Za-z0-9_-]{30,}|sk-or-v1-[a-f0-9]{16,}' ; then
+          if unzip -p "$AAB" '**/*.js' 2>/dev/null | grep -Eo 'AIza[A-Za-z0-9_-]{30,}|sk-or-v1-[a-f0-9]{16,}' ; then
             echo "::error::Chave de API detectada no bundle Android — build abortado."
             exit 1
           fi
