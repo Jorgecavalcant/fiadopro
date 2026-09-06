@@ -38,3 +38,6 @@ frontend/ios/App/build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Security audit tooling
+docs/security-audit/.venv/
