@@ -1,15 +1,15 @@
 ﻿# STATE — Fiado Pro
 **Produto:** Fiado Pro — Smart Credit Tracker para pequenos comerciantes
-**Ultima atualizacao:** 2026-04-17
-**Atualizado por:** jc-agent-manager (Sprint 4 — parte tecnica concluida)
+**Ultima atualizacao:** 2026-10-26
+**Atualizado por:** agent-manager (PR #37 aberta, sem merge)
 
 ---
 
 ## ONDE ESTAMOS AGORA
 - **Sprint atual:** Sprint 5 — Publicacao na Google Play (FOCO). Apple/App Store adiada a pedido do CEO (nao pagar Apple Developer agora).
 - **Fase RPI:** Implement — config tecnica Android CONCLUIDA e mergeada na `main` (PR #1, commit 32a67a7). Aguardando passos manuais do Jorge (alguns LOCAIS na maquina dele).
-- **Status geral:** Android nos padroes da Play (targetSdk 35, AGP 8.7.2/Gradle 8.9, signingConfig via keystore.properties); CI Codemagic (workflow android-release); 20 testes unitarios verdes; ficha das lojas pronta (`docs/STORE-LISTING.md`); guia de build (`docs/ANDROID-BUILD.md`); specs de assets (`docs/ASSETS-SPEC.md`). Backend usa bcrypt cost 12 (OWASP). Conta Google Play ja paga.
-- **Responsavel atual:** Jorge (passos manuais/locais)
+- **Status geral:** PR [#37](https://github.com/Jorgecavalcant/fiadopro/pull/37) aberta na branch `claude/play-store-launch`, sem merge. A compra do PRO fica escondida no Android. A exclusão desativa a conta na hora e apaga clientes, fiados e pagamentos daquele lojista em até 30 dias. A migration `010_account_purge.sql` ainda não foi aplicada em produção. Nesta sessão: backend 116 testes, frontend 44 testes, lint e build verdes.
+- **Responsavel atual:** Jorge (revisar e mergear a PR #37; backup do Postgres antes de aplicar a migration 010)
 
 ---
 
@@ -69,7 +69,11 @@
 
 **Objetivo:** colocar o Fiado Pro ONLINE na **Google Play** (Apple adiada). Guia detalhado: `docs/ANDROID-BUILD.md`.
 
-**Fase RPI atual:** Implement — config tecnica concluida (PR #1 mergeada). Faltam passos manuais/locais do Jorge + 1 retorno tecnico dos agentes (assetlinks).
+**Onde paramos:** a PR #37 está pronta para review do CEO. Não foi mergeada, não foi para a Play e a migration 010 não rodou em produção.
+
+**Próximo passo:** o CEO revisa e, se concordar, mergeia a PR #37. Antes de aplicar `backend/migrations/010_account_purge.sql` no banco de produção, fazer backup do Postgres. A URL `/excluir-conta` só entra na ficha da Play depois desse deploy. O SHA-256 do `assetlinks.json` é o certificado de assinatura da Play Console, não o da chave de upload.
+
+**Fase RPI atual:** Implement — PR #37 aberta. Faltam o merge do CEO, o backup e os passos manuais da Play.
 
 ### CHECKLIST DE PUBLICACAO — GOOGLE PLAY (ordem)
 | # | Passo | Quem | Local? | Ref |
@@ -78,7 +82,7 @@
 | 1 | Instalar Android Studio (JDK 17 + SDK 35). Validar 1o Gradle Sync (se erro, mandar log p/ agentes) | Jorge | **LOCAL** | ANDROID-BUILD.md |
 | 2 | Gerar keystore `fiado-pro-release.jks` (senha no 1Password) | Jorge | **LOCAL** | SESSAO-SPRINT4 Etapa 4 |
 | 3 | Criar `frontend/android/keystore.properties` (de .example) | Jorge | **LOCAL** | keystore.properties.example |
-| 4 | Enviar SHA-256 do keystore → agentes atualizam `assetlinks.json` (NAO bloqueia 1o publish; habilita App Links) | Jorge → agentes | repo+VPS | ANDROID-BUILD.md Passo 4 |
+| 4 | Enviar o SHA-256 do certificado de assinatura da Play Console (não o da chave de upload) → agentes atualizam `assetlinks.json` | Jorge → agentes | repo+VPS | GUIA-KEYSTORE.md seção 7 |
 | 5 | Gerar assets: icone 512/1024, splash, 4 screenshots, feature graphic 1024x500 | Jorge | **LOCAL** | ASSETS-SPEC.md |
 | 6 | `npm run build && npx cap sync android && ./gradlew bundleRelease` → app-release.aab | Jorge | **LOCAL** | ANDROID-BUILD.md Passo 3 |
 | 7 | (Opcional) Build na nuvem via Codemagic (config das env vars no UI) | Jorge | nuvem | ANDROID-BUILD.md (Codemagic) |
