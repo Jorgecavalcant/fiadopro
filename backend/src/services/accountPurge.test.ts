@@ -34,11 +34,19 @@ describe('account purge', () => {
 
     await purgeExpiredAccounts();
 
+    const selectSql = String(query.mock.calls[0][0]);
+    expect(selectSql).toContain('purge_after <= NOW()');
+    expect(selectSql).toContain('deleted_at IS NOT NULL');
+
     const cleanupSql = query.mock.calls.slice(1).map(([sql]) => String(sql)).join('\n');
-    expect(cleanupSql).not.toContain('other-user');
+    expect(cleanupSql).toContain('owner_user_id = $1');
+    expect(cleanupSql).toContain('WHERE user_id = $1');
     expect(cleanupSql).not.toContain('linked_user_id');
     expect(cleanupSql).not.toContain('created_by_user_id');
     expect(cleanupSql).not.toContain('DELETE FROM users');
+    for (const [, params] of query.mock.calls.slice(1)) {
+      expect(params).toEqual(['expired-user']);
+    }
   });
 
   it('accepts CANCELAR for a Google-only account', () => {

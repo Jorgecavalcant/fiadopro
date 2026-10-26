@@ -73,7 +73,7 @@ Execute:
 "/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/keytool" -list -v -keystore fiado-pro-release.jks -alias fiadopro-release
 ```
 
-O comando pedirá a senha no Terminal. Anote a impressão digital SHA-256 exibida. Ela será necessária depois para configurar o `assetlinks.json`.
+O comando pedirá a senha no Terminal. Anote a impressão digital SHA-256 exibida. Guarde essa impressão da chave de upload. Ela não entra no `assetlinks.json`.
 
 Envie somente o SHA-256 quando ele for solicitado. Nunca envie a senha.
 
@@ -87,7 +87,7 @@ Perder a chave de upload pode atrapalhar a atualização do app.
 
 ## 7. Entenda a assinatura pela Play Console
 
-Na Play Console, aceite o Play App Signing. A chave que você criou é a chave de upload, usada para enviar o app. A Google guarda a chave que assina o app para os usuários.
+Na Play Console, aceite o Play App Signing. A chave que você criou é a chave de upload, usada para enviar o app. A Google guarda a chave que assina o app para os usuários. O SHA-256 do `assetlinks.json` é o certificado de assinatura do app mostrado na Play Console, não o SHA-256 da chave de upload.
 
 ## 8. Prepare os dados para o GitHub Actions, se necessário
 

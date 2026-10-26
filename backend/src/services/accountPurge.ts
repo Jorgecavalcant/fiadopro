@@ -39,7 +39,8 @@ export async function purgeExpiredAccounts(): Promise<void> {
     await query('DELETE FROM ai_interactions WHERE user_id = $1', [userId]);
     await query(
       `UPDATE users
-          SET purge_completed_at = NOW()
+          SET purge_completed_at = NOW(),
+              deleted_reason = NULL
         WHERE id = $1
           AND purge_after <= NOW()
           AND purge_completed_at IS NULL`,

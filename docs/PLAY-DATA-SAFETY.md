@@ -15,13 +15,13 @@ Use este guia para preencher as seções da Play Console de acordo com o funcion
 
 | Dado | Obrigatório? | Para que é usado | Compartilhado? Com quem? |
 |---|---|---|---|
-| Nome do lojista | Sim | Identificar a conta e personalizar o uso do serviço | Não é compartilhado com terceiros para publicidade |
-| E-mail do lojista | Sim | Criar e manter a conta e enviar e-mails do serviço | Resend, para envio de e-mails |
-| Telefone do lojista | Não | Dado de contato da conta, se informado | Não é compartilhado com terceiros para publicidade |
+| Nome do lojista | Sim | Identificar a conta e personalizar o uso do serviço | Hetzner, para hospedagem. Não é compartilhado para publicidade |
+| E-mail do lojista | Sim | Criar e manter a conta e enviar e-mails do serviço | Hetzner, para hospedagem; Resend, para envio de e-mails; Google, se o login for com Google |
+| Telefone do lojista | Não | Dado de contato da conta, se informado | Hetzner, para hospedagem, se informado. Não é compartilhado para publicidade |
 | Nome e telefone dos clientes, digitados pelo lojista | Sim, para registrar um fiado | Identificar o cliente nos registros da loja | Hetzner, para hospedagem; OpenRouter recebe o nome somente durante a análise com IA |
 | Valores de fiado e pagamento | Sim, para registrar o fiado e seus pagamentos | Manter o caderno e o histórico da loja | Hetzner, para hospedagem; o saldo do cliente é enviado ao OpenRouter somente durante a análise com IA |
 | CPF/CNPJ | Sim, somente para assinar no site | Atender à assinatura feita no site | Asaas, para processar a assinatura no site |
-| Foto de perfil | Não | Mostrar a foto na conta, se adicionada | Não é compartilhada com terceiros para publicidade |
+| Foto de perfil | Não | Mostrar a foto na conta, se adicionada | Hetzner, para hospedagem, se adicionada. Não é compartilhada para publicidade |
 | Identificador do aparelho para notificação | Não | Enviar notificações, se ativadas | Google/Firebase |
 
 O OpenRouter recebe o nome e o saldo do cliente somente quando o lojista usa a análise com IA. O Asaas recebe CPF/CNPJ e dados da assinatura somente para assinaturas feitas no site. Google/Firebase é usado para login Google e notificações, inclusive com o identificador do aparelho. Hetzner hospeda o serviço e Resend envia e-mails.
