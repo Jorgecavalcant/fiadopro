@@ -3584,7 +3584,7 @@ const ProfileView = ({
           ⚠️ Zona de Perigo
         </h3>
         <p className="text-sm text-red-600 font-medium">
-          Esta ação é irreversível. Todos os dados serão permanentemente apagados.
+          A conta é desativada na hora. Clientes, fiados e pagamentos desta loja são apagados em até 30 dias.
         </p>
         <button
           onClick={() => setCancelStep(1)}
@@ -3683,8 +3683,9 @@ const ProfileView = ({
                     <div className="text-5xl mb-4">⛔</div>
                     <h3 className="text-xl font-black text-red-700">Última confirmação</h3>
                     <p className="text-slate-500 mt-2 font-medium leading-relaxed">
-                      Esta é sua <strong>ÚLTIMA CHANCE</strong>. Após confirmar, tudo será apagado
-                      para sempre.
+                      A conta é desativada agora. Clientes, fiados e pagamentos desta loja são
+                      apagados em até 30 dias. O próximo passo pede a senha, ou CANCELAR se a
+                      conta entrou só com Google.
                     </p>
                     <p className="text-sm font-black text-slate-600 mt-4">
                       Digite <strong className="text-red-600">CANCELAR</strong> para confirmar:

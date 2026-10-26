@@ -91,10 +91,19 @@ router.delete('/me', requireAuth, async (req: AuthRequest, res: Response, next: 
         avatar_url = NULL,
         password_hash = NULL,
         google_id = NULL,
-        cpf = NULL
+        cpf = NULL,
+        pix_key = NULL,
+        is_active = false
        WHERE id = $3 AND deleted_at IS NULL`,
       [body.reason || null, anonEmail, userId],
     );
+
+    try {
+      await query('UPDATE password_reset_tokens SET used = true WHERE user_id = $1', [userId]);
+    } catch (tokenErr) {
+      const message = tokenErr instanceof Error ? tokenErr.message : String(tokenErr);
+      console.error('[Fiado PRO] Falha ao invalidar tokens de redefinicao:', message);
+    }
 
     try {
       await sendAccountDeletionEmail(user.email, user.full_name);
