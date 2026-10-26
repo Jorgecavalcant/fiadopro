@@ -20,6 +20,7 @@ import adminRoutes from './routes/admin.js';
 import billingRoutes from './routes/billing.js';
 import aiRoutes, { adminAiConfigRouter } from './routes/ai.js';
 import { ensureAdminRole } from './services/linking.js';
+import { startAccountPurgeScheduler } from './services/accountPurge.js';
 
 // Import middleware
 import cookieParser from 'cookie-parser';
@@ -90,6 +91,7 @@ app.use(errorHandler);
 const server = app.listen(PORT, () => {
   // Bootstrap idempotente: promove o ADMIN_EMAIL a admin se a conta já existir
   void ensureAdminRole();
+  startAccountPurgeScheduler();
   console.log(`🚀 Fiado Pro Backend running on port ${PORT}`);
   console.log(`📡 Environment: ${process.env.NODE_ENV}`);
   console.log(`🔐 CORS enabled for: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}`);

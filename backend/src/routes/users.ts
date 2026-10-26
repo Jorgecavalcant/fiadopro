@@ -6,6 +6,7 @@ import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { clearAuthCookie } from '../utils/jwt.js';
 import { sendAccountDeletionEmail } from '../services/email.js';
+import { confirmAccountDeletion } from '../services/accountPurge.js';
 
 const router = Router();
 
@@ -46,7 +47,8 @@ router.patch('/me', requireAuth, async (req: AuthRequest, res: Response, next: N
 });
 
 const DeleteAccountSchema = z.object({
-  password: z.string().min(1),
+  password: z.string().optional(),
+  confirmation: z.string().optional(),
   reason: z.string().optional(),
 });
 
@@ -54,49 +56,56 @@ const DeleteAccountSchema = z.object({
 router.delete('/me', requireAuth, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const body = DeleteAccountSchema.parse(req.body);
+    const confirmation = body.confirmation ?? body.password ?? '';
     const userId = req.user!.sub;
 
     const result = await query(
-      'SELECT id, email, full_name, password_hash, google_id FROM users WHERE id = $1 AND deleted_at IS NULL',
+      'SELECT id, email, full_name, password_hash FROM users WHERE id = $1 AND deleted_at IS NULL',
       [userId],
     );
     const user = result.rows[0];
     if (!user) return next(new ApiError(404, 'Usuario nao encontrado', 'USER_NOT_FOUND'));
 
-    // Validar senha (usuarios Google podem nao ter senha — aceitar sem validar)
+    let passwordMatches = false;
     if (user.password_hash) {
-      const valid = await bcrypt.compare(body.password, user.password_hash);
-      if (!valid) return next(new ApiError(401, 'Senha incorreta', 'INVALID_PASSWORD'));
+      passwordMatches = await bcrypt.compare(confirmation, user.password_hash);
     }
 
-    // Soft delete + anonimizar dados pessoais (LGPD)
+    const confirmationError = confirmAccountDeletion(user, confirmation, passwordMatches);
+    if (confirmationError) {
+      const message = confirmationError === 'INVALID_PASSWORD'
+        ? 'Senha incorreta'
+        : 'Confirmacao invalida';
+      return next(new ApiError(401, message, confirmationError));
+    }
+
     const anonEmail = `deleted_${userId}@removed.invalid`;
     await query(
       `UPDATE users SET
         deleted_at = NOW(),
+        purge_after = NOW() + INTERVAL '30 days',
         deleted_reason = $1,
         full_name = 'Conta removida',
         email = $2,
         phone = NULL,
         avatar_url = NULL,
         password_hash = NULL,
-        google_id = NULL
-       WHERE id = $3`,
+        google_id = NULL,
+        cpf = NULL
+       WHERE id = $3 AND deleted_at IS NULL`,
       [body.reason || null, anonEmail, userId],
     );
 
-    // Enviar email de confirmacao (para o email ORIGINAL antes de anonimizar)
     try {
       await sendAccountDeletionEmail(user.email, user.full_name);
     } catch (emailErr) {
-      console.error('[Fiado PRO] Falha ao enviar email de exclusao:', emailErr);
-      // Nao falha a requisicao por causa do email
+      const message = emailErr instanceof Error ? emailErr.message : String(emailErr);
+      console.error('[Fiado PRO] Falha ao enviar email de exclusao:', message);
     }
 
-    // Limpar cookie de sessao
     clearAuthCookie(res);
 
-    res.json({ success: true, message: 'Conta excluida com sucesso.' });
+    res.json({ success: true, message: 'Conta desativada. Os dados da loja serão apagados em até 30 dias.' });
   } catch (err) {
     if (err instanceof z.ZodError)
       return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
