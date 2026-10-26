@@ -97,6 +97,7 @@ import { Keyboard } from '@capacitor/keyboard';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { hapticMedium, hapticSuccess } from './utils/haptics';
 import { showToast } from './utils/toast';
+import { isAndroidApp } from './utils/androidStore';
 import InboxAprovacoes from './components/InboxAprovacoes';
 import MinhasDividas from './components/MinhasDividas';
 import {
@@ -3167,7 +3168,7 @@ const CustomerDetailView = ({
                 <h3 className="text-xl font-black mb-4 flex items-center gap-3">
                   <Sparkles className="w-6 h-6 text-amber-400" /> {t.aiAnalysis}
                 </h3>
-                {!isPro && (
+                {!isPro && !isAndroidApp() && (
                   <div className="mb-6 p-5 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-sm">
                     <p className="text-[10px] font-black text-amber-300 uppercase mb-3 tracking-widest flex items-center gap-2">
                       <Crown className="w-3 h-3" /> {t.proFeatureTitle}
@@ -4870,6 +4871,7 @@ const App: React.FC = () => {
   };
 
   const handleActivatePlan = (code: string) => {
+    if (isAndroidApp()) return;
     if (code === 'FIADO30') {
       setPlan({ ...PLANS.PRO, expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 });
       setIsPro(true);
@@ -5133,7 +5135,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      {plan.hasAds && <AdBanner onUpgrade={() => setIsUpgradeModalOpen(true)} t={t} />}
+      {plan.hasAds && !isAndroidApp() && <AdBanner onUpgrade={() => setIsUpgradeModalOpen(true)} t={t} />}
       {isOffline && (
         <div
           style={{
@@ -5159,7 +5161,9 @@ const App: React.FC = () => {
           language={language}
           setLanguage={setLanguage}
           isPro={plan.hasAI}
-          onUpgrade={() => setIsUpgradeModalOpen(true)}
+          onUpgrade={() => {
+            if (!isAndroidApp()) setIsUpgradeModalOpen(true);
+          }}
           user={user}
           onLogout={() => {
             resetSyncState();
@@ -5259,7 +5263,9 @@ const App: React.FC = () => {
               isAILoading={isAILoading}
               aiAdvice={aiAdvice}
               isPro={isPro}
-              setIsUpgradeModalOpen={() => setIsUpgradeModalOpen(true)}
+              setIsUpgradeModalOpen={() => {
+                if (!isAndroidApp()) setIsUpgradeModalOpen(true);
+              }}
               handleShareWhatsApp={handleShareWhatsApp}
               deleteCustomer={(id: string) => {
                 setCustomers((prev) => prev.filter((c) => c.id !== id));
@@ -6220,8 +6226,12 @@ const App: React.FC = () => {
                       }
                       if (!isEditCustomerModalOpen) {
                         if (!canAddCustomer()) {
-                          showToast(t.maxCustomersReached);
-                          setIsUpgradeModalOpen(true);
+                          if (isAndroidApp()) {
+                            showToast('Limite de clientes do plano gratuito atingido.');
+                          } else {
+                            showToast(t.maxCustomersReached);
+                            setIsUpgradeModalOpen(true);
+                          }
                           return;
                         }
                         const duplicate = customers.find(
@@ -6771,7 +6781,7 @@ const App: React.FC = () => {
           </FullScreenModal>
         )}
 
-        {isUpgradeModalOpen && (
+        {isUpgradeModalOpen && !isAndroidApp() && (
           <FullScreenModal>
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4">
               <div className="bg-white w-full max-w-2xl rounded-t42xl shadow-2xl p-10 space-y-8 animate-in zoom-in overflow-y-auto max-h-[90vh]">

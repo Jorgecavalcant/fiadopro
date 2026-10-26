@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1080, initial-scale=1.0">
+  <title>Nova venda fiada — FiadoPro</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 1080px; height: 1920px; margin: 0; }
+    body { background: #F8FAFC; color: #0F172A; font-family: system-ui, sans-serif; }
+    .top { height: 340px; padding: 76px 64px 44px; color: white; background: linear-gradient(135deg, #6366F1, #8B5CF6); border-radius: 0 0 48px 48px; }
+    .brand { font-size: 34px; font-weight: 750; }
+    .back { margin-top: 32px; font-size: 22px; opacity: .9; }
+    h1 { margin: 10px 0 0; font-size: 44px; }
+    main { padding: 42px 48px; }
+    .card { padding: 34px; background: white; border-radius: 28px; box-shadow: 0 8px 24px #0F172A0A; }
+    .field { margin-bottom: 30px; }
+    label { display: block; margin-bottom: 12px; color: #334155; font-size: 22px; font-weight: 650; }
+    .input { min-height: 82px; padding: 22px 24px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #CBD5E1; border-radius: 18px; color: #0F172A; font-size: 25px; }
+    .muted { color: #94A3B8; }
+    .customer { display: flex; align-items: center; gap: 16px; }
+    .avatar { width: 50px; height: 50px; display: grid; place-items: center; border-radius: 16px; background: #EEF2FF; color: #6366F1; font-size: 18px; font-weight: 700; }
+    .hint { margin-top: 9px; color: #64748B; font-size: 17px; }
+    .amount-input { font-size: 38px; font-weight: 700; }
+    .confirm { margin-top: 18px; height: 82px; display: grid; place-items: center; color: white; background: #6366F1; border-radius: 20px; font-size: 25px; font-weight: 700; }
+    .note { margin-top: 22px; padding: 22px; color: #475569; background: #F1F5F9; border-radius: 18px; font-size: 19px; line-height: 1.5; }
+    nav { position: absolute; top: 1790px; width: 1080px; height: 130px; display: flex; justify-content: space-around; align-items: center; background: white; border-top: 1px solid #E2E8F0; color: #64748B; font-size: 18px; }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">FiadoPro</div>
+    <div class="back">‹ &nbsp; Voltar</div>
+    <h1>Nova venda fiada</h1>
+  </header>
+  <main>
+    <section class="card">
+      <div class="field">
+        <label>Cliente</label>
+        <div class="input"><span class="customer"><span class="avatar">RP</span><span>Rui Pereira</span></span><span class="muted">⌄</span></div>
+        <div class="hint">(11) 92222-2222</div>
+      </div>
+      <div class="field">
+        <label>Valor</label>
+        <div class="input amount-input">R$ 28,50</div>
+      </div>
+      <div class="field">
+        <label>Descrição</label>
+        <div class="input">Pão e leite</div>
+      </div>
+      <div class="confirm">Confirmar</div>
+    </section>
+    <div class="note">O valor será adicionado ao saldo em aberto do cliente.</div>
+  </main>
+  <nav><span>Clientes</span><span>Movimentações</span><span>Resumo</span></nav>
+</body>
+</html>

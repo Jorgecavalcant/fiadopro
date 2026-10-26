@@ -1,4 +1,5 @@
 import React from 'react';
+import { isAndroidApp } from '../utils/androidStore';
 
 const HelpView = () => {
   const [activeSection, setActiveSection] = React.useState<'manual' | 'faq' | 'support'>('manual');
@@ -92,7 +93,7 @@ const HelpView = () => {
     },
     {
       q: 'O que é o Plano PRO?',
-      a: 'O Plano PRO desbloqueia: até 500 clientes (vs. 20 no gratuito), eventos ilimitados, Insights de IA por cliente, e sem propagandas. Consulte os planos disponíveis em "Upgrade para PRO" na barra lateral.',
+      a: isAndroidApp() ? 'Se a sua conta já é PRO, você usa até 500 clientes, eventos ilimitados, Insights de IA e sem anúncios.' : 'O Plano PRO desbloqueia: até 500 clientes (vs. 20 no gratuito), eventos ilimitados, Insights de IA por cliente, e sem propagandas. Consulte os planos disponíveis em "Upgrade para PRO" na barra lateral.',
     },
     {
       q: 'Como funciona o Score de Crédito?',
