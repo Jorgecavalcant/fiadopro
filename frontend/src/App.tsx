@@ -819,8 +819,8 @@ const CustomerManagementView = ({
       badge: rankingLists.maiores_pagadores.length,
     },
     { id: 'mais_dias_atraso', label: 'Em Atraso', badge: rankingLists.mais_dias_atraso.length },
-    { id: 'menor_score', label: 'Menor Score' },
-    { id: 'maior_score', label: 'Maior Score' },
+    { id: 'menor_score', label: 'Menor pontualidade' },
+    { id: 'maior_score', label: 'Maior pontualidade' },
   ];
 
   const getRankingMetric = (c: any) => {
@@ -5458,12 +5458,11 @@ const App: React.FC = () => {
               >
                 <h3 style={{ color: '#dc2626', marginBottom: 8 }}>⚠️ Excluir minha conta</h3>
                 <p style={{ color: '#374151', marginBottom: 16, fontSize: 14 }}>
-                  Esta acao e <strong>irreversivel</strong>. Todos os seus dados (clientes, fiados,
-                  historico) serao permanentemente removidos.
+                  A conta é desativada agora. Clientes, fiados e pagamentos desta loja são apagados em até 30 dias. Quem entrou só com Google digita CANCELAR.
                 </p>
                 <input
                   type="password"
-                  placeholder="Digite sua senha para confirmar"
+                  placeholder="Digite sua senha para confirmar, ou CANCELAR se entrou só com Google"
                   value={deletePassword}
                   onChange={(e) => setDeletePassword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleDeleteAccount()}

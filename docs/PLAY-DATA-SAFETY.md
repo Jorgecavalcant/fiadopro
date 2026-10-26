@@ -1,91 +1,77 @@
 # Guia para responder à Play Console
 
-Use este guia para consultar cada seção do formulário. Responda de acordo com o funcionamento atual do app.
+Use este guia para preencher as seções da Play Console de acordo com o funcionamento do app.
 
-## Segurança dos dados (Data safety)
+## Segurança dos dados
 
 ### O app coleta ou compartilha dados?
 
 - **Coleta dados:** Sim.
-- **Vende ou compartilha dados para publicidade:** Não.
-- **Compartilha dados com terceiros:** Não, conforme a definição da Play para esta situação. A hospedagem Hetzner e o serviço de e-mail transacional Resend processam dados apenas para operar o serviço e não os usam para fins próprios; por isso, não são considerados compartilhamento nessa resposta.
+- **Compartilha dados para publicidade:** Não.
+- **Criptografa os dados em trânsito:** Sim, a comunicação usa HTTPS.
+- **O app tem anúncios:** Não.
 
-### Os dados são criptografados em trânsito?
+### Dados coletados
 
-- **Sim.** A comunicação usa HTTPS.
+| Dado | Obrigatório? | Para que é usado | Compartilhado? Com quem? |
+|---|---|---|---|
+| Nome do lojista | Sim | Identificar a conta e personalizar o uso do serviço | Não é compartilhado com terceiros para publicidade |
+| E-mail do lojista | Sim | Criar e manter a conta e enviar e-mails do serviço | Resend, para envio de e-mails |
+| Telefone do lojista | Não | Dado de contato da conta, se informado | Não é compartilhado com terceiros para publicidade |
+| Nome e telefone dos clientes, digitados pelo lojista | Sim, para registrar um fiado | Identificar o cliente nos registros da loja | Hetzner, para hospedagem; OpenRouter recebe o nome somente durante a análise com IA |
+| Valores de fiado e pagamento | Sim, para registrar o fiado e seus pagamentos | Manter o caderno e o histórico da loja | Hetzner, para hospedagem; o saldo do cliente é enviado ao OpenRouter somente durante a análise com IA |
+| CPF/CNPJ | Sim, somente para assinar no site | Atender à assinatura feita no site | Asaas, para processar a assinatura no site |
+| Foto de perfil | Não | Mostrar a foto na conta, se adicionada | Não é compartilhada com terceiros para publicidade |
+| Identificador do aparelho para notificação | Não | Enviar notificações, se ativadas | Google/Firebase |
 
-### O usuário pode pedir a exclusão dos dados?
+O OpenRouter recebe o nome e o saldo do cliente somente quando o lojista usa a análise com IA. O Asaas recebe CPF/CNPJ e dados da assinatura somente para assinaturas feitas no site. Google/Firebase é usado para login Google e notificações, inclusive com o identificador do aparelho. Hetzner hospeda o serviço e Resend envia e-mails.
 
-- **Sim.** No app: **Meu Perfil → Zona de Perigo → Cancelar Conta**.
-- A página de exclusão na web só deve ser informada depois de publicada. Endereço previsto: `https://www.fiadopro.com.br/excluir-conta`.
+Não há venda de dados nem compartilhamento para publicidade. O lojista digita os nomes e telefones dos clientes; o app não lê a agenda do aparelho.
 
-**Importante sobre a exclusão:** o cancelamento atual anonimiza a conta do lojista — nome, e-mail, telefone, foto, senha e dados do Google — e encerra a sessão. Ele não apaga automaticamente, no servidor, os registros de fiado. Para solicitar a exclusão completa desses registros, o usuário deve escrever para `contato@tech42.com.br`. Não prometa prazo de exclusão de backups.
+### Exclusão de dados
 
-### Que tipos de dados são coletados?
-
-Os dados abaixo são necessários para o funcionamento da conta e dos registros:
-
-- **Informações pessoais do lojista:** nome, e-mail e telefone.
-- **Informações pessoais dos clientes:** nome e telefone digitados pelo próprio lojista.
-- **Informações financeiras:** valores de fiados e pagamentos inseridos pelo lojista. Não são dados de cartão nem compras feitas dentro do app.
-
-### Que tipos de dados não devem ser declarados?
-
-Não declare coleta de:
-
-- Localização.
-- Contatos do aparelho.
-- Dados para anúncios.
-- Identificador de publicidade.
-
-O app não lê a agenda do telefone. O lojista digita os nomes e telefones dos clientes.
+- A conta do lojista é desativada na hora.
+- Clientes, fiados e pagamentos daquela loja são apagados em até 30 dias.
+- O lojista pode pedir a exclusão no app: **Meu Perfil → Zona de Perigo → Cancelar Conta**.
+- Também pode pedir por `contato@tech42.com.br`, inclusive para antecipar a exclusão dos registros.
+- A página `https://www.fiadopro.com.br/excluir-conta` só deve ser informada depois do deploy.
 
 ## Classificação de conteúdo
 
-O app não apresenta violência, sexo, linguagem grosseira, drogas, apostas, medo, compras simuladas ou anúncios de terceiros. Não é uma rede social pública.
+O app não apresenta conteúdo sensível. Não é uma rede social pública e não exibe anúncios.
 
-- **Conteúdo público:** marque **Não**.
-- **Interação entre usuários:** leia o enunciado da Play e responda com honestidade. O app tem uma caixa privada de aprovação de lançamentos; não é uma área pública. O WhatsApp é aberto fora do app.
+- Responda de acordo com o conteúdo real do app e com as perguntas da Play Console.
+- O app é um caderno privado de registros do comerciante.
 
 ## Público-alvo
 
 - Público: comerciantes adultos.
-- Faixa etária: **18 anos ou mais**.
-- O app não foi feito para crianças e não é direcionado a elas.
-- O app não exibe anúncios.
+- Idade: **18 anos ou mais**.
+- O app não é feito para crianças.
 
-## Recursos financeiros
+## Recursos financeiros e compras
 
-- **O app oferece recursos financeiros:** **Não**.
-
-Se o formulário pedir uma explicação em texto livre, use:
-
-> O Fiado Pro é um caderno digital para o comerciante organizar fiados e pagamentos registrados por ele. O app não oferece empréstimos, serviços bancários, seguros, criptomoedas, carteira ou processamento de pagamentos. O texto sobre Pix é apenas um lembrete; o app não processa o pagamento.
-
-Não há compra dentro do app para Android.
+- **O app oferece recursos financeiros:** Não.
+- O Fiado Pro é somente um caderno de registro. Não oferece empréstimos, serviços bancários, seguros, carteira ou processamento de pagamentos.
+- O Pix é apenas um texto de lembrete; o app não processa pagamentos.
+- Não há compra dentro do app para Android.
 
 ## Acesso ao app
 
-Todas as funções úteis exigem login. Para preparar o acesso do revisor:
+Todas as funções úteis exigem login. Conta de teste para o revisor:
 
-1. Crie manualmente uma conta de teste no site `www.fiadopro.com.br`.
-2. Use o e-mail sugerido: `revisor.play@fiadopro.com.br`.
-3. Configure uma senha e informe-a somente na Play Console e no 1Password. **Não coloque a senha neste arquivo nem no Git.**
-4. Deixe prontos dados fictícios com fiados em aberto, pagos e atrasados, incluindo pelo menos um pagamento registrado:
-   - Ana Costa — (11) 91111-1111
-   - Rui Pereira — (11) 92222-2222
-   - Lucia Ferreira — (11) 93333-3333
-   - Pedro Lima — (11) 94444-4444
-   - Maria Souza — (11) 95555-5555
+- E-mail: `revisor.play@fiadopro.com.br`
 
-Notas curtas para o revisor:
+Não coloque senha neste arquivo. Informe os dados de acesso diretamente na Play Console, conforme necessário.
 
-> O Fiado Pro é um caderno digital de fiado. Não há compras no app. Para cancelar a conta, acesse Meu Perfil → Zona de Perigo.
+Nota para o revisor:
+
+> O Fiado Pro é um caderno digital para organizar fiados e pagamentos registrados pelo comerciante. Não há compras no app. Para cancelar a conta, acesse Meu Perfil → Zona de Perigo.
 
 ## URLs e contato
 
-- **Site:** `www.fiadopro.com.br`.
-- **Exclusão de conta:** `https://www.fiadopro.com.br/excluir-conta` — só informe depois do deploy.
+- **Site:** https://www.fiadopro.com.br
+- **Exclusão de conta:** https://www.fiadopro.com.br/excluir-conta — só informe depois do deploy.
 - **Privacidade:** https://www.fiadopro.com.br/privacidade
 - **Termos:** https://www.fiadopro.com.br/termos
-- **Contato:** `contato@tech42.com.br`.
+- **Contato:** `contato@tech42.com.br`

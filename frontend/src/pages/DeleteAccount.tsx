@@ -25,7 +25,7 @@ const DeleteAccount: React.FC = () => {
             fontWeight: 600,
           }}
         >
-          ← Voltar ao Fiado Pro
+          ← Voltar
         </a>
       </div>
 
@@ -41,38 +41,39 @@ const DeleteAccount: React.FC = () => {
           Como excluir sua conta
         </h2>
         <p>
-          Acesse <a href="https://www.fiadopro.com.br">https://www.fiadopro.com.br</a>, abra
-          Meu Perfil e, na Zona de Perigo, toque em Cancelar Conta. Escolha um motivo, digite a
-          palavra CANCELAR e confirme com sua senha. Em seguida, o app mostrará “Excluir minha
-          conta”.
+          No app, acesse Meu Perfil → Zona de Perigo → Cancelar Conta e siga as instruções.
+          Se você entrou somente com Google e já está conectado, confirme digitando CANCELAR.
+          Se sua conta tem senha, confirme digitando sua senha.
         </p>
       </section>
 
       <section style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>
-          O que a exclusão faz
+          O que acontece com seus dados
         </h2>
         <p>
-          A conta é desativada, o nome é alterado para “Conta removida” e o e-mail
-          é substituído por um endereço anônimo. O telefone, a foto, a senha e o vínculo com o
-          Google são apagados. A sessão é encerrada e um e-mail de confirmação é enviado para o
-          endereço original. No aparelho, o app limpa a cópia local.
+          A conta é desativada na hora e você não consegue mais usá-la. O nome, e-mail,
+          telefone, foto, senha e login Google do lojista saem na hora.
+        </p>
+        <p>
+          Os clientes, fiados e pagamentos daquela loja são apagados em até 30 dias. Durante
+          esse período, esses registros continuam no servidor, mas o lojista não consegue
+          usar a conta.
+        </p>
+        <p>
+          Uma cobrança já emitida, um backup até sua rotação e um registro mínimo de segurança
+          podem permanecer por mais de 30 dias.
         </p>
       </section>
 
       <section style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>
-          Registros de fiado
+          Pedir a exclusão antes de 30 dias
         </h2>
         <p>
-          A exclusão da conta não apaga automaticamente do servidor os registros de fiado,
-          incluindo nomes e telefones dos clientes do lojista e os valores.
-        </p>
-        <p>
-          Para solicitar também a exclusão desses registros, ou se você entrou somente com
-          Google e não consegue concluir a etapa da senha, escreva para{' '}
-          <a href="mailto:contato@tech42.com.br">contato@tech42.com.br</a> com o e-mail da
-          conta.
+          Para pedir que os clientes, fiados e pagamentos sejam apagados antes desse prazo,
+          escreva para{' '}
+          <a href="mailto:contato@tech42.com.br">contato@tech42.com.br</a>.
         </p>
       </section>
 
@@ -82,10 +83,7 @@ const DeleteAccount: React.FC = () => {
         </h2>
         <p>
           Saiba mais na{' '}
-          <a href="https://www.fiadopro.com.br/privacidade">
-            Política de Privacidade
-          </a>
-          .
+          <a href="/privacidade">Política de Privacidade</a>.
         </p>
       </section>
 

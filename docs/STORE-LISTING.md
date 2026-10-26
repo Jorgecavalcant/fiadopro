@@ -41,6 +41,8 @@ Com o Fiado Pro, você pode:
 - Registrar pagamentos
 - Consultar o total a receber
 
+O app mostra a pontualidade do cliente naquela loja, um índice interno de pagamento baseado nos registros da própria loja. Não é consulta de crédito.
+
 O Fiado Pro é uma ferramenta de organização para o comerciante. Não é banco, empréstimo ou serviço de consultoria financeira. O aplicativo ajuda a registrar informações; o comerciante continua responsável por conferir os dados e conversar com seus clientes.
 
 ## O que há de novo — versão 1.0.0
