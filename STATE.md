@@ -1,15 +1,15 @@
 ﻿# STATE — Fiado Pro
 **Produto:** Fiado Pro — Smart Credit Tracker para pequenos comerciantes
-**Ultima atualizacao:** 2026-10-26
-**Atualizado por:** agent-manager (PR #37 aberta, sem merge)
+**Ultima atualizacao:** 2026-10-27
+**Atualizado por:** agent-manager (backup e migration 010 em producao, sem merge)
 
 ---
 
 ## ONDE ESTAMOS AGORA
 - **Sprint atual:** Sprint 5 — Publicacao na Google Play (FOCO). Apple/App Store adiada a pedido do CEO (nao pagar Apple Developer agora).
 - **Fase RPI:** Implement — config tecnica Android CONCLUIDA e mergeada na `main` (PR #1, commit 32a67a7). Aguardando passos manuais do Jorge (alguns LOCAIS na maquina dele).
-- **Status geral:** PR [#37](https://github.com/Jorgecavalcant/fiadopro/pull/37) aberta na branch `claude/play-store-launch`, sem merge. A compra do PRO fica escondida no Android. A exclusão desativa a conta na hora e apaga clientes, fiados e pagamentos daquele lojista em até 30 dias. A migration `010_account_purge.sql` ainda não foi aplicada em produção. Nesta sessão: backend 116 testes, frontend 44 testes, lint e build verdes.
-- **Responsavel atual:** Jorge (revisar e mergear a PR #37; backup do Postgres antes de aplicar a migration 010)
+- **Status geral:** PR [#37](https://github.com/Jorgecavalcant/fiadopro/pull/37) aberta na branch `claude/play-store-launch`, sem merge. Em 27/10/2026, por volta de 22:47 (horário de Brasília), a migration `010_account_purge.sql` foi aplicada no banco `fiado_pro`. Ela só criou as colunas opcionais `purge_after` e `purge_completed_at`. A API não foi reiniciada e o código novo ainda não está no ar: a exclusão de conta em 30 dias só passa a funcionar depois do merge e do deploy. Backup: `fiado_pro_20261027_224253.dump`, 36804 bytes, duas cópias validadas.
+- **Responsavel atual:** Jorge (revisar e mergear a PR #37; testar a exclusão com uma conta de teste)
 
 ---
 
@@ -69,11 +69,11 @@
 
 **Objetivo:** colocar o Fiado Pro ONLINE na **Google Play** (Apple adiada). Guia detalhado: `docs/ANDROID-BUILD.md`.
 
-**Onde paramos:** a PR #37 está pronta para review do CEO. Não foi mergeada, não foi para a Play e a migration 010 não rodou em produção.
+**Onde paramos:** backup do Postgres feito e migration 010 aplicada em produção em 27/10/2026, por volta de 22:47. Arquivo `fiado_pro_20261027_224253.dump`, 36804 bytes, cópia na pasta de backups da VPS e cópia local em `~/Backups-Locais/fiadopro/`. Contagens iguais antes e depois: 5 usuários, 5 clientes, 10 fiados, 0 dívidas na tabela antiga, 0 pagamentos. Nenhuma outra migration rodou. Não houve merge nem reinício.
 
-**Próximo passo:** o CEO revisa e, se concordar, mergeia a PR #37. Antes de aplicar `backend/migrations/010_account_purge.sql` no banco de produção, fazer backup do Postgres. A URL `/excluir-conta` só entra na ficha da Play depois desse deploy. O SHA-256 do `assetlinks.json` é o certificado de assinatura da Play Console, não o da chave de upload.
+**Próximo passo:** o Jorge faz o merge da PR #37 e testa a exclusão com uma conta de teste. A URL `/excluir-conta` só entra na ficha da Play depois do deploy. O SHA-256 do `assetlinks.json` é o certificado de assinatura da Play Console, não o da chave de upload.
 
-**Fase RPI atual:** Implement — PR #37 aberta. Faltam o merge do CEO, o backup e os passos manuais da Play.
+**Fase RPI atual:** Implement — PR #37 aberta. O backup e a migration 010 já foram feitos. Faltam o merge do CEO e os passos manuais da Play.
 
 ### CHECKLIST DE PUBLICACAO — GOOGLE PLAY (ordem)
 | # | Passo | Quem | Local? | Ref |
