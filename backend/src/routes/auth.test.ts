@@ -97,7 +97,7 @@ function createFakeDb() {
 
     if (
       sql.startsWith(
-        'SELECT id, email, full_name, is_active, role FROM users WHERE google_id = $1 OR email = $2',
+        'SELECT id, email, full_name, is_active, role, (password_hash IS NOT NULL) AS has_password FROM users WHERE google_id = $1 OR email = $2',
       )
     ) {
       const [google_id, email] = params as [string, string];

@@ -65,6 +65,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
         email: user.email,
         full_name: user.full_name,
         role: roleResult.rows[0]?.role ?? 'user',
+        has_password: true,
       },
     });
   } catch (err) {
@@ -100,7 +101,13 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
     setAuthCookie(res, token);
     res.json({
       success: true,
-      user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role },
+      user: {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        role: user.role,
+        has_password: true,
+      },
     });
   } catch (err) {
     if (err instanceof z.ZodError)
@@ -125,7 +132,7 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
     const { sub: google_id, name: full_name, picture: avatar_url } = payload;
     const email = normalizeEmail(payload.email);
     const result = await query(
-      'SELECT id, email, full_name, is_active, role FROM users WHERE google_id = $1 OR email = $2',
+      'SELECT id, email, full_name, is_active, role, (password_hash IS NOT NULL) AS has_password FROM users WHERE google_id = $1 OR email = $2',
       [google_id, email],
     );
     let user = result.rows[0];
@@ -158,6 +165,7 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
         email: user.email,
         full_name: user.full_name,
         role: user.role ?? 'user',
+        has_password: user.has_password === true,
       },
     });
   } catch (err: unknown) {
@@ -186,7 +194,7 @@ router.post('/verify', (req: Request, res: Response) => {
 router.get('/me', requireAuth, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await query(
-      'SELECT id, email, full_name, phone, pix_key, avatar_url, role, created_at FROM users WHERE id = $1',
+      'SELECT id, email, full_name, phone, pix_key, avatar_url, role, created_at, (password_hash IS NOT NULL) AS has_password FROM users WHERE id = $1',
       [req.user!.sub],
     );
     if (!result.rows[0]) return next(new ApiError(404, 'Usuario nao encontrado', 'USER_NOT_FOUND'));
@@ -265,7 +273,7 @@ router.post('/reset-password', async (req: Request, res: Response, next: NextFun
     await query('UPDATE password_reset_tokens SET used = true WHERE id = $1', [tokenId]);
     const jwtToken = signToken({ sub: user_id, email });
     setAuthCookie(res, jwtToken);
-    res.json({ success: true, user: { id: user_id, email, full_name } });
+    res.json({ success: true, user: { id: user_id, email, full_name, has_password: true } });
   } catch (err) {
     next(err);
   }
