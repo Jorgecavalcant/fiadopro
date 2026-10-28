@@ -53,6 +53,8 @@ export interface User {
   defaultInterestRate?: number;
   /** Preenchido pelo backend (/api/auth/me). Nunca decidir autorização só com isto no frontend. */
   role?: 'user' | 'admin';
+  /** False só quando o backend confirma que a conta não tem senha. */
+  hasPassword?: boolean;
 }
 
 export interface CustomerNote {
