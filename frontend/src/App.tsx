@@ -81,6 +81,8 @@ import Layout from './components/Layout';
 import AdminPanel from './components/AdminPanel';
 import UpgradePlano from './components/UpgradePlano';
 import FullScreenModal from './components/FullScreenModal';
+import DeleteAccountPanels from './components/DeleteAccountPanels';
+import { requestAccountDeletion } from './utils/deleteAccountFlow';
 import {
   getFinancialAdvice,
   getGeneralBusinessAdvice,
@@ -3407,9 +3409,6 @@ const ProfileView = ({
   onDeleteAccount,
 }: any) => {
   const [editUser, setEditUser] = useState({ ...user });
-  const [cancelStep, setCancelStep] = useState<0 | 1 | 2 | 3>(0);
-  const [cancelReason, setCancelReason] = useState('');
-  const [cancelConfirmText, setCancelConfirmText] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSyncWarning, setProfileSyncWarning] = useState('');
 
@@ -3578,153 +3577,10 @@ const ProfileView = ({
 
       <UpgradePlano />
 
-      {/* Zona de Perigo */}
-      <div className="bg-red-50 border border-red-200 p-8 rounded-t42lg space-y-4">
-        <h3 className="text-lg font-black text-red-700 flex items-center gap-2">
-          ⚠️ Zona de Perigo
-        </h3>
-        <p className="text-sm text-red-600 font-medium">
-          A conta é desativada na hora. Clientes, fiados e pagamentos desta loja são apagados em até 30 dias.
-        </p>
-        <button
-          onClick={() => setCancelStep(1)}
-          className="px-6 py-3 bg-red-600 text-white rounded-xl font-black hover:bg-red-700 transition-all text-sm"
-        >
-          Cancelar Conta
-        </button>
-      </div>
-
-      {cancelStep > 0 && (
-        <FullScreenModal>
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-t42xl shadow-2xl p-10 space-y-6 animate-in zoom-in">
-              {cancelStep === 1 && (
-                <>
-                  <div className="text-center">
-                    <div className="text-5xl mb-4">⚠️</div>
-                    <h3 className="text-xl font-black text-slate-900">Cancelar sua conta?</h3>
-                    <p className="text-slate-500 mt-2 font-medium leading-relaxed">
-                      Todos os clientes, transações e histórico serão{' '}
-                      <strong>PERMANENTEMENTE EXCLUÍDOS</strong>. Esta ação não pode ser desfeita.
-                    </p>
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setCancelStep(0)}
-                      className="flex-1 py-4 border-2 border-slate-200 rounded-2xl font-black text-slate-600 hover:bg-slate-50"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={() => setCancelStep(2)}
-                      className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black hover:bg-red-700"
-                    >
-                      Continuar →
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {cancelStep === 2 && (
-                <>
-                  <div>
-                    <h3 className="text-xl font-black text-slate-900 mb-2">
-                      Por que está cancelando?
-                    </h3>
-                    <p className="text-sm text-slate-400 mb-4">
-                      Sua resposta nos ajuda a melhorar.
-                    </p>
-                    <div className="space-y-3">
-                      {[
-                        'Não uso mais',
-                        'Muito caro',
-                        'Falta de funcionalidades',
-                        'Migrei para outro sistema',
-                        'Outro motivo',
-                      ].map((reason) => (
-                        <label
-                          key={reason}
-                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 cursor-pointer"
-                        >
-                          <input
-                            type="radio"
-                            name="cancelReason"
-                            value={reason}
-                            checked={cancelReason === reason}
-                            onChange={(e) => setCancelReason(e.target.value)}
-                            className="w-4 h-4 text-red-600"
-                          />
-                          <span className="font-bold text-slate-700">{reason}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setCancelStep(1)}
-                      className="flex-1 py-4 border-2 border-slate-200 rounded-2xl font-black text-slate-600"
-                    >
-                      ← Voltar
-                    </button>
-                    <button
-                      onClick={() => cancelReason && setCancelStep(3)}
-                      disabled={!cancelReason}
-                      className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black hover:bg-red-700 disabled:opacity-40"
-                    >
-                      Confirmar →
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {cancelStep === 3 && (
-                <>
-                  <div className="text-center">
-                    <div className="text-5xl mb-4">⛔</div>
-                    <h3 className="text-xl font-black text-red-700">Última confirmação</h3>
-                    <p className="text-slate-500 mt-2 font-medium leading-relaxed">
-                      A conta é desativada agora. Clientes, fiados e pagamentos desta loja são
-                      apagados em até 30 dias. O próximo passo pede a senha, ou CANCELAR se a
-                      conta entrou só com Google.
-                    </p>
-                    <p className="text-sm font-black text-slate-600 mt-4">
-                      Digite <strong className="text-red-600">CANCELAR</strong> para confirmar:
-                    </p>
-                    <input
-                      type="text"
-                      value={cancelConfirmText}
-                      onChange={(e) => setCancelConfirmText(e.target.value.toUpperCase())}
-                      placeholder="CANCELAR"
-                      className="mt-3 w-full px-5 py-3 bg-slate-50 rounded-2xl font-black text-center text-lg border-2 border-slate-200 outline-none focus:border-red-400"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-3">
-                    <button
-                      onClick={() => {
-                        if (cancelConfirmText === 'CANCELAR') onDeleteAccount();
-                      }}
-                      disabled={cancelConfirmText !== 'CANCELAR'}
-                      className="w-full py-4 bg-red-600 text-white rounded-2xl font-black hover:bg-red-700 disabled:opacity-40 transition-all"
-                    >
-                      Excluir Tudo Permanentemente
-                    </button>
-                    <button
-                      onClick={() => {
-                        setCancelStep(0);
-                        setCancelConfirmText('');
-                        setCancelReason('');
-                      }}
-                      className="w-full py-4 border-2 border-slate-200 rounded-2xl font-black text-slate-600 hover:bg-slate-50"
-                    >
-                      Desistir — Manter minha conta
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </FullScreenModal>
-      )}
+      <DeleteAccountPanels
+        googleOnly={user?.hasPassword === false}
+        onDelete={onDeleteAccount}
+      />
     </div>
   );
 };
@@ -4102,11 +3958,7 @@ const App: React.FC = () => {
   } | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteText, setEditingNoteText] = useState('');
-  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [consentAccepted, setConsentAccepted] = useState(false);
-  const [deletePassword, setDeletePassword] = useState('');
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
   const t = translations[language];
 
   // ===== Sincronização com o servidor (fonte de verdade quando logado) =====
@@ -4216,6 +4068,10 @@ const App: React.FC = () => {
             name: data.user.full_name || data.user.email,
             email: data.user.email,
             role: data.user.role,
+            hasPassword:
+              typeof data.user.has_password === 'boolean'
+                ? data.user.has_password
+                : prev?.hasPassword,
             phone: data.user.phone ?? prev?.phone,
             pixKey: data.user.pix_key ?? prev?.pixKey,
             avatar: data.user.avatar_url ?? prev?.avatar,
@@ -4481,25 +4337,10 @@ const App: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const handleDeleteAccount = async () => {
-    if (!deletePassword) {
-      setDeleteError('Digite sua senha para confirmar.');
-      return;
-    }
-    setDeleteLoading(true);
-    setDeleteError('');
+  const handleDeleteAccount = async (confirmation: string): Promise<string | null> => {
     try {
-      const res = await fetch(`${API_URL}/users/me`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ password: deletePassword }),
-      });
-      const data = await res.json();
-      if (!data.success) {
-        setDeleteError(data.error || 'Erro ao excluir conta.');
-        return;
-      }
+      const message = await requestAccountDeletion(`${API_URL}/users/me`, confirmation);
+      if (message) return message;
       setCustomers([]);
       setTransactions([]);
       setEvents([]);
@@ -4510,18 +4351,10 @@ const App: React.FC = () => {
       setCredentials(null);
       localStorage.removeItem(STORAGE_KEY);
       setUser(null);
-      setShowDeleteAccountModal(false);
+      return null;
     } catch {
-      setDeleteError('Erro de conexao. Tente novamente.');
-    } finally {
-      setDeleteLoading(false);
+      return 'Erro de conexão. Tente novamente.';
     }
-  };
-
-  const openDeleteAccountModal = () => {
-    setDeletePassword('');
-    setDeleteError('');
-    setShowDeleteAccountModal(true);
   };
 
   const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -4741,6 +4574,7 @@ const App: React.FC = () => {
         name: data.user.full_name || data.user.email,
         email: data.user.email,
         role: data.user.role,
+        hasPassword: data.user.has_password === true,
       });
       setActiveView(AppView.DASHBOARD);
     } catch (err: any) {
@@ -4769,6 +4603,7 @@ const App: React.FC = () => {
         name: data.user.full_name || data.user.email,
         email: data.user.email,
         role: data.user.role,
+        hasPassword: data.user.has_password === true,
       });
       setLoginError('');
     } catch (err: any) {
@@ -4801,6 +4636,7 @@ const App: React.FC = () => {
         name: data.user.full_name || data.user.email,
         email: data.user.email,
         role: data.user.role,
+        hasPassword: data.user.has_password === true,
       });
       setLoginError('');
     } catch (err: any) {
@@ -4865,6 +4701,7 @@ const App: React.FC = () => {
         name: data.user.full_name || data.user.email,
         email: data.user.email,
         role: data.user.role,
+        hasPassword: data.user.has_password === true,
       });
     } catch (err: any) {
       setLoginError((err as any).message || 'Erro ao redefinir senha.');
@@ -5431,93 +5268,10 @@ const App: React.FC = () => {
               setActiveView={setActiveView}
               onExport={handleExportData}
               onImport={handleImportData}
-              onDeleteAccount={openDeleteAccountModal}
+              onDeleteAccount={handleDeleteAccount}
             />
           )}
 
-          {showDeleteAccountModal && (
-            <div
-              style={{
-                position: 'fixed',
-                inset: 0,
-                background: 'rgba(0,0,0,0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 9999,
-                padding: 16,
-              }}
-            >
-              <div
-                style={{
-                  background: '#fff',
-                  borderRadius: 12,
-                  padding: 32,
-                  maxWidth: 400,
-                  width: '100%',
-                }}
-              >
-                <h3 style={{ color: '#dc2626', marginBottom: 8 }}>⚠️ Excluir minha conta</h3>
-                <p style={{ color: '#374151', marginBottom: 16, fontSize: 14 }}>
-                  A conta é desativada agora. Clientes, fiados e pagamentos desta loja são apagados em até 30 dias. Quem entrou só com Google digita CANCELAR.
-                </p>
-                <input
-                  type="password"
-                  placeholder="Digite sua senha para confirmar, ou CANCELAR se entrou só com Google"
-                  value={deletePassword}
-                  onChange={(e) => setDeletePassword(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleDeleteAccount()}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: 8,
-                    marginBottom: 8,
-                    fontSize: 14,
-                    boxSizing: 'border-box',
-                  }}
-                />
-                {deleteError && (
-                  <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 8 }}>{deleteError}</p>
-                )}
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <button
-                    onClick={() => {
-                      setShowDeleteAccountModal(false);
-                      setDeletePassword('');
-                      setDeleteError('');
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: '10px',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: 8,
-                      background: '#fff',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleDeleteAccount}
-                    disabled={deleteLoading}
-                    style={{
-                      flex: 1,
-                      padding: '10px',
-                      border: 'none',
-                      borderRadius: 8,
-                      background: '#dc2626',
-                      color: '#fff',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {deleteLoading ? 'Excluindo...' : 'Excluir conta'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
           {activeView === AppView.MY_EXPENSES && (
             <MyExpensesView
               ownerExpenses={ownerExpenses}
