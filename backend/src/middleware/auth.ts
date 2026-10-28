@@ -6,19 +6,33 @@ export interface AuthRequest extends Request {
   user?: { sub: string; email: string };
 }
 
-export const requireAuth = (req: AuthRequest, _res: Response, next: NextFunction) => {
+export const requireAuth = async (req: AuthRequest, _res: Response, next: NextFunction) => {
   const token = req.cookies?.fiado_token;
   if (!token) {
     return next(new ApiError(401, 'Authentication required', 'NO_TOKEN'));
   }
 
+  let payload;
   try {
-    const payload = verifyToken(token);
+    payload = verifyToken(token);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Invalid token';
+    return next(new ApiError(401, msg, 'INVALID_TOKEN'));
+  }
+
+  try {
+    const { query } = await import('../config/database.js');
+    const active = await query(
+      `SELECT role FROM users WHERE id = $1 AND deleted_at IS NULL AND is_active = TRUE`,
+      [payload.sub],
+    );
+    if (active.rows.length === 0) {
+      return next(new ApiError(401, 'Conta desativada', 'ACCOUNT_DISABLED'));
+    }
     req.user = { sub: payload.sub, email: payload.email };
     next();
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Invalid token';
-    next(new ApiError(401, msg, 'INVALID_TOKEN'));
+    next(err);
   }
 };
 

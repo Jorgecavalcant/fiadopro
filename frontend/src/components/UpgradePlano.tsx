@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Crown, CheckCircle2, Loader2, RefreshCcw } from 'lucide-react';
+import { isAndroidApp } from '../utils/androidStore';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://www.fiadopro.com.br/api';
 
@@ -45,6 +46,7 @@ const UpgradePlano: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [needsCpf, setNeedsCpf] = useState(false);
   const [cpf, setCpf] = useState('');
+  const androidApp = isAndroidApp();
 
   const loadStatus = useCallback(async () => {
     setIsLoadingStatus(true);
@@ -162,7 +164,7 @@ const UpgradePlano: React.FC = () => {
         </div>
         <div>
           <h3 className="text-lg font-black text-slate-800">Plano PRO</h3>
-          <p className="text-sm text-slate-400 font-medium">Assinatura via Asaas</p>
+          {!androidApp && <p className="text-sm text-slate-400 font-medium">Assinatura via Asaas</p>}
         </div>
       </div>
 
@@ -205,7 +207,9 @@ const UpgradePlano: React.FC = () => {
         </div>
       )}
 
-      {!isPro && (
+      {!isLoadingStatus && error && <p className="text-sm font-bold text-red-600">{error}</p>}
+
+      {!isPro && !androidApp && (
         <>
           <ul className="space-y-2">
             {PRO_BENEFITS.map((benefit) => (
@@ -231,8 +235,6 @@ const UpgradePlano: React.FC = () => {
               />
             </div>
           )}
-
-          {error && <p className="text-sm font-bold text-red-600">{error}</p>}
 
           <button
             onClick={handleSubscribe}

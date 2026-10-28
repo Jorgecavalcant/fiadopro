@@ -5,6 +5,7 @@ import './index.css';
 import App from './App';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
+import DeleteAccount from './pages/DeleteAccount';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -12,6 +13,7 @@ createRoot(document.getElementById('root')!).render(
       <Routes>
         <Route path="/privacidade" element={<PrivacyPolicy />} />
         <Route path="/termos" element={<TermsOfService />} />
+        <Route path="/excluir-conta" element={<DeleteAccount />} />
         <Route path="*" element={<App />} />
       </Routes>
     </BrowserRouter>

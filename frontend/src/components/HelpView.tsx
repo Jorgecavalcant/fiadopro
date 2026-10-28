@@ -1,4 +1,5 @@
 import React from 'react';
+import { isAndroidApp } from '../utils/androidStore';
 
 const HelpView = () => {
   const [activeSection, setActiveSection] = React.useState<'manual' | 'faq' | 'support'>('manual');
@@ -25,9 +26,9 @@ const HelpView = () => {
         'Se um cliente devolveu mercadoria ou pagou a mais: perfil do cliente → "Devolução" → informe o valor. O cliente aparecerá automaticamente na aba "A Pagar". Lá você pode "Devolver" (registrar pagamento ao cliente) ou "Abater" (incorporar como lucro).',
     },
     {
-      title: 'Score de Crédito',
+      title: 'Pontualidade do cliente',
       content:
-        'Cada cliente recebe uma pontuação de 0 a 1000 calculada automaticamente com base no histórico de pagamentos, pontualidade e frequência. Score ≥ 800 = Excelente, 600-799 = Bom, 400-599 = Regular, < 400 = Ruim.',
+        'A pontualidade do cliente, nesta loja, sai do histórico de pagamento. Quem paga em dia aparece melhor.',
     },
     {
       title: 'Parcelamento',
@@ -92,11 +93,11 @@ const HelpView = () => {
     },
     {
       q: 'O que é o Plano PRO?',
-      a: 'O Plano PRO desbloqueia: até 500 clientes (vs. 20 no gratuito), eventos ilimitados, Insights de IA por cliente, e sem propagandas. Consulte os planos disponíveis em "Upgrade para PRO" na barra lateral.',
+      a: isAndroidApp() ? 'Se a sua conta já é PRO, você usa até 500 clientes, eventos ilimitados, Insights de IA e sem anúncios.' : 'O Plano PRO desbloqueia: até 500 clientes (vs. 20 no gratuito), eventos ilimitados, Insights de IA por cliente, e sem propagandas. Consulte os planos disponíveis em "Upgrade para PRO" na barra lateral.',
     },
     {
-      q: 'Como funciona o Score de Crédito?',
-      a: 'O score (0-1000) é calculado automaticamente com base em: histórico de pagamentos, pontualidade, quantidade de transações, e tempo como cliente. Quanto mais o cliente paga em dia, maior o score.',
+      q: 'Como funciona a pontualidade do cliente?',
+      a: 'A pontualidade do cliente nesta loja é baseada no histórico de pagamento em dia. Quanto mais o cliente paga em dia nesta loja, melhor aparece.',
     },
     {
       q: 'O que é "Abatimento"?',

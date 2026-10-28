@@ -247,7 +247,11 @@ router.post('/reset-password', async (req: Request, res: Response, next: NextFun
     if (!/[0-9]/.test(password))
       return next(new ApiError(400, 'Senha precisa de pelo menos 1 numero', 'WEAK_PASSWORD'));
     const result = await query(
-      'SELECT t.id, t.user_id, u.email, u.full_name FROM password_reset_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.used = false AND t.expires_at > NOW()',
+      `SELECT t.id, t.user_id, u.email, u.full_name
+         FROM password_reset_tokens t
+         JOIN users u ON u.id = t.user_id
+        WHERE t.token = $1 AND t.used = false AND t.expires_at > NOW()
+          AND u.deleted_at IS NULL AND u.is_active = TRUE`,
       [token],
     );
     if (result.rows.length === 0) {
@@ -274,11 +278,19 @@ router.post('/logout', (_req: Request, res: Response) => {
 });
 
 // POST /api/auth/refresh
-router.post('/refresh', (req: Request, res: Response, next: NextFunction) => {
+router.post('/refresh', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = req.cookies?.fiado_token;
     if (!token) return next(new ApiError(401, 'Sem sessao ativa', 'NO_TOKEN'));
     const payload = verifyToken(token);
+    const active = await query(
+      'SELECT id FROM users WHERE id = $1 AND deleted_at IS NULL AND is_active = TRUE',
+      [payload.sub],
+    );
+    if (active.rows.length === 0) {
+      clearAuthCookie(res);
+      return next(new ApiError(401, 'Conta desativada', 'ACCOUNT_DISABLED'));
+    }
     const newToken = signToken({ sub: payload.sub, email: payload.email });
     setAuthCookie(res, newToken);
     res.json({ success: true });

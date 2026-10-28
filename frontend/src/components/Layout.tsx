@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { AppView, Language, User } from '../types';
 import { translations } from '../translations';
+import { isAndroidApp } from '../utils/androidStore';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -54,7 +55,7 @@ const viewLabels: Partial<Record<AppView, string>> = {
   [AppView.EVENT_DETAIL]: 'Detalhes do Evento',
   [AppView.DEBTORS_LIST]: 'Lista de Devedores',
   [AppView.RECEIVABLES_LIST]: 'Recebíveis',
-  [AppView.SCORE_DETAIL]: 'Score de Crédito',
+  [AppView.SCORE_DETAIL]: 'Pontualidade do cliente',
   [AppView.INBOX]: 'Aprovações',
   [AppView.MY_DEBTS]: 'Minhas Dívidas',
 };
@@ -299,7 +300,7 @@ const Layout: React.FC<LayoutProps> = ({
             gap: 4,
           }}
         >
-          {!isPro && !collapsed && (
+          {!isPro && !collapsed && !isAndroidApp() && (
             <button
               onClick={onUpgrade}
               style={{

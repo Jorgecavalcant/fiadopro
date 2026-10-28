@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1080, initial-scale=1.0">
+  <title>Resumo — FiadoPro</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 1080px; height: 1920px; margin: 0; }
+    body { background: #F8FAFC; color: #0F172A; font-family: system-ui, sans-serif; }
+    .top { height: 320px; padding: 78px 64px 42px; color: white; background: linear-gradient(135deg, #6366F1, #8B5CF6); border-radius: 0 0 48px 48px; }
+    .brand { font-size: 34px; font-weight: 750; }
+    .eyebrow { margin-top: 46px; font-size: 23px; opacity: .88; }
+    h1 { margin: 8px 0 0; font-size: 48px; }
+    main { padding: 38px 48px; }
+    .hero { padding: 38px; color: white; background: linear-gradient(135deg, #6366F1, #8B5CF6); border-radius: 28px; box-shadow: 0 12px 28px #6366F133; }
+    .hero-label { font-size: 22px; opacity: .9; }
+    .hero-value { margin-top: 9px; font-size: 50px; font-weight: 760; }
+    .hero-caption { margin-top: 9px; font-size: 18px; opacity: .85; }
+    .grid { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .stat { min-height: 190px; padding: 26px; background: white; border-radius: 24px; box-shadow: 0 8px 24px #0F172A0A; }
+    .stat-label { color: #64748B; font-size: 20px; }
+    .stat-number { margin-top: 14px; font-size: 42px; font-weight: 750; }
+    .red { color: #DC2626; }
+    .green { color: #059669; }
+    h2 { margin: 34px 4px 18px; font-size: 27px; }
+    .card { padding: 28px; background: white; border-radius: 24px; box-shadow: 0 8px 24px #0F172A0A; }
+    .person { display: flex; align-items: center; justify-content: space-between; padding: 19px 0; border-bottom: 1px solid #E2E8F0; font-size: 22px; }
+    .person:last-child { border-bottom: 0; }
+    .person-name { font-weight: 650; }
+    .tag { padding: 7px 13px; border-radius: 18px; font-size: 16px; font-weight: 700; }
+    .late { color: #DC2626; background: #FEF2F2; }
+    .ontime { color: #059669; background: #ECFDF5; }
+    .bars { padding: 27px; margin-top: 22px; background: white; border-radius: 24px; box-shadow: 0 8px 24px #0F172A0A; }
+    .bar-row { margin: 15px 0; display: flex; align-items: center; gap: 16px; color: #475569; font-size: 18px; }
+    .bar-label { width: 155px; }
+    .track { height: 16px; flex: 1; overflow: hidden; background: #E2E8F0; border-radius: 20px; }
+    .fill { height: 100%; background: #6366F1; border-radius: inherit; }
+    nav { position: absolute; top: 1790px; width: 1080px; height: 130px; display: flex; justify-content: space-around; align-items: center; background: white; border-top: 1px solid #E2E8F0; color: #64748B; font-size: 18px; }
+    nav span:last-child { color: #6366F1; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">FiadoPro</div>
+    <div class="eyebrow">Visão geral da loja</div>
+    <h1>Resumo</h1>
+  </header>
+  <main>
+    <section class="hero">
+      <div class="hero-label">Total a receber</div>
+      <div class="hero-value">R$ 538,40</div>
+      <div class="hero-caption">Valores em aberto dos clientes</div>
+    </section>
+    <section class="grid">
+      <article class="stat"><div class="stat-label">Clientes com saldo</div><div class="stat-number">3</div></article>
+      <article class="stat"><div class="stat-label">Em atraso</div><div class="stat-number red">1</div></article>
+    </section>
+    <h2>Acompanhamento</h2>
+    <section class="card">
+      <div class="person"><span class="person-name">Pedro Lima</span><span class="tag late">Em atraso</span></div>
+      <div class="person"><span class="person-name">Lucia Ferreira</span><span class="tag ontime">Em dia</span></div>
+    </section>
+    <section class="bars" aria-label="Barras de resumo">
+      <div class="bar-row"><span class="bar-label">Com saldo</span><div class="track"><div class="fill" style="width:75%"></div></div><strong>3</strong></div>
+      <div class="bar-row"><span class="bar-label">Em atraso</span><div class="track"><div class="fill" style="width:25%"></div></div><strong>1</strong></div>
+      <div class="bar-row"><span class="bar-label">Em dia</span><div class="track"><div class="fill" style="width:25%"></div></div><strong>1</strong></div>
+    </section>
+  </main>
+  <nav><span>Clientes</span><span>Movimentações</span><span>Resumo</span></nav>
+</body>
+</html>

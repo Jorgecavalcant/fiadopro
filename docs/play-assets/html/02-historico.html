@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1080, initial-scale=1.0">
+  <title>Histórico — FiadoPro</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 1080px; height: 1920px; margin: 0; }
+    body { background: #F8FAFC; color: #0F172A; font-family: system-ui, sans-serif; }
+    .top { height: 340px; padding: 76px 64px 44px; color: white; background: linear-gradient(135deg, #6366F1, #8B5CF6); border-radius: 0 0 48px 48px; }
+    .brand { font-size: 34px; font-weight: 750; }
+    .back { margin-top: 32px; font-size: 22px; opacity: .9; }
+    h1 { margin: 10px 0 0; font-size: 46px; }
+    main { padding: 34px 48px; }
+    .card { padding: 30px; margin-bottom: 22px; background: white; border-radius: 26px; box-shadow: 0 8px 24px #0F172A0A; }
+    .person { display: flex; align-items: center; gap: 22px; }
+    .avatar { width: 78px; height: 78px; display: grid; place-items: center; background: #EEF2FF; color: #6366F1; border-radius: 24px; font-size: 27px; font-weight: 700; }
+    .name { font-size: 30px; font-weight: 720; }
+    .phone { margin-top: 5px; color: #64748B; font-size: 20px; }
+    .balance { margin-top: 28px; padding-top: 24px; border-top: 1px solid #E2E8F0; }
+    .label { color: #64748B; font-size: 20px; }
+    .amount { margin-top: 6px; color: #DC2626; font-size: 42px; font-weight: 750; }
+    h2 { margin: 34px 4px 18px; font-size: 27px; }
+    .entry { padding: 26px 28px; margin-bottom: 14px; display: flex; align-items: center; gap: 18px; background: white; border-radius: 22px; }
+    .mark { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 18px; background: #FFF7ED; color: #EA580C; font-size: 25px; font-weight: 700; }
+    .mark.payment { background: #ECFDF5; color: #059669; }
+    .entry-info { flex: 1; }
+    .entry-title { font-size: 23px; font-weight: 700; }
+    .detail { margin-top: 4px; color: #64748B; font-size: 18px; }
+    .date { margin-top: 4px; color: #94A3B8; font-size: 17px; }
+    .entry-amount { color: #DC2626; font-size: 23px; font-weight: 700; white-space: nowrap; }
+    .entry-amount.payment { color: #059669; }
+    .message-label { margin-bottom: 14px; font-size: 21px; color: #64748B; }
+    .message { color: #334155; font-size: 24px; line-height: 1.55; }
+    .send { margin-top: 22px; padding: 20px 22px; text-align: center; color: white; background: #6366F1; border-radius: 18px; font-size: 22px; font-weight: 700; }
+    nav { position: absolute; top: 1790px; width: 1080px; height: 130px; display: flex; justify-content: space-around; align-items: center; background: white; border-top: 1px solid #E2E8F0; color: #64748B; font-size: 18px; }
+    nav span:nth-child(2) { color: #6366F1; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">FiadoPro</div>
+    <div class="back">‹ &nbsp; Clientes</div>
+    <h1>Histórico</h1>
+  </header>
+  <p>Pontualidade do cliente: paga em dia nesta loja.</p>
+  <main>
+    <section class="card">
+      <div class="person"><div class="avatar">AC</div><div><div class="name">Ana Costa</div><div class="phone">(11) 91111-1111</div></div></div>
+      <div class="balance"><div class="label">Saldo em aberto</div><div class="amount">R$ 186,40</div></div>
+    </section>
+    <h2>Lançamentos</h2>
+    <article class="entry">
+      <div class="mark">+</div><div class="entry-info"><div class="entry-title">Fiado</div><div class="detail">Padaria</div><div class="date">02/10</div></div><div class="entry-amount">R$ 120,00</div>
+    </article>
+    <article class="entry">
+      <div class="mark">+</div><div class="entry-info"><div class="entry-title">Fiado</div><div class="detail">Café</div><div class="date">09/10</div></div><div class="entry-amount">R$ 66,40</div>
+    </article>
+    <article class="entry">
+      <div class="mark payment">✓</div><div class="entry-info"><div class="entry-title">Pagamento</div><div class="detail">Pix</div><div class="date">15/10</div></div><div class="entry-amount payment">R$ 40,00</div>
+    </article>
+    <h2>Lembrete</h2>
+    <section class="card">
+      <div class="message-label">Mensagem pronta</div>
+      <div class="message">Olá, Ana! Tudo bem? Passando para lembrar do seu saldo em aberto. Quando puder, me avise. Obrigado!</div>
+      <div class="send">Enviar lembrete</div>
+    </section>
+  </main>
+  <nav><span>Clientes</span><span>Movimentações</span><span>Resumo</span></nav>
+</body>
+</html>
