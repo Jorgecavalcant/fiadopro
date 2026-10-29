@@ -1,7 +1,7 @@
 ﻿# STATE — Fiado Pro
 **Produto:** Fiado Pro — Smart Credit Tracker para pequenos comerciantes
-**Ultima atualizacao:** 2026-10-27
-**Atualizado por:** agent-manager (correcao do fluxo de exclusao, sem merge)
+**Ultima atualizacao:** 2026-10-28
+**Atualizado por:** agent-manager (login Google do site alinhado ao Client ID da API, sem merge)
 
 ---
 
@@ -52,7 +52,7 @@
 - **Banco de dados:** PostgreSQL 16 — Docker `fiado-pro-db` — banco `fiado_pro` — porta 5434
 - **Docker Compose:** `/srv/projetos/clientes/fiado-pro/docker-compose.yml`
 - **Proxy reverso:** Caddy — `https://www.fiadopro.com.br`
-- **Auth Google:** OAuth 2.0 ID token flow — Google Client ID `372313466474-69v2logj3hkl6afj7l68q045rbbmbid7.apps.googleusercontent.com`
+- **Auth Google:** OAuth 2.0 ID token flow — Google Client ID `488168583801-r8pvtmis98qq12bonh2h1pkrp0rmt2v5.apps.googleusercontent.com` (projeto FiadoPro, conta Tech 42). Causa em 28/10/2026: o site ainda pedia token do projeto antigo `372313466474` e a API, já no ID novo, recusava. Correção: o site passa a usar o mesmo ID da API. O botão só funciona depois do deploy do frontend.
 - **Auth Email:** JWT + Resend API — recuperacao de senha via tabela `password_reset_tokens`
 - **Email remetente atual:** `onboarding@resend.dev` (dominio Resend padrao — PENDENTE verificacao do dominio proprio)
 - **API_URL frontend:** `https://www.fiadopro.com.br/api`
@@ -134,6 +134,8 @@
 | 6 | assetlinks.json — atualizar SHA-256 apos gerar keystore | jc-agent-manager | ALTO | 17/04/2026 |
 | 7 | apple-app-site-association — atualizar TEAMID apos criar conta Apple Developer | jc-agent-manager | MEDIO | 17/04/2026 |
 | 8 | Conta de teste revisor Apple — criar em www.fiadopro.com.br com dados ficticios | Jorge | ALTO | 17/04/2026 |
+| 9 | Login nativo do Google no app Android. O botão web não funciona no WebView do Capacitor (origem `https://localhost`). | Jorge + agentes | MEDIO | 28/10/2026 |
+| 10 | Revisar o CORS da API para o app Android. Hoje a API aceita `https://www.fiadopro.com.br` e `http://localhost:3000`. O app usa `https://localhost`. | agentes | MEDIO | 28/10/2026 |
 
 ---
 
@@ -153,6 +155,7 @@
 | 17/04/2026 | Implement | Sprint 4 (parte tecnica): capacitor.config.ts (#553C9A + StatusBar), .env.production, codemagic.yaml, .well-known publicados (JSON valido), build + cap sync android OK | Site 200, assets android sincronizados, endpoints .well-known retornando JSON | Sprint 4 — parte manual (Jorge) |
 | 02/06/2026 | Implement | Sprint 5 — Prep de publicacao (agentes): auditoria de seguranca (bcrypt cost 12 confirmado, falso bloqueio Argon2 removido); pacote de conteudo das lojas (`docs/STORE-LISTING.md`); spec de assets (`docs/ASSETS-SPEC.md`); Vitest + 20 testes em `utils/credit.ts`; refator App.tsx para usar o modulo | 20/20 testes verdes; conteudo pronto para colar nos consoles | Jorge: contas/builds (Etapas 1-12 de SESSAO-SPRINT4) |
 | 03/06/2026 | Implement | Sprint 5 — Foco Play Store (Google ja pago, Apple adiada): subir targetSdk/compileSdk 34→35 (exigencia Play), toolchain AGP 8.2.1→8.7.2 + Gradle 8.2.1→8.9 + google-services 4.4.2; signingConfig via `keystore.properties` (gitignored) + `keystore.properties.example`; versionName 1.0.0; guia `docs/ANDROID-BUILD.md` | Projeto Android nos padroes atuais da Play; AAB assinavel via `./gradlew bundleRelease` | Jorge: instalar Android Studio, gerar keystore, rodar build, enviar SHA-256 |
+| 28/10/2026 | Implement | Login Google do site: `GOOGLE_CLIENT_ID` em `frontend/src/App.tsx` alinhado ao Client ID que a API já usa (projeto FiadoPro). VPS, .env, API e backend não foram alterados. | PR aberta, sem merge. O botão passa a funcionar só depois do deploy do frontend. | Jorge: merge, deploy, testar "Entrar com Google" em www.fiadopro.com.br |
 
 ---
 
