@@ -6,6 +6,7 @@ import {
   approveTransaction,
   rejectTransaction,
 } from '../services/syncService';
+import { formatBrDate } from '../utils/formatBr';
 
 interface InboxAprovacoesProps {
   formatCurrency: (v: number) => string;
@@ -91,10 +92,8 @@ export default function InboxAprovacoes({ formatCurrency, onChanged }: InboxApro
                   <p className="text-sm text-slate-500 mt-1">{item.description}</p>
                 )}
                 <p className="text-xs text-slate-400 mt-1">
-                  {new Date(item.occurred_at).toLocaleDateString('pt-BR')}
-                  {item.due_date
-                    ? ` · vence ${new Date(item.due_date).toLocaleDateString('pt-BR')}`
-                    : ''}
+                  {formatBrDate(item.occurred_at)}
+                  {item.due_date ? ` · vence ${formatBrDate(item.due_date)}` : ''}
                 </p>
                 {item.attachment && (
                   <p className="text-xs text-indigo-500 mt-1 flex items-center gap-1">

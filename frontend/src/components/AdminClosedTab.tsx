@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { formatBrDateTime } from '../utils/formatBr';
 import { adminFetch } from './adminApi';
 
 interface ClosedAccount {
@@ -25,7 +26,7 @@ function formatWhen(value: string | null) {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  return formatBrDateTime(date);
 }
 
 export const AdminClosedTab: React.FC = () => {
@@ -94,7 +95,8 @@ export const AdminClosedTab: React.FC = () => {
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-500 font-medium">
-        Contas que ainda podem voltar. O nome aparece só com a inicial. E-mail, telefone, CPF e Pix não entram nesta lista.
+        Contas que ainda podem voltar. O nome aparece só com a inicial. E-mail, telefone, CPF e Pix
+        não entram nesta lista.
       </p>
       {error && <p className="text-sm font-semibold text-slate-700">{error}</p>}
       <div className="fp-card">
@@ -113,12 +115,18 @@ export const AdminClosedTab: React.FC = () => {
             </thead>
             <tbody>
               {users.map((user) => (
-                <tr key={user.id} className="block cursor-pointer border-b border-slate-100 sm:table-row" onClick={() => void openDetail(user.id)}>
+                <tr
+                  key={user.id}
+                  className="block cursor-pointer border-b border-slate-100 sm:table-row"
+                  onClick={() => void openDetail(user.id)}
+                >
                   <td className="block font-bold text-slate-800 sm:table-cell">{user.name}</td>
                   <td className="block sm:table-cell">{formatWhen(user.deleted_at)}</td>
                   <td className="block sm:table-cell">{user.days_left} dias</td>
                   <td className="block sm:table-cell">
-                    <span className={`fp-badge ${user.status === 'Ordem judicial' ? 'fp-badge-danger' : 'fp-badge-warning'}`}>
+                    <span
+                      className={`fp-badge ${user.status === 'Ordem judicial' ? 'fp-badge-danger' : 'fp-badge-warning'}`}
+                    >
                       {user.status}
                     </span>
                   </td>
@@ -140,7 +148,9 @@ export const AdminClosedTab: React.FC = () => {
               ))}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="text-center text-slate-400 py-10">Nenhuma conta encerrada neste prazo.</td>
+                  <td colSpan={5} className="text-center text-slate-400 py-10">
+                    Nenhuma conta encerrada neste prazo.
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -152,9 +162,13 @@ export const AdminClosedTab: React.FC = () => {
         <div className="fp-card p-5 space-y-2">
           <p className="font-black text-slate-900">{detail.name}</p>
           <p className="text-sm text-slate-600">Encerrada em {formatWhen(detail.deleted_at)}</p>
-          <p className="text-sm text-slate-600">Exclusão prevista em {formatWhen(detail.purge_after)}</p>
+          <p className="text-sm text-slate-600">
+            Exclusão prevista em {formatWhen(detail.purge_after)}
+          </p>
           <p className="text-sm text-slate-600">Motivo informado: {detail.deleted_reason || '—'}</p>
-          <span className={`fp-badge ${detail.status === 'Ordem judicial' ? 'fp-badge-danger' : 'fp-badge-warning'}`}>
+          <span
+            className={`fp-badge ${detail.status === 'Ordem judicial' ? 'fp-badge-danger' : 'fp-badge-warning'}`}
+          >
             {detail.status}
           </span>
         </div>
@@ -162,23 +176,45 @@ export const AdminClosedTab: React.FC = () => {
 
       {totalPages > 1 && (
         <div className="flex items-center justify-end gap-2 text-sm font-semibold text-slate-500">
-          <button type="button" className="fp-btn fp-btn-ghost" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>Anterior</button>
-          <span>página {page} de {totalPages}</span>
-          <button type="button" className="fp-btn fp-btn-ghost" disabled={page >= totalPages} onClick={() => setPage((current) => current + 1)}>Próxima</button>
+          <button
+            type="button"
+            className="fp-btn fp-btn-ghost"
+            disabled={page <= 1}
+            onClick={() => setPage((current) => current - 1)}
+          >
+            Anterior
+          </button>
+          <span>
+            página {page} de {totalPages}
+          </span>
+          <button
+            type="button"
+            className="fp-btn fp-btn-ghost"
+            disabled={page >= totalPages}
+            onClick={() => setPage((current) => current + 1)}
+          >
+            Próxima
+          </button>
         </div>
       )}
 
       {target && (
-        <div className="fp-overlay flex items-center justify-center p-4" onClick={() => setTarget(null)}>
+        <div
+          className="fp-overlay flex items-center justify-center p-4"
+          onClick={() => setTarget(null)}
+        >
           <div
             className="fp-modal box-border w-full max-w-md p-6 sm:p-8"
             role="dialog"
             aria-labelledby="reactivate-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <h3 id="reactivate-title" className="text-lg font-black text-slate-900 mb-2">Reativar conta</h3>
+            <h3 id="reactivate-title" className="text-lg font-black text-slate-900 mb-2">
+              Reativar conta
+            </h3>
             <p className="text-sm text-slate-500 mb-4">
-              {target.name} volta para a mesma conta. A observação fica no registro, sem e-mail, telefone, CPF ou Pix.
+              {target.name} volta para a mesma conta. A observação fica no registro, sem e-mail,
+              telefone, CPF ou Pix.
             </p>
             <form
               className="space-y-4"
@@ -188,7 +224,10 @@ export const AdminClosedTab: React.FC = () => {
               }}
             >
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest" htmlFor="reactivate-note">
+                <label
+                  className="text-[10px] font-black text-slate-400 uppercase tracking-widest"
+                  htmlFor="reactivate-note"
+                >
                   Observação
                 </label>
                 <textarea
@@ -200,12 +239,24 @@ export const AdminClosedTab: React.FC = () => {
                   required
                   placeholder="Por que esta conta volta"
                 />
-                <p className="text-xs text-amber-700">Não cole CPF, senha ou chave Pix nesta observação.</p>
+                <p className="text-xs text-amber-700">
+                  Não cole CPF, senha ou chave Pix nesta observação.
+                </p>
               </div>
               {dialogError && <p className="text-sm font-semibold text-red-600">{dialogError}</p>}
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                <button type="button" onClick={() => setTarget(null)} className="fp-btn fp-btn-ghost w-full shrink-0 sm:w-auto">Cancelar</button>
-                <button type="submit" disabled={note.trim().length < 8 || saving} className="fp-btn fp-btn-primary w-full shrink-0 disabled:opacity-40 sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setTarget(null)}
+                  className="fp-btn fp-btn-ghost w-full shrink-0 sm:w-auto"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={note.trim().length < 8 || saving}
+                  className="fp-btn fp-btn-primary w-full shrink-0 disabled:opacity-40 sm:w-auto"
+                >
                   Reativar
                 </button>
               </div>

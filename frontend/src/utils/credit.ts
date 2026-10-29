@@ -1,6 +1,7 @@
 // Lógica de crédito pura (sem React, sem DOM) — extraída do App.tsx para ser testável.
 // Estas funções são a fonte única de verdade do cálculo de score, saldo e mensagem de cobrança.
 import type { Transaction } from '../types';
+import { formatBrDate } from './formatBr';
 
 /**
  * Score de crédito (0–1000) de um cliente, com base no histórico de transações CONFIRMADAS.
@@ -107,7 +108,7 @@ export const buildChargeMessage = (params: ChargeMessageParams): string => {
     pixKey,
     formatCurrency,
   } = params;
-  const date = params.date ?? new Date().toLocaleDateString('pt-BR');
+  const date = params.date ?? formatBrDate(new Date());
   const pixInfo = pixKey ? `\n${CHARGE_EMOJI.card} *Pix:* ${pixKey}` : '';
 
   let recentList = '';
@@ -116,8 +117,7 @@ export const buildChargeMessage = (params: ChargeMessageParams): string => {
       `\n\n${CHARGE_EMOJI.clipboard} *Lançamentos recentes:*\n` +
       recentDebts
         .map(
-          (t) =>
-            `• ${new Date(t.timestamp).toLocaleDateString('pt-BR')} — ${t.description}: ${formatCurrency(t.amount)}`,
+          (t) => `• ${formatBrDate(t.timestamp)} — ${t.description}: ${formatCurrency(t.amount)}`,
         )
         .join('\n');
   }
