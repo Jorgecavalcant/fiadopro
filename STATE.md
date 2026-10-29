@@ -173,6 +173,7 @@
 | 29/10/2026 | Implement | O pagamento passa por uma interface única. Hoje só o Asaas implementa. A regra de plano não chama o Asaas direto. Nenhum outro provedor foi ligado. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 29/10/2026 | Implement | O site mostra o preço do Pro que vem do servidor. Enterprise aparece sem preço e sem checkout. O aplicativo Android não leva preço, botão nem link de assinatura. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 29/10/2026 | Implement | O admin concede cortesia, teste de 14 dias (uma vez), cupom e promoção com prazo. Vencida, a pessoa volta ao plano pago ou ao Free. O registro guarda plano e validade, sem CPF, e-mail ou Pix. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
+| 29/10/2026 | Implement | O cadastro pode pedir confirmação de e-mail por link, mas a opção nasce desligada. Conta antiga e login com Google continuam iguais. A migration 015 só adiciona coluna e tabela. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. A migration em produção só depois do merge, com backup. |
 
 ---
 
