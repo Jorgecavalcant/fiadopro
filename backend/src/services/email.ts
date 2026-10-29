@@ -25,6 +25,40 @@ export async function sendPasswordResetEmail(to: string, token: string): Promise
   });
 }
 
+export async function sendEmailConfirmation(to: string, token: string): Promise<void> {
+  if (!(process.env.RESEND_API_KEY || '').trim()) {
+    throw new Error('CONFIRMATION_NOT_SENT');
+  }
+  const base = (process.env.APP_URL || 'https://www.fiadopro.com.br').replace(/\/$/, '');
+  const link = `${base}/api/auth/confirm-email?token=${encodeURIComponent(token)}`;
+  try {
+    const result = await resend.emails.send({
+      from: FROM,
+      to,
+      subject: 'Confirme seu e-mail - Fiado Pro',
+      html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
+        <h2 style="color:#4f46e5">Fiado Pro</h2>
+        <p>Para entrar na sua conta, confirme seu e-mail.</p>
+        <p>Clique no botao abaixo. O link expira em <strong>24 horas</strong>.</p>
+        <a href="${link}" style="display:inline-block;margin:24px 0;padding:14px 28px;background:#4f46e5;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">
+          Confirmar meu e-mail
+        </a>
+        <p style="color:#6b7280;font-size:13px">Se voce nao criou esta conta, ignore este e-mail.</p>
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0"/>
+        <p style="color:#9ca3af;font-size:12px">Fiado Pro - Controle suas fiados com inteligencia</p>
+      </div>
+    `,
+    });
+    if (result.error) {
+      throw new Error('CONFIRMATION_NOT_SENT');
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message === 'CONFIRMATION_NOT_SENT') throw err;
+    throw new Error('CONFIRMATION_NOT_SENT');
+  }
+}
+
 export async function sendAccountDeletionEmail(to: string, name: string): Promise<void> {
   await resend.emails.send({
     from: FROM,
