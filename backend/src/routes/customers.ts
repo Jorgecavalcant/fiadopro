@@ -45,7 +45,7 @@ const COUNTERPART_CLOSED = `EXISTS (
  * Sem índice único: um número já repetido na base não pode derrubar o deploy.
  * A comparação usa normalizePhone (só dígitos, sem DDI 55 e sem zero à esquerda).
  */
-async function activeCustomerWithSamePhone(
+export async function activeCustomerWithSamePhone(
   ownerId: string,
   phone: string | null | undefined,
   excludeId?: string | null,
@@ -68,7 +68,7 @@ async function activeCustomerWithSamePhone(
   return null;
 }
 
-function duplicatePhoneError(found: { id: string; name: string }): ApiError {
+export function duplicatePhoneError(found: { id: string; name: string }): ApiError {
   return new ApiError(409, `Já existe ${found.name} com esse número`, 'DUPLICATE_PHONE', {
     existingCustomerId: found.id,
   });

@@ -22,7 +22,11 @@ export const errorHandler = (
   const message = err.message || 'Internal Server Error';
   const code = err instanceof ApiError ? err.code : 'INTERNAL_ERROR';
 
-  console.error(`[ERROR] ${code}: ${message}`, err);
+  if (err instanceof ApiError && err.code === 'DUPLICATE_PHONE') {
+    console.error('[ERROR] DUPLICATE_PHONE');
+  } else {
+    console.error(`[ERROR] ${code}: ${message}`, err);
+  }
 
   const extra = err instanceof ApiError ? err.extra : undefined;
 

@@ -4040,14 +4040,20 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
-    schedulePush(true, customers, transactions, (patches) => {
-      setTransactions((prev) =>
-        prev.map((tx) => {
-          const patch = patches.find((p) => p.id === tx.id);
-          return patch ? { ...tx, status: patch.status } : tx;
-        }),
-      );
-    });
+    schedulePush(
+      true,
+      customers,
+      transactions,
+      (patches) => {
+        setTransactions((prev) =>
+          prev.map((tx) => {
+            const patch = patches.find((p) => p.id === tx.id);
+            return patch ? { ...tx, status: patch.status } : tx;
+          }),
+        );
+      },
+      (notice) => setDuplicateCustomer(notice),
+    );
   }, [user, customers, transactions]);
 
   const handleUpdateNote = (noteId: string) => {

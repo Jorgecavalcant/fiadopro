@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { createServer, Server } from 'http';
@@ -14,6 +14,7 @@ import { errorHandler } from '../../middleware/errorHandler.js';
 import pool, { query } from '../../config/database.js';
 import { signToken } from '../../utils/jwt.js';
 import customersRouter from '../../routes/customers.js';
+import syncRouter from '../../routes/sync.js';
 
 if (
   process.env.DB_HOST !== '127.0.0.1' ||
@@ -141,6 +142,7 @@ beforeAll(async () => {
   app.use(express.json());
   app.use(cookieParser());
   app.use('/api/customers', customersRouter);
+  app.use('/api/sync', syncRouter);
   app.use(errorHandler);
   httpServer = createServer(app);
   await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', () => resolve()));
@@ -183,6 +185,10 @@ async function postCustomer(
 
 describe('celular repetido na mesma loja', () => {
   it('o segundo cliente com o mesmo celular recebe 409 e o nome do primeiro', async () => {
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      logs.push(args.map((item) => String(item)).join(' '));
+    });
     const ownerId = await userOf();
     const created = await postCustomer(ownerId, {
       name: 'Maria Silva',
@@ -237,6 +243,53 @@ describe('celular repetido na mesma loja', () => {
     expect(moved.status).toBe(409);
     expect(movedBody.error?.message).toBe('Já existe Carlos Souza com esse número');
     expect(movedBody.error?.existingCustomerId).toBe(otherBody.customer?.id);
+    const written = logs.join('\n');
+    expect(written).toContain('DUPLICATE_PHONE');
+    expect(written).not.toContain('Maria Silva');
+    expect(written).not.toContain('Carlos Souza');
+    expect(written).not.toContain('11988887777');
+    expect(written).not.toContain('97777');
+    spy.mockRestore();
+  });
+
+  it('a importação offline recusa o celular que já existe', async () => {
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      logs.push(args.map((item) => String(item)).join(' '));
+    });
+    const ownerId = await userOf();
+    const created = await postCustomer(ownerId, { name: 'Lucia Ferreira', phone: '11966665555' });
+    const createdBody = (await created.json()) as { customer?: { id?: string } };
+    expect(created.status).toBe(201);
+
+    const incomingId = randomUUID();
+    const imported = await fetch(`${baseUrl}/api/sync/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...cookie(ownerId) },
+      body: JSON.stringify({
+        customers: [{ id: incomingId, name: 'Outra Pessoa', phone: '+55 (11) 96666-5555' }],
+        transactions: [],
+      }),
+    });
+    const importedBody = (await imported.json()) as {
+      rejected?: { code?: string; message?: string; existingCustomerId?: string }[];
+      customersImported?: number;
+    };
+    expect(imported.status).toBe(200);
+    expect(importedBody.customersImported).toBe(0);
+    expect(importedBody.rejected?.[0]?.code).toBe('DUPLICATE_PHONE');
+    expect(importedBody.rejected?.[0]?.message).toBe('Já existe Lucia Ferreira com esse número');
+    expect(importedBody.rejected?.[0]?.existingCustomerId).toBe(createdBody.customer?.id);
+
+    const count = await query(
+      `SELECT COUNT(*)::int AS total FROM customers WHERE owner_user_id = $1`,
+      [ownerId],
+    );
+    expect(count.rows[0].total).toBe(1);
+    const written = logs.join('\n');
+    expect(written).not.toContain('Lucia Ferreira');
+    expect(written).not.toContain('96666');
+    spy.mockRestore();
   });
 
   it('nome igual com celular diferente é aceito', async () => {

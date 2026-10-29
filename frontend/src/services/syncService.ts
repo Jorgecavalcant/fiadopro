@@ -162,6 +162,7 @@ const toServerCustomerBody = (c: Customer) => ({
 /** Estado da última sincronização — base do diff do push. */
 let shadowCustomers = new Map<string, string>();
 let shadowTransactions = new Map<string, string>();
+let blockedPhone = new Map<string, string>();
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 
 const fingerprintCustomer = (c: Customer): string => JSON.stringify(toServerCustomerBody(c));
@@ -263,18 +264,54 @@ export function schedulePush(
   customers: Customer[],
   transactions: Transaction[],
   onStatusFromServer: (patches: StatusPatch[]) => void,
+  onDuplicatePhone?: (notice: { id: string; message: string }) => void,
 ): void {
   if (!loggedIn) return;
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
-    void pushDiffs(customers, transactions, onStatusFromServer);
+    void pushDiffs(customers, transactions, onStatusFromServer, onDuplicatePhone);
   }, PUSH_DEBOUNCE_MS);
+}
+
+async function sendCustomer(
+  method: 'POST' | 'PATCH',
+  path: string,
+  body: Record<string, unknown>,
+): Promise<
+  | { kind: 'ok' }
+  | { kind: 'fail' }
+  | { kind: 'duplicate'; message: string; existingCustomerId?: string }
+> {
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      method,
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = (await res.json()) as {
+      success?: boolean;
+      error?: { code?: string; message?: string; existingCustomerId?: string };
+    };
+    if (res.status === 409 && data.error?.code === 'DUPLICATE_PHONE') {
+      return {
+        kind: 'duplicate',
+        message: data.error.message ?? 'Já existe um cliente com esse número',
+        existingCustomerId: data.error.existingCustomerId,
+      };
+    }
+    if (!res.ok || data.success === false) return { kind: 'fail' };
+    return { kind: 'ok' };
+  } catch {
+    return { kind: 'fail' };
+  }
 }
 
 async function pushDiffs(
   customers: Customer[],
   transactions: Transaction[],
   onStatusFromServer: (patches: StatusPatch[]) => void,
+  onDuplicatePhone?: (notice: { id: string; message: string }) => void,
 ): Promise<void> {
   const patches: StatusPatch[] = [];
 
@@ -283,17 +320,26 @@ async function pushDiffs(
     // enviar; o cliente fica só local até o telefone ser preenchido.
     if (!c.phone || !c.phone.trim()) continue;
     const fp = fingerprintCustomer(c);
+    if (blockedPhone.get(c.id) === fp) continue;
     const known = shadowCustomers.get(c.id);
     if (known === fp) continue;
     const body = toServerCustomerBody(c);
-    const result =
-      known === undefined
-        ? await jsonFetch('/customers', { method: 'POST', body: JSON.stringify(body) })
-        : await jsonFetch(`/customers/${c.id}`, {
-            method: 'PATCH',
-            body: JSON.stringify({ ...body, id: undefined }),
-          });
-    if (result) shadowCustomers.set(c.id, fp);
+    const sent = await sendCustomer(
+      known === undefined ? 'POST' : 'PATCH',
+      known === undefined ? '/customers' : `/customers/${c.id}`,
+      known === undefined ? body : { ...body, id: undefined },
+    );
+    if (sent.kind === 'duplicate') {
+      blockedPhone.set(c.id, fp);
+      if (sent.existingCustomerId) {
+        onDuplicatePhone?.({ id: sent.existingCustomerId, message: sent.message });
+      }
+      continue;
+    }
+    if (sent.kind === 'ok') {
+      blockedPhone.delete(c.id);
+      shadowCustomers.set(c.id, fp);
+    }
   }
 
   // Clientes apagados localmente → soft delete no servidor
@@ -343,6 +389,7 @@ async function pushDiffs(
 export function resetSyncState(): void {
   shadowCustomers = new Map();
   shadowTransactions = new Map();
+  blockedPhone = new Map();
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = null;
 }
