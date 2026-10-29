@@ -42,6 +42,7 @@
 | Dominio antigo desativado | `fiadopro.jcplanejamento.com.br` removido do Caddyfile e OAuth | 05/04/2026 | Dominio antigo nao funciona mais |
 | `dist/` na raiz e obrigatoria | Volume montado pelo nginx — nunca remover | 13/04/2026 | Sempre rodar `npm run build` antes de subir containers |
 | LGPD obrigatoria | Dados de credito de clientes do comerciante sao sensiveis | [verificar] | Arquitetura de dados |
+| Pro custa R$ 30,00. Enterprise existe sem venda nesta fase. | Uma fonte de preço no servidor. A tela já mostrava 30. O padrão antigo de 19,90 deixa de mandar na cobrança nova. | 29/10/2026 | Assinatura já criada no Asaas não é alterada. Checkout de Enterprise não abre. |
 
 ---
 
@@ -166,6 +167,7 @@
 | 29/10/2026 | Implement | Visão geral no lugar da aba Métricas. Os seis números saem do servidor, com período e tipo. A exportação em PDF e planilha leva só esses números e fica registrada. Configurações e Relatórios saíram da tela; a tabela app_settings continua no banco. Produção não foi alterada. | PR aberta, sem merge. A biblioteca da planilha ficou na versão sem falha conhecida, e a dependência interna brace-expansion foi travada em 1.1.20. | Jorge: mergear a PR das contas encerradas antes desta. |
 | 29/10/2026 | Implement | O deploy da visão geral quebrou porque o `package.json` do backend ganhou pdfkit, exceljs e @types/pdfkit e o `backend/package-lock.json` não acompanhou. O Docker usa `npm ci`. Regra: toda dependência nova no backend exige atualizar `backend/package-lock.json` com Node 20. O CI agora roda o mesmo `npm ci` do Docker. Produção não foi alterada nesta correção. | PR aberta, sem merge. | Jorge: revisar e mergear. O próximo deploy passa a instalar essas bibliotecas. |
 | 29/10/2026 | Implement | A cobrança via WhatsApp mostrava � no lugar dos emojis porque o atalho wa.me redireciona e troca emoji de 4 bytes por U+FFFD. O link passou a usar api.whatsapp.com/send com encodeURIComponent do texto inteiro. Mesmos emojis e mesmo texto. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR |
+| 29/10/2026 | Implement | Modelo de planos Free, Pro e Enterprise. O servidor cobra R$ 30 no Pro e não publica o preço do Enterprise. Concessão e promoção vencidas voltam sozinhas ao plano devido. Migration 013 só no banco local. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. A migration em produção só depois do merge, com backup. |
 
 ---
 
