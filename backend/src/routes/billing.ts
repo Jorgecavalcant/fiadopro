@@ -5,13 +5,10 @@ import { query, getClient } from '../config/database.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import {
-  createCustomer,
-  createSubscription,
-  getSubscription,
-  cancelSubscription,
+  getPaymentProvider,
   AsaasNotConfiguredError,
   AsaasRequestError,
-} from '../services/asaas.js';
+} from '../services/paymentProvider.js';
 import {
   adPolicyFor,
   getUserPlan,
@@ -118,7 +115,8 @@ export async function subscribeHandler(req: AuthRequest, res: Response, next: Ne
       await query('UPDATE users SET cpf = $1, updated_at = NOW() WHERE id = $2', [cpfCnpj, userId]);
     }
 
-    const customer = await createCustomer({
+    const provider = getPaymentProvider();
+    const customer = await provider.createCustomer({
       name: user.full_name || user.email,
       email: user.email,
       cpfCnpj,
@@ -127,13 +125,13 @@ export async function subscribeHandler(req: AuthRequest, res: Response, next: Ne
     const price = PRO_MONTHLY_PRICE;
     const nextDueDate = new Date().toISOString().slice(0, 10);
 
-    const subscription = await createSubscription({
-      customer: customer.id,
+    const subscription = await provider.createSubscription({
+      customerId: customer.id,
       value: price,
       nextDueDate,
     });
 
-    const detail = await getSubscription(subscription.id);
+    const detail = await provider.readSubscription(subscription.id);
     const invoiceUrl = detail.invoiceUrl || subscription.invoiceUrl || null;
     const status = detail.status || subscription.status || 'PENDING';
 
@@ -184,7 +182,7 @@ export async function cancelHandler(req: AuthRequest, res: Response, next: NextF
       return res.json({ success: true, currentPeriodEnd: sub.current_period_end });
     }
 
-    await cancelSubscription(sub.asaas_subscription_id);
+    await getPaymentProvider().cancelSubscription(sub.asaas_subscription_id);
 
     await query(
       `UPDATE subscriptions SET canceled_at = NOW(), updated_at = NOW() WHERE user_id = $1`,
@@ -277,15 +275,14 @@ async function recordWebhook(
 }
 
 export async function webhookHandler(req: Request, res: Response) {
-  const expected = process.env.ASAAS_WEBHOOK_TOKEN;
-  if (!expected) {
-    console.error('[Billing] ASAAS_WEBHOOK_TOKEN nao configurado — webhook recusado');
-    return res.status(503).json({ success: false, message: 'Webhook nao configurado' });
-  }
-
   const headerValue = req.headers['asaas-access-token'];
   const provided = Array.isArray(headerValue) ? headerValue[0] : headerValue;
-  if (!timingSafeEqualString(provided, expected)) {
+  const verification = getPaymentProvider().verifyWebhook(provided);
+  if (!verification.ok) {
+    if (verification.httpStatus === 503) {
+      console.error('[Billing] ASAAS_WEBHOOK_TOKEN nao configurado — webhook recusado');
+      return res.status(503).json({ success: false, message: 'Webhook nao configurado' });
+    }
     return res.status(401).json({ success: false, message: 'Token invalido' });
   }
 
