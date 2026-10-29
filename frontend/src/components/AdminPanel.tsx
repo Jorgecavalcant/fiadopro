@@ -4,6 +4,7 @@ import {
   BarChart3,
   ClipboardList,
   Archive,
+  Gift,
   Search,
   KeyRound,
   ShieldCheck,
@@ -16,13 +17,14 @@ import { adminFetch } from './adminApi';
 import { AdminAuditTab } from './AdminAuditTab';
 import { AdminBlockDialog } from './AdminBlockDialog';
 import { AdminClosedTab } from './AdminClosedTab';
+import { AdminGrantsTab } from './AdminGrantsTab';
 import { AdminOverviewTab } from './AdminOverviewTab';
 import { BLOCK_REASON_LABEL } from './adminLabels';
 
 /* ============================================================
  * Tipos (espelham o envelope { success, ... } do backend /api/admin/*)
  * ============================================================ */
-type AdminTab = 'users' | 'overview' | 'audit' | 'closed';
+type AdminTab = 'users' | 'overview' | 'grants' | 'audit' | 'closed';
 
 interface AdminUser {
   id: string;
@@ -59,6 +61,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
   const tabs: { id: AdminTab; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'users', label: 'Usuários', icon: Users },
     { id: 'overview', label: 'Visão geral', icon: BarChart3 },
+    { id: 'grants', label: 'Concessões', icon: Gift },
     { id: 'audit', label: 'Registro', icon: ClipboardList },
     { id: 'closed', label: 'Contas encerradas', icon: Archive },
   ];
@@ -68,7 +71,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
       <div>
         <h2 className="text-2xl font-black text-slate-900">Painel Administrativo</h2>
         <p className="text-slate-400 font-semibold text-sm">
-          Usuários, visão geral, registro e contas encerradas
+          Usuários, visão geral, concessões, registro e contas encerradas
         </p>
       </div>
 
@@ -91,6 +94,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
 
       {tab === 'users' && <UsersTab currentUserId={currentUserId} />}
       {tab === 'overview' && <AdminOverviewTab />}
+      {tab === 'grants' && <AdminGrantsTab />}
       {tab === 'audit' && <AdminAuditTab />}
       {tab === 'closed' && <AdminClosedTab />}
     </div>
@@ -273,9 +277,13 @@ const UsersTab: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
                       {(u.legal_hold || u.block_reason) && (
                         <span
                           className={`fp-badge ${u.legal_hold ? 'fp-badge-danger' : 'fp-badge-warning'}`}
-                          title={u.block_note || BLOCK_REASON_LABEL[u.block_reason || ''] || 'Bloqueio'}
+                          title={
+                            u.block_note || BLOCK_REASON_LABEL[u.block_reason || ''] || 'Bloqueio'
+                          }
                         >
-                          {u.legal_hold ? 'Judicial' : (BLOCK_REASON_LABEL[u.block_reason || ''] || u.block_reason)}
+                          {u.legal_hold
+                            ? 'Judicial'
+                            : BLOCK_REASON_LABEL[u.block_reason || ''] || u.block_reason}
                         </span>
                       )}
                     </div>
