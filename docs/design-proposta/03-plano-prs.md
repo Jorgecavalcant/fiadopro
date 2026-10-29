@@ -15,7 +15,7 @@ A regra de saldo não entra nestas PRs. Dívida e devolução aumentam. Pagament
 2. **Botões, alerta, saldo e campo.** Três ou quatro componentes usados por todo o app. Sem migração.
 3. **Painel.** Cartões com o mesmo saldo e o mesmo título. Sem migração.
 4. **Lista de clientes.** Linha com nome TESTE no protótipo; na tela real, o nome que já existe. Tag Te deve / Você deve / Em dia. Sem migração.
-5. **Detalhe do cliente.** Quatro botões da família nova e o aviso de saldo credor sem botão próprio. Sem migração. Se a PR #59 já tiver entrado, esta só troca o visual do aviso.
+5. **Detalhe do cliente.** Quatro botões da família nova e o aviso de saldo credor sem botão próprio. Sem migração. A PR #59 já tirou os botões antigos; esta só troca o visual do aviso.
 6. **Lançamento.** As quatro abas no mesmo formulário: saldo, moeda, erro em português, Salvando..., Devolver tudo e Abater tudo. Sem migração.
 7. **Dividir conta.** Mesmo cartão, mesmo campo de data e os mesmos botões. Sem migração.
 8. **Admin.** As abas atuais no mesmo visual. Sem migração.

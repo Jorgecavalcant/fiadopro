@@ -31,9 +31,9 @@ Os cantos mudam de tela: 12px, 14px, 16px, 18px, 24px e classes `rounded-t42`. O
 
 **Detalhe do cliente.** Os quatro botões não são uma família: Nova despesa é navy, Pagamento é verde, Abatimento é roxo com borda, Devolução é azul com borda. No celular eles vão para uma coluna; no desktop, grade de quatro. Alturas diferentes (o par de cima é maior).
 
-**Caixa "Dinheiro a devolver".** Fundo índigo claro, ícone grande, dois botões índigo na mesma linha (`flex` sem quebra). O texto "Este cliente possui saldo credor. Como deseja proceder?" fica espremido. O botão "Devolver" sai da caixa em 360px. Os dois botões repetem Nova despesa, Pagamento, Abatimento e Devolução, que já estão acima. "Acerto de lucro" grava uma dívida com outro nome. A PR #59 (aberta, fora desta main) trata o comportamento; esta proposta trata o visual de qualquer aviso.
+**Aviso de saldo credor.** Antes da PR #59 a caixa "Dinheiro a devolver" punha dois botões índigo na mesma linha, sem quebra, e o botão "Devolver" saía da caixa em 360px. A #59 já tirou esses botões e passou a mostrar o saldo nas abas. O aviso novo ainda não usa a mesma peça das outras telas, e o resto do app continua com várias paletas. Esta proposta desenha o aviso único (título com o valor e uma frase, sem botão dentro).
 
-**Lançamento (Nova despesa, Pagamento, Devolução, Abatimento).** Cada aba pinta o topo com um degradê diferente. O saldo das abas de dívida e pagamento é um cartão; o de abatimento e devolução, na main atual, ainda é uma faixa menor ("Saldo do cliente"). Campo de valor em 36px, rótulo em 10px. A mensagem de erro e o "Salvando..." já existem depois da PR #58, mas o formulário não usa o mesmo campo do restante do app.
+**Lançamento (Nova despesa, Pagamento, Devolução, Abatimento).** Cada aba pinta o topo com um degradê diferente. A PR #59 já colocou o mesmo cartão de saldo nas quatro. O campo de valor, o rótulo de 10px e o botão ainda não usam a mesma peça do restante do app. A mensagem de erro e o "Salvando..." já existem.
 
 **Dividir conta.** Lista, pessoas e total misturam o cartão branco grande com inputs nativos. A data dd/mm/aaaa já está encaminhada; o bloco visual continua outro desenho.
 
