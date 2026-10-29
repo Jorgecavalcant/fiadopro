@@ -44,6 +44,11 @@ interface FakeUser {
   avatar_url: string | null;
   created_at: string;
   role: string;
+  deleted_at?: string | null;
+  purge_completed_at?: string | null;
+  purge_after?: string | null;
+  login_retained?: boolean;
+  legal_hold?: boolean;
 }
 
 function createFakeDb() {
@@ -276,6 +281,47 @@ describe('normalizacao de e-mail em auth.ts (dedup auth)', () => {
     expect(fakeDb.users).toHaveLength(1);
     // Deve ter vinculado o google_id ao usuario existente
     expect(fakeDb.users[0].google_id).toBe('google-sub-123');
+  });
+
+  it('não reativa conta encerrada quando o e-mail do Google é de outra pessoa', async () => {
+    fakeDb.users.push({
+      id: 'conta-fechada',
+      email: 'vitima@example.test',
+      full_name: 'Vitima',
+      password_hash: null,
+      is_active: false,
+      google_id: 'sub-do-google',
+      avatar_url: null,
+      created_at: new Date().toISOString(),
+      role: 'user',
+      deleted_at: new Date().toISOString(),
+      purge_completed_at: null,
+      purge_after: new Date(Date.now() + 10 * 86400000).toISOString(),
+      login_retained: true,
+      legal_hold: false,
+    });
+
+    mockVerifyIdToken.mockResolvedValue({
+      getPayload: () => ({
+        sub: 'sub-do-google',
+        email: 'outra-pessoa@example.test',
+        name: 'Outra',
+      }),
+    });
+
+    const googleHandler = getRouteHandler('post', '/google');
+    const req = createReq({ id_token: 'fake-id-token', reactivate: true });
+    const res = createRes();
+    const next = vi.fn();
+
+    await googleHandler(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(next.mock.calls[0][0].code).toBe('ACCOUNT_DISABLED');
+    expect(res.cookies.fiado_token).toBeUndefined();
+    expect(fakeDb.users).toHaveLength(1);
+    expect(fakeDb.users[0].deleted_at).toBeTruthy();
+    expect(fakeDb.users[0].email).toBe('vitima@example.test');
   });
 
   it('forgot-password com e-mail nao-string retorna 400 controlado em vez de vazar erro interno 500', async () => {

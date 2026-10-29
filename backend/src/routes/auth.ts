@@ -189,11 +189,14 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
     const email = normalizeEmail(payload.email);
     const result = await query(
       `SELECT id, email, full_name, is_active, role, (password_hash IS NOT NULL) AS has_password,
-              deleted_at, purge_completed_at, purge_after, login_retained, legal_hold
+              google_id, deleted_at, purge_completed_at, purge_after, login_retained, legal_hold
          FROM users WHERE google_id = $1 OR email = $2`,
       [google_id, email],
     );
-    let user = result.rows[0];
+    const rows = result.rows as any[];
+    const byEmail = rows.find((row) => normalizeEmail(row.email) === email);
+    const byGoogle = rows.find((row) => row.google_id === google_id);
+    let user = byEmail ?? byGoogle;
     if (!user) {
       const insert = await query(
         'INSERT INTO users (email, full_name, avatar_url, google_id) VALUES ($1, $2, $3, $4) RETURNING id, email, full_name',
@@ -206,6 +209,9 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
       user.role =
         (await query('SELECT role FROM users WHERE id = $1', [user.id])).rows[0]?.role ?? 'user';
     } else if (isReactivatableAccount(user)) {
+      if (normalizeEmail(user.email) !== email) {
+        return next(new ApiError(403, 'Conta desativada', 'ACCOUNT_DISABLED'));
+      }
       if (!reactivate) {
         return next(new ApiError(409, ACCOUNT_CLOSED_CONFIRM_MESSAGE, 'ACCOUNT_CLOSED'));
       }
