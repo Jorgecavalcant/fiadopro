@@ -170,6 +170,8 @@
 | 29/10/2026 | Implement | Modelo de planos Free, Pro e Enterprise. O servidor cobra R$ 30 no Pro e não publica o preço do Enterprise. Concessão e promoção vencidas voltam sozinhas ao plano devido. Migration 013 só no banco local. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. A migration em produção só depois do merge, com backup. |
 | 29/10/2026 | Implement | O servidor recusa o cliente acima do teto do plano e o relatório mais longo do que o plano permite. Free para em 20 clientes e 6 meses. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 29/10/2026 | Implement | O webhook do pagamento grava o id do evento. A repetição não muda a validade. O atraso não corta o período já pago. Erro na gravação não responde sucesso. Migration 014 só no banco local. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. A migration em produção só depois do merge, com backup. |
+| 29/10/2026 | Implement | O pagamento passa por uma interface única. Hoje só o Asaas implementa. A regra de plano não chama o Asaas direto. Nenhum outro provedor foi ligado. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
+| 29/10/2026 | Implement | O site mostra o preço do Pro que vem do servidor. Enterprise aparece sem preço e sem checkout. O aplicativo Android não leva preço, botão nem link de assinatura. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 29/10/2026 | Implement | O admin concede cortesia, teste de 14 dias (uma vez), cupom e promoção com prazo. Vencida, a pessoa volta ao plano pago ou ao Free. O registro guarda plano e validade, sem CPF, e-mail ou Pix. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 
 ---
