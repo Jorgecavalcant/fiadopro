@@ -3,6 +3,8 @@ import {
   calculateScore,
   computeRawBalance,
   buildChargeMessage,
+  buildWhatsAppUrl,
+  CHARGE_EMOJI,
   normalizeWhatsAppPhone,
 } from './credit';
 import type { Transaction, TransactionType, TransactionStatus } from '../types';
@@ -145,6 +147,65 @@ describe('buildChargeMessage', () => {
     ['imediatamente', 'urgente', 'regularize já', 'vencida', 'inadimplente'].forEach((palavra) => {
       expect(msg).not.toContain(palavra);
     });
+  });
+
+  it('mantém cada emoji inteiro (sem U+FFFD) na mensagem de exemplo', () => {
+    const msg = buildChargeMessage({
+      ...base,
+      balance: 100,
+      recentDebts: [{ timestamp: Date.UTC(2026, 9, 1), description: 'Pão', amount: 25 }],
+      pixKey: 'exemplo@pix.test',
+    });
+    expect(msg).not.toContain('\uFFFD');
+    expect(msg).toContain(CHARGE_EMOJI.smile);
+    expect(msg).toContain(CHARGE_EMOJI.chart);
+    expect(msg).toContain(CHARGE_EMOJI.moneyWings);
+    expect(msg).toContain(CHARGE_EMOJI.check);
+    expect(msg).toContain(CHARGE_EMOJI.warning);
+    expect(msg).toContain(CHARGE_EMOJI.clipboard);
+    expect(msg).toContain(CHARGE_EMOJI.card);
+    expect(msg).toContain(CHARGE_EMOJI.thanks);
+  });
+});
+
+describe('buildWhatsAppUrl', () => {
+  const example = {
+    customerName: 'Ana Costa',
+    creditorName: 'Mercearia do Zé',
+    totalDebt: 200,
+    totalPaid: 49.5,
+    recentDebts: [{ timestamp: Date.UTC(2026, 9, 1), description: 'Pão e leite', amount: 25 }],
+    formatCurrency: (n: number) => `R$${n.toFixed(2)}`,
+    date: '29/10/2026',
+    pixKey: 'ze@loja.test',
+    balance: 150.5,
+  };
+
+  it('usa api.whatsapp.com e preserva os emojis ao decodificar o link', () => {
+    const msg = buildChargeMessage(example);
+    const url = buildWhatsAppUrl('(11) 91234-5678', msg);
+
+    expect(url.startsWith('https://api.whatsapp.com/send?phone=5511912345678&text=')).toBe(true);
+    expect(url).not.toContain('wa.me');
+    expect(url).not.toContain('%EF%BF%BD');
+
+    const encoded = url.slice(url.indexOf('text=') + 5);
+    const decoded = decodeURIComponent(encoded);
+    expect(decoded).toBe(msg);
+    expect(decoded).not.toContain('\uFFFD');
+    expect(decoded).toContain(CHARGE_EMOJI.smile);
+    expect(decoded).toContain(CHARGE_EMOJI.chart);
+    expect(decoded).toContain(CHARGE_EMOJI.moneyWings);
+    expect(decoded).toContain(CHARGE_EMOJI.check);
+    expect(decoded).toContain(CHARGE_EMOJI.warning);
+    expect(decoded).toContain(CHARGE_EMOJI.clipboard);
+    expect(decoded).toContain(CHARGE_EMOJI.card);
+    expect(decoded).toContain(CHARGE_EMOJI.thanks);
+    expect(
+      [...decoded].some(
+        (ch) => ch.length === 1 && ch.charCodeAt(0) >= 0xd800 && ch.charCodeAt(0) <= 0xdfff,
+      ),
+    ).toBe(false);
   });
 });
 
