@@ -168,6 +168,7 @@
 | 29/10/2026 | Implement | O deploy da visão geral quebrou porque o `package.json` do backend ganhou pdfkit, exceljs e @types/pdfkit e o `backend/package-lock.json` não acompanhou. O Docker usa `npm ci`. Regra: toda dependência nova no backend exige atualizar `backend/package-lock.json` com Node 20. O CI agora roda o mesmo `npm ci` do Docker. Produção não foi alterada nesta correção. | PR aberta, sem merge. | Jorge: revisar e mergear. O próximo deploy passa a instalar essas bibliotecas. |
 | 29/10/2026 | Implement | A cobrança via WhatsApp mostrava � no lugar dos emojis porque o atalho wa.me redireciona e troca emoji de 4 bytes por U+FFFD. O link passou a usar api.whatsapp.com/send com encodeURIComponent do texto inteiro. Mesmos emojis e mesmo texto. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR |
 | 29/10/2026 | Implement | Modelo de planos Free, Pro e Enterprise. O servidor cobra R$ 30 no Pro e não publica o preço do Enterprise. Concessão e promoção vencidas voltam sozinhas ao plano devido. Migration 013 só no banco local. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. A migration em produção só depois do merge, com backup. |
+| 29/10/2026 | Implement | O webhook do pagamento grava o id do evento. A repetição não muda a validade. O atraso não corta o período já pago. Erro na gravação não responde sucesso. Migration 014 só no banco local. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. A migration em produção só depois do merge, com backup. |
 
 ---
 
