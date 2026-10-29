@@ -7,7 +7,7 @@ vi.mock('../config/database.js', () => ({
   query: (...args: unknown[]) => queryMock(...args),
 }));
 
-import router from './transactions.js';
+import router, { CREDIT_CONFIRM_MESSAGE, TransactionSchema } from './transactions.js';
 
 function fakeRes(): Response {
   const res: Partial<Response> = {};
@@ -69,6 +69,7 @@ describe('transactions — POST / (criação por dono e por contraparte vinculad
       .mockResolvedValueOnce({
         rows: [{ id: CUSTOMER_ID, owner_user_id: OWNER_ID, linked_user_id: LINKED_ID }],
       })
+      .mockResolvedValueOnce({ rows: [{ balance: 100 }] })
       .mockResolvedValueOnce({
         rows: [{ id: 'tx-2', status: 'PENDING', created_by_user_id: LINKED_ID }],
       })
@@ -84,7 +85,7 @@ describe('transactions — POST / (criação por dono e por contraparte vinculad
     await postHandler(req, res, next);
 
     expect(next).not.toHaveBeenCalled();
-    const insertParams = queryMock.mock.calls[1][1];
+    const insertParams = queryMock.mock.calls[2][1];
     // ordem: id, customer_id, owner_user_id, created_by_user_id, type, status, ...
     expect(insertParams[1]).toBe(CUSTOMER_ID);
     expect(insertParams[2]).toBe(OWNER_ID); // owner_user_id = dono real, NAO quem chamou
@@ -147,6 +148,106 @@ describe('transactions — POST / (criação por dono e por contraparte vinculad
     await postHandler(req, res, next);
 
     expect(next.mock.calls[0][0].code).toBe('INVALID_REFERENCE');
+  });
+
+  it('pagamento maior que a dívida sem confirmação responde 409 em português', async () => {
+    queryMock
+      .mockResolvedValueOnce({
+        rows: [{ id: CUSTOMER_ID, owner_user_id: OWNER_ID, linked_user_id: null }],
+      })
+      .mockResolvedValueOnce({ rows: [{ balance: 40 }] });
+
+    const req: any = {
+      user: { sub: OWNER_ID },
+      body: { customer_id: CUSTOMER_ID, type: 'PAYMENT', amount: 55, description: 'a maior' },
+    };
+    const res = fakeRes();
+    const next = vi.fn();
+
+    await postHandler(req, res, next);
+
+    expect(res.status).not.toHaveBeenCalled();
+    const err = next.mock.calls[0][0];
+    expect(err.statusCode).toBe(409);
+    expect(err.code).toBe('CREDIT_CONFIRMATION_REQUIRED');
+    expect(err.message).toBe(CREDIT_CONFIRM_MESSAGE);
+    expect(err.message).not.toMatch(/@|cpf|pix/i);
+    const sqls = queryMock.mock.calls.map((call) => String(call[0]));
+    expect(sqls.some((sql) => sql.includes('INSERT INTO transactions'))).toBe(false);
+    const balanceSql = sqls.find((sql) => sql.includes('AS balance'));
+    expect(balanceSql).toContain("WHEN type = 'REFUND' THEN amount");
+    expect(balanceSql).not.toContain('ELSE -amount');
+  });
+
+  it('pagamento que vira crédito passa quando confirmCredit é true', async () => {
+    queryMock
+      .mockResolvedValueOnce({
+        rows: [{ id: CUSTOMER_ID, owner_user_id: OWNER_ID, linked_user_id: null }],
+      })
+      .mockResolvedValueOnce({ rows: [{ balance: 40 }] })
+      .mockResolvedValueOnce({
+        rows: [{ id: 'tx-credit', status: 'CONFIRMED', created_by_user_id: OWNER_ID }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req: any = {
+      user: { sub: OWNER_ID },
+      body: {
+        customer_id: CUSTOMER_ID,
+        type: 'PAYMENT',
+        amount: 55,
+        description: 'a maior confirmado',
+        confirmCredit: true,
+      },
+    };
+    const res = fakeRes();
+    const next = vi.fn();
+
+    await postHandler(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(201);
+    const insertSql = String(queryMock.mock.calls[2][0]);
+    expect(insertSql).toContain('INSERT INTO transactions');
+  });
+
+  it('pagamento igual à dívida não pede confirmação de crédito', async () => {
+    queryMock
+      .mockResolvedValueOnce({
+        rows: [{ id: CUSTOMER_ID, owner_user_id: OWNER_ID, linked_user_id: null }],
+      })
+      .mockResolvedValueOnce({ rows: [{ balance: '30.00' }] })
+      .mockResolvedValueOnce({
+        rows: [{ id: 'tx-exato', status: 'CONFIRMED', created_by_user_id: OWNER_ID }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req: any = {
+      user: { sub: OWNER_ID },
+      body: { customer_id: CUSTOMER_ID, type: 'PAYMENT', amount: 30, description: 'quitar' },
+    };
+    const res = fakeRes();
+    const next = vi.fn();
+
+    await postHandler(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  it('valor zero ou negativo usa a frase em português', () => {
+    const base = {
+      customer_id: CUSTOMER_ID,
+      type: 'DEBT' as const,
+      description: 'fiado',
+    };
+    for (const amount of [0, -10]) {
+      const parsed = TransactionSchema.safeParse({ ...base, amount });
+      expect(parsed.success).toBe(false);
+      if (!parsed.success) {
+        expect(parsed.error.issues[0]?.message).toBe('Informe um valor maior que zero');
+      }
+    }
   });
 });
 

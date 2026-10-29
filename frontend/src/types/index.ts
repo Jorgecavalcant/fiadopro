@@ -87,6 +87,8 @@ export interface Transaction {
   totalInstallments?: number;
   installmentGroupId?: string;
   interestRate?: number;
+  /** O lojista confirmou que este pagamento a maior vira crédito. Não vai para o banco. */
+  creditConfirmed?: boolean;
 }
 
 export interface Customer {

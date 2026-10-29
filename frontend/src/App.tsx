@@ -117,10 +117,12 @@ import {
 } from './services/syncService';
 import {
   calculateScore,
+  balanceSign,
   computeRawBalance,
   buildChargeMessage,
   buildWhatsAppUrl,
 } from './utils/credit';
+import { formatDueDate, isOverdueDebt, summarizeOverdue } from './utils/overdue';
 import {
   computeItemPrice,
   getItemQuantity,
@@ -128,6 +130,26 @@ import {
   planEventSplitRecords,
   formatDateBR,
 } from './utils/billSplit';
+
+function balanceDirection(
+  rawBalance: number,
+  formatCurrency: (value: number) => string,
+): { text: string; color: string } {
+  if (rawBalance > 0) {
+    return { text: `Te deve ${formatCurrency(rawBalance)}`, color: '#DC2626' };
+  }
+  if (rawBalance < 0) {
+    return { text: `Você deve ${formatCurrency(Math.abs(rawBalance))}`, color: '#059669' };
+  }
+  return { text: 'Em dia', color: '#94A3B8' };
+}
+
+function balanceBeforeEdit(rawBalance: number, edited: Transaction | null): number {
+  if (!edited || edited.status !== 'CONFIRMED') return rawBalance;
+  const cents = Math.round(rawBalance * 100);
+  const amount = Math.round(edited.amount * 100);
+  return (cents - balanceSign(edited.type) * amount) / 100;
+}
 
 const STORAGE_KEY = 'fiado_pro_data_v14';
 const API_URL = import.meta.env.VITE_API_URL || 'https://www.fiadopro.com.br/api';
@@ -704,7 +726,7 @@ const CustomerManagementView = ({
     () => ({
       total: customersWithBalance.length,
       withDebt: customersWithBalance.filter((c) => c.rawBalance > 0).length,
-      overdue: customersWithBalance.filter((c) => c.isOverdue).length,
+      overdue: summarizeOverdue(transactions, customersWithBalance).count,
       creditBalance: customersWithBalance.filter((c) => c.rawBalance < 0).length,
       avgScore: customersWithBalance.length
         ? Math.round(
@@ -1108,20 +1130,23 @@ const CustomerManagementView = ({
                         )}
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 100 }}>
+                    <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 120 }}>
                       {scoreBar(c.score ?? 700)}
-                      <p
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 900,
-                          marginTop: 6,
-                          color:
-                            c.rawBalance > 0 ? '#DC2626' : c.rawBalance < 0 ? '#059669' : '#94A3B8',
-                        }}
-                      >
-                        {c.rawBalance !== 0 && (c.rawBalance > 0 ? '+' : '')}
-                        {formatCurrency(c.rawBalance)}
-                      </p>
+                      {(() => {
+                        const sense = balanceDirection(c.rawBalance, formatCurrency);
+                        return (
+                          <p
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 900,
+                              marginTop: 6,
+                              color: sense.color,
+                            }}
+                          >
+                            {sense.text}
+                          </p>
+                        );
+                      })()}
                     </div>
                     <ChevronRight
                       style={{ width: 16, height: 16, color: '#CBD5E1', flexShrink: 0 }}
@@ -2337,11 +2362,13 @@ const InstallmentGroupCard = ({
   formatCurrency,
   t,
   onPayInstallment,
+  customerRawBalance = 0,
 }: {
   group: InstallmentGroup;
   formatCurrency: (v: number) => string;
   t: any;
   onPayInstallment: (tx: Transaction) => void;
+  customerRawBalance?: number;
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -2356,7 +2383,7 @@ const InstallmentGroupCard = ({
   const getInstallmentStatus = (tx: Transaction) => {
     const isPaid = isPaidByRunningBalance(tx.installmentNumber ?? 0);
     if (isPaid) return 'paid';
-    const isOverdue = tx.dueDate ? Date.now() > tx.dueDate : false;
+    const isOverdue = isOverdueDebt(tx, customerRawBalance);
     return isOverdue ? 'overdue' : 'pending';
   };
 
@@ -2469,7 +2496,7 @@ const InstallmentGroupCard = ({
                       <td
                         className={`py-3 px-4 font-bold text-xs ${status === 'overdue' ? 'text-red-600 font-black' : 'text-slate-500'}`}
                       >
-                        {tx.dueDate ? new Date(tx.dueDate).toLocaleDateString('pt-BR') : '—'}
+                        {formatDueDate(tx.dueDate)}
                       </td>
                       <td
                         className={`py-3 px-4 text-right font-black ${status === 'overdue' ? 'text-red-700' : 'text-slate-900'}`}
@@ -2654,7 +2681,7 @@ const CustomerDetailView = ({
       if (type === 'DEBT') return { label: 'Débito', color: '#DC2626', sign: '+' };
       if (type === 'PAYMENT') return { label: 'Pagamento', color: '#059669', sign: '-' };
       if (type === 'ABATIMENTO') return { label: 'Abatimento', color: '#7C3AED', sign: '-' };
-      if (type === 'REFUND') return { label: 'Devolução', color: '#2563EB', sign: '-' };
+      if (type === 'REFUND') return { label: 'Devolução', color: '#2563EB', sign: '+' };
       return { label: type, color: '#334155', sign: '' };
     };
     const items = filteredTransactions
@@ -2822,12 +2849,14 @@ const CustomerDetailView = ({
             <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mb-1">
               {t.currentBalance}
             </p>
-            <p
-              className={`text-4xl font-black ${selectedCustomer.rawBalance > 0 ? (selectedCustomer.isOverdue ? 'text-red-600' : 'text-orange-500') : selectedCustomer.rawBalance < 0 ? 'text-green-600' : 'text-slate-400'}`}
-            >
-              {selectedCustomer.rawBalance < 0 ? '-' : ''}
-              {formatCurrency(Math.abs(selectedCustomer.rawBalance))}
-            </p>
+            {(() => {
+              const sense = balanceDirection(selectedCustomer.rawBalance, formatCurrency);
+              return (
+                <p className="text-3xl font-black" style={{ color: sense.color }}>
+                  {sense.text}
+                </p>
+              );
+            })()}
             {(() => {
               const score = calculateScore(selectedCustomer, transactions);
               const cat = scoreCategory(score, t);
@@ -3016,10 +3045,12 @@ const CustomerDetailView = ({
                   )}
                 </div>
               ) : (
-                filteredTransactions.map((tx: Transaction) => (
+                filteredTransactions.map((tx: Transaction) => {
+                  const overdue = isOverdueDebt(tx, selectedCustomer.rawBalance);
+                  return (
                   <div
                     key={tx.id}
-                    className="group flex items-center justify-between p-6 bg-slate-50 rounded-t42lg border border-transparent hover:border-indigo-100 hover:bg-white transition-all hover:shadow-md"
+                    className={`group flex items-center justify-between p-6 rounded-t42lg border transition-all hover:shadow-md ${overdue ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-transparent hover:border-indigo-100 hover:bg-white'}`}
                   >
                     <div className="flex items-center gap-5">
                       <div
@@ -3085,6 +3116,12 @@ const CustomerDetailView = ({
                         <p className="text-xs text-slate-400 font-bold">
                           {new Date(tx.timestamp).toLocaleString()}
                         </p>
+                        <p
+                          className={`text-xs font-bold ${overdue ? 'text-red-700' : 'text-slate-500'}`}
+                        >
+                          {tx.dueDate ? `Vencimento ${formatDueDate(tx.dueDate)}` : 'Sem vencimento'}
+                          {overdue ? ' · Em atraso' : ''}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 sm:gap-4">
@@ -3107,7 +3144,7 @@ const CustomerDetailView = ({
                       <p
                         className={`text-lg font-black whitespace-nowrap ${tx.type === 'DEBT' ? 'text-slate-900' : tx.type === 'PAYMENT' ? 'text-emerald-600' : tx.type === 'ABATIMENTO' ? 'text-purple-600' : 'text-indigo-600'}`}
                       >
-                        {tx.type === 'DEBT' ? '+' : tx.type === 'ABATIMENTO' ? '⊖' : '-'}
+                        {balanceSign(tx.type) < 0 ? '−' : '+'}
                         {formatCurrency(tx.amount)}
                       </p>
                       <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
@@ -3130,7 +3167,8 @@ const CustomerDetailView = ({
                       </div>
                     </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -3358,6 +3396,7 @@ const CustomerDetailView = ({
                 group={group}
                 formatCurrency={formatCurrency}
                 t={t}
+                customerRawBalance={selectedCustomer.rawBalance}
                 onPayInstallment={(tx: Transaction) =>
                   onPayInstallment && onPayInstallment(tx, group)
                 }
@@ -3899,6 +3938,7 @@ const App: React.FC = () => {
   const [resetConfirm, setResetConfirm] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const googleBtnRef = useRef<HTMLDivElement>(null);
+  const amountInputRef = useRef<HTMLInputElement>(null);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddSearch, setQuickAddSearch] = useState('');
   const [quickAddStep, setQuickAddStep] = useState<1 | 2>(1);
@@ -4004,14 +4044,41 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
-    schedulePush(true, customers, transactions, (patches) => {
-      setTransactions((prev) =>
-        prev.map((tx) => {
-          const patch = patches.find((p) => p.id === tx.id);
-          return patch ? { ...tx, status: patch.status } : tx;
-        }),
-      );
-    });
+    schedulePush(
+      true,
+      customers,
+      transactions,
+      (patches) => {
+        setTransactions((prev) =>
+          prev.map((tx) => {
+            const patch = patches.find((p) => p.id === tx.id);
+            return patch ? { ...tx, status: patch.status } : tx;
+          }),
+        );
+      },
+      (txId) => {
+        const tx = transactions.find((item) => item.id === txId);
+        if (!tx || tx.creditConfirmed) return;
+        const customer = customers.find((item) => item.id === tx.customerId);
+        const others = transactions.filter(
+          (item) =>
+            item.customerId === tx.customerId && item.status === 'CONFIRMED' && item.id !== tx.id,
+        );
+        const balance = computeRawBalance(others);
+        const owed = Math.max(0, balance);
+        const extra = Math.max(0, Math.round((tx.amount - owed) * 100) / 100);
+        const confirmed = window.confirm(
+          `${customer?.name ?? 'O cliente'} devia ${formatCurrency(owed)}. Os ${formatCurrency(extra)} a mais vão ficar como crédito dele (você vai dever a ele). Confirmar?`,
+        );
+        if (!confirmed) {
+          showToast('O pagamento continua neste aparelho até você confirmar o crédito.');
+          return;
+        }
+        setTransactions((prev) =>
+          prev.map((item) => (item.id === txId ? { ...item, creditConfirmed: true } : item)),
+        );
+      },
+    );
   }, [user, customers, transactions]);
 
   const handleUpdateNote = (noteId: string) => {
@@ -4197,31 +4264,29 @@ const App: React.FC = () => {
   }, [activeView]);
 
   const customersWithBalance: CustomerWithBalance[] = useMemo(() => {
-    return customers.map((c) => {
+    const rows = customers.map((c) => {
       const customerTransactions = transactions.filter(
         (tData) => tData.customerId === c.id && tData.status === 'CONFIRMED',
       );
-      // DEBT aumenta saldo; PAYMENT/ABATIMENTO/REFUND reduzem (REFUND pode gerar saldo negativo → TO_PAY)
+      // DEBT e REFUND aumentam. PAYMENT e ABATIMENTO diminuem.
       const rawBalance = computeRawBalance(customerTransactions);
 
       const lastActivity =
         customerTransactions.length > 0
           ? Math.max(...customerTransactions.map((t) => t.timestamp))
           : c.createdAt;
-      // isOverdue: só marca como vencido se o débito tem dueDate explícita e passou do prazo
-      const isOverdue =
-        rawBalance > 0 &&
-        customerTransactions.some((t) => t.type === 'DEBT' && t.dueDate && Date.now() > t.dueDate);
       const displayBalance = rawBalance < 0 && c.overpaymentStrategy === 'PROFIT' ? 0 : rawBalance;
       return {
         ...c,
         balance: displayBalance,
         rawBalance: rawBalance,
         lastActivity,
-        isOverdue,
+        isOverdue: false,
         score: calculateScore(c, transactions),
       };
     });
+    const overdueIds = new Set(summarizeOverdue(transactions, rows).customerIds);
+    return rows.map((c) => ({ ...c, isOverdue: overdueIds.has(c.id) }));
   }, [customers, transactions]);
 
   const canAddCustomer = () => customers.length < plan.maxCustomers;
@@ -4233,9 +4298,7 @@ const App: React.FC = () => {
     );
     // Mudança Crítica: Contar como devedor ativo qualquer pessoa com saldo positivo no extrato
     const activeDebtors = customersWithBalance.filter((c) => c.rawBalance > 0).length;
-    const totalOverdue = customersWithBalance
-      .filter((c) => c.isOverdue)
-      .reduce((acc, c) => acc + c.rawBalance, 0);
+    const totalOverdue = summarizeOverdue(transactions, customersWithBalance).amount;
     const totalFuture = Math.max(0, totalReceivable - totalOverdue);
     const totalPaid = transactions
       .filter((t) => t.type === 'PAYMENT' && t.status === 'CONFIRMED')
@@ -4442,8 +4505,26 @@ const App: React.FC = () => {
     const formData = new FormData(e.currentTarget);
     const amount = parseFloat(formData.get('amount') as string);
     if (!isFinite(amount) || amount <= 0) {
-      showToast('Informe um valor válido maior que zero.');
+      showToast('Informe um valor maior que zero');
       return;
+    }
+    let creditConfirmed = false;
+    if (transactionType === 'PAYMENT') {
+      const customer = customersWithBalance.find((c) => c.id === selectedCustomerId);
+      if (customer) {
+        const base = balanceBeforeEdit(customer.rawBalance, editTransactionData);
+        const owedCents = Math.max(0, Math.round(base * 100));
+        const amountCents = Math.round(amount * 100);
+        if (owedCents - amountCents < 0) {
+          const extra = (amountCents - owedCents) / 100;
+          const owed = owedCents / 100;
+          const confirmed = window.confirm(
+            `${customer.name} devia ${formatCurrency(owed)}. Os ${formatCurrency(extra)} a mais vão ficar como crédito dele (você vai dever a ele). Confirmar?`,
+          );
+          if (!confirmed) return;
+          creditConfirmed = true;
+        }
+      }
     }
     const desc = formData.get('description') as string;
     const method = formData.get('paymentMethod') as PaymentMethod;
@@ -4492,6 +4573,7 @@ const App: React.FC = () => {
                 dueDate: dueDate ? new Date(dueDate).getTime() : undefined,
                 eventId: eventId || undefined,
                 ...(attachment ? { attachment } : {}),
+                ...(creditConfirmed ? { creditConfirmed: true } : {}),
               }
             : tx,
         ),
@@ -4555,6 +4637,7 @@ const App: React.FC = () => {
             dueDate: dueDate ? new Date(dueDate).getTime() : undefined,
             status: 'CONFIRMED',
             eventId: eventId || undefined,
+            ...(creditConfirmed ? { creditConfirmed: true } : {}),
             ...(attachment ? { attachment } : {}),
             ...(installmentPreFill
               ? {
@@ -5143,8 +5226,7 @@ const App: React.FC = () => {
                           <p
                             className={`text-2xl font-black ${c.rawBalance > 0 ? 'text-red-600' : c.rawBalance < 0 ? 'text-green-600' : 'text-slate-400'}`}
                           >
-                            {c.rawBalance < 0 ? '-' : ''}
-                            {formatCurrency(Math.abs(c.rawBalance))}
+                            {balanceDirection(c.rawBalance, formatCurrency).text}
                           </p>
                         </div>
                         <ChevronRight className="w-6 h-6 text-slate-200 group-hover:text-indigo-600 transition-all" />
@@ -6330,6 +6412,48 @@ const App: React.FC = () => {
               </div>
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 <div style={{ maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
+                  {(transactionType === 'DEBT' || transactionType === 'PAYMENT') &&
+                    selectedCustomer && (
+                      <div
+                        role="status"
+                        style={{
+                          marginBottom: 20,
+                          padding: '18px 20px',
+                          borderRadius: 18,
+                          background:
+                            selectedCustomer.rawBalance > 0
+                              ? '#FEF2F2'
+                              : selectedCustomer.rawBalance < 0
+                                ? '#ECFDF5'
+                                : '#F8FAFC',
+                          border: '1px solid #E2E8F0',
+                        }}
+                      >
+                        <p
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 800,
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            color: '#64748B',
+                            margin: 0,
+                          }}
+                        >
+                          Saldo atual
+                        </p>
+                        <p
+                          style={{
+                            fontSize: 28,
+                            fontWeight: 900,
+                            margin: '6px 0 0',
+                            color: balanceDirection(selectedCustomer.rawBalance, formatCurrency)
+                              .color,
+                          }}
+                        >
+                          {balanceDirection(selectedCustomer.rawBalance, formatCurrency).text}
+                        </p>
+                      </div>
+                    )}
                   {(transactionType === 'ABATIMENTO' || transactionType === 'REFUND') &&
                     selectedCustomer && (
                       <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
@@ -6373,6 +6497,7 @@ const App: React.FC = () => {
                       </label>
                       <input
                         required
+                        ref={amountInputRef}
                         name="amount"
                         type="number"
                         step="0.01"
@@ -6383,6 +6508,24 @@ const App: React.FC = () => {
                         className="w-full px-5 py-4 bg-white border-2 border-[#CCD2E9] rounded-t42md text-4xl font-black focus:outline-none focus:border-[#5967D8]"
                         autoFocus
                       />
+                      {transactionType === 'PAYMENT' &&
+                        selectedCustomer &&
+                        selectedCustomer.rawBalance > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const valor = (
+                                Math.round(selectedCustomer.rawBalance * 100) / 100
+                              ).toFixed(2);
+                              if (amountInputRef.current) amountInputRef.current.value = valor;
+                              setCurrentAmountValue(Number(valor));
+                            }}
+                            className="mt-3 w-full py-3 rounded-2xl font-black text-base text-white"
+                            style={{ background: '#1C2446' }}
+                          >
+                            Quitar
+                          </button>
+                        )}
                     </div>
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">
