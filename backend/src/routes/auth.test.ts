@@ -196,6 +196,7 @@ describe('normalizacao de e-mail em auth.ts (dedup auth)', () => {
   let fakeDb: ReturnType<typeof createFakeDb>;
 
   beforeEach(() => {
+    delete process.env.REQUIRE_EMAIL_CONFIRMATION;
     fakeDb = createFakeDb();
     mockQuery.mockReset();
     mockQuery.mockImplementation(fakeDb.query);
