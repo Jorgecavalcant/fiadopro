@@ -1,4 +1,5 @@
 import { Customer, Transaction } from '../types';
+import { computeRawBalance } from '../utils/credit';
 
 /**
  * Sincronização servidor↔localStorage.
@@ -168,6 +169,16 @@ const fingerprintCustomer = (c: Customer): string => JSON.stringify(toServerCust
 const fingerprintTransaction = (t: Transaction): string =>
   JSON.stringify(toServerTransactionBody(t));
 
+/** Pagamento que deixaria o saldo negativo. O lojista já confirmou na tela antes de gravar. */
+function paymentNeedsCreditFlag(payment: Transaction, all: Transaction[]): boolean {
+  if (payment.type !== 'PAYMENT') return false;
+  const others = all.filter(
+    (t) => t.customerId === payment.customerId && t.status === 'CONFIRMED' && t.id !== payment.id,
+  );
+  const balance = computeRawBalance(others);
+  return Math.round(balance * 100) - Math.round(payment.amount * 100) < 0;
+}
+
 export interface BootstrapResult {
   customers: Customer[];
   transactions: Transaction[];
@@ -310,9 +321,12 @@ async function pushDiffs(
     const known = shadowTransactions.get(t.id);
     if (known === fp) continue;
     const body = toServerTransactionBody(t);
+    const payload = paymentNeedsCreditFlag(t, transactions)
+      ? { ...body, confirmCredit: true }
+      : body;
     const result =
       known === undefined
-        ? await jsonFetch('/transactions', { method: 'POST', body: JSON.stringify(body) })
+        ? await jsonFetch('/transactions', { method: 'POST', body: JSON.stringify(payload) })
         : await jsonFetch(`/transactions/${t.id}`, {
             method: 'PATCH',
             body: JSON.stringify({ ...body, id: undefined, customer_id: undefined }),

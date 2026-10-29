@@ -22,11 +22,20 @@ const AttachmentSchema = z.object({
   name: z.string().max(255),
 });
 
+export const CREDIT_CONFIRM_MESSAGE =
+  'Esse pagamento é maior que a dívida e vira crédito. Confirme para continuar.';
+
+export function paymentLeavesCredit(balance: number, amount: number): boolean {
+  return Math.round(balance * 100) - Math.round(amount * 100) < 0;
+}
+
 export const TransactionSchema = z.object({
   id: z.string().uuid().optional(),
   customer_id: z.string().uuid(),
   type: z.enum(['DEBT', 'PAYMENT', 'REFUND', 'ABATIMENTO']),
-  amount: z.number().positive(),
+  amount: z.number().positive('Informe um valor maior que zero'),
+  /** O lojista confirmou que o valor a maior vira crédito. Não é coluna. */
+  confirmCredit: z.boolean().optional(),
   description: z.string().max(2000).default(''),
   occurred_at: z.union([z.number(), z.string()]).optional(),
   due_date: z.union([z.number(), z.string()]).optional().nullable(),
@@ -155,6 +164,20 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
         return next(new ApiError(400, 'Lançamento de referência inválido', 'INVALID_REFERENCE'));
     }
 
+    if (body.type === 'PAYMENT') {
+      const bal = await query(
+        `SELECT COALESCE(SUM(CASE WHEN type = 'DEBT' THEN amount ELSE -amount END), 0) AS balance
+           FROM transactions
+          WHERE customer_id = $1 AND status = 'CONFIRMED'`,
+        [body.customer_id],
+      );
+      const rawBalance = bal.rows[0]?.balance ?? 0;
+      const balance = typeof rawBalance === 'number' ? rawBalance : Number(rawBalance);
+      if (paymentLeavesCredit(balance, body.amount) && body.confirmCredit !== true) {
+        return next(new ApiError(409, CREDIT_CONFIRM_MESSAGE, 'CREDIT_CONFIRMATION_REQUIRED'));
+      }
+    }
+
     // Sempre PENDING quando há vínculo — a outra parte precisa aprovar.
     const status = c.linked_user_id ? 'PENDING' : 'CONFIRMED';
     const result = await query(
@@ -199,7 +222,9 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
 // PATCH /api/transactions/:id — edição pelo dono; cliente vinculado → volta a PENDING
 router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const body = TransactionSchema.partial().omit({ id: true, customer_id: true }).parse(req.body);
+    const body = TransactionSchema.partial()
+      .omit({ id: true, customer_id: true, confirmCredit: true })
+      .parse(req.body);
     const fields = Object.entries(body).filter(([, v]) => v !== undefined);
     if (fields.length === 0)
       return next(new ApiError(400, 'Nenhum campo para atualizar', 'EMPTY_UPDATE'));
