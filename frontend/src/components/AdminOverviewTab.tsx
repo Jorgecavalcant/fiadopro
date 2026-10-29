@@ -1,6 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { BadgeDollarSign, Receipt, ShieldOff, Sparkles, UserRound, UserX, Users } from 'lucide-react';
+import {
+  BadgeDollarSign,
+  Receipt,
+  ShieldOff,
+  Sparkles,
+  UserRound,
+  UserX,
+  Users,
+} from 'lucide-react';
 import { adminDownload, adminFetch } from './adminApi';
+import BrDateField from './BrDateField';
 
 const PRESETS = [
   { id: '7', label: '7 dias' },
@@ -198,19 +207,17 @@ export const AdminOverviewTab: React.FC = () => {
             }));
           }}
         >
-          <input
+          <BrDateField
             className="fp-input"
-            type="date"
-            aria-label="Data inicial"
+            ariaLabel="Data inicial"
             value={draftFrom}
-            onChange={(event) => setDraftFrom(event.target.value)}
+            onChange={setDraftFrom}
           />
-          <input
+          <BrDateField
             className="fp-input"
-            type="date"
-            aria-label="Data final"
+            ariaLabel="Data final"
             value={draftTo}
-            onChange={(event) => setDraftTo(event.target.value)}
+            onChange={setDraftTo}
           />
           <button type="submit" className="fp-btn fp-btn-ghost">
             Aplicar período
@@ -268,7 +275,10 @@ export const AdminOverviewTab: React.FC = () => {
         {cards.map((card) => (
           <div key={card.label} className={`fp-stat-card fp-kpi-card ${card.accent}`}>
             <div className="fp-kpi-head">
-              <div className="fp-kpi-icon" style={{ background: card.iconBg, color: card.iconColor }}>
+              <div
+                className="fp-kpi-icon"
+                style={{ background: card.iconBg, color: card.iconColor }}
+              >
                 {card.icon}
               </div>
               <span className="fp-kpi-label">{card.label}</span>

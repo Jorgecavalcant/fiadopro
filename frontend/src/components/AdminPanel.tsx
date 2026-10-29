@@ -427,7 +427,13 @@ const UsersTab: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
                   disabled={savingId === editingUser.id}
                   className="fp-btn fp-btn-primary flex-1 disabled:opacity-60"
                 >
-                  Salvar
+                  {savingId === editingUser.id ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Salvando...
+                    </>
+                  ) : (
+                    'Salvar'
+                  )}
                 </button>
               </div>
             </form>

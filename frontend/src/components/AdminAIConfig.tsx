@@ -219,7 +219,7 @@ const AdminAIConfig: React.FC = () => {
         ) : (
           <Save style={{ width: 15, height: 15 }} />
         )}
-        Salvar
+        {isSaving ? 'Salvando...' : 'Salvar'}
       </button>
     </div>
   );

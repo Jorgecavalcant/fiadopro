@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { formatBrDateTime } from '../utils/formatBr';
+import BrDateField from './BrDateField';
 import { adminFetch } from './adminApi';
 import { BLOCK_REASON_LABEL } from './adminLabels';
 
@@ -152,22 +153,20 @@ export const AdminAuditTab: React.FC = () => {
             </option>
           ))}
         </select>
-        <input
-          aria-label="De"
-          type="date"
+        <BrDateField
+          ariaLabel="De"
           value={from}
-          onChange={(event) => {
-            setFrom(event.target.value);
+          onChange={(iso) => {
+            setFrom(iso);
             setPage(1);
           }}
           className="fp-input max-w-[11rem]"
         />
-        <input
-          aria-label="Até"
-          type="date"
+        <BrDateField
+          ariaLabel="Até"
           value={to}
-          onChange={(event) => {
-            setTo(event.target.value);
+          onChange={(iso) => {
+            setTo(iso);
             setPage(1);
           }}
           className="fp-input max-w-[11rem]"

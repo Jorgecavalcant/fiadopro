@@ -180,6 +180,7 @@
 | 29/10/2026 | Implement | O log do celular repetido guarda só o código DUPLICATE_PHONE. A importação offline também recusa o número repetido. A resposta para o lojista continua mostrando o nome. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 29/10/2026 | Implement | Datas e horas aparecem em dd/mm/aaaa, no fuso de São Paulo. A ajuda usa o nome real dos botões. Dividir Conta ganha vencimento opcional e o botão de dividir igualmente. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 29/10/2026 | Implement | Salvar cliente no teste local levou 21, 4 e 4 ms antes e 38, 6 e 9 ms depois, com 20 clientes. O clique faz uma chamada. A sincronização não reenvia o que não mudou. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
+| 29/10/2026 | Implement | Valor vazio ou zero e descrição vazia avisam em português junto ao campo. A data aparece em dd/mm/aaaa. O botão mostra Salvando... com o spinner. A máscara de moeda é só visual; o servidor continua recebendo número. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 
 ---
 
