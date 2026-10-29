@@ -45,6 +45,10 @@ export function validateBlock(reason: string | undefined, note: string | undefin
   return noteProblem(note, reason === 'judicial' || reason === 'outro');
 }
 
+export function validateRequiredNote(note: string | undefined): string | null {
+  return noteProblem(note, true);
+}
+
 export async function withTransaction<T>(fn: (sql: Sql) => Promise<T>): Promise<T> {
   const client = await getClient();
   try {

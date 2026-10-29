@@ -8,6 +8,7 @@ const ACTIONS = [
   { value: 'user.unblock', label: 'Desbloqueio' },
   { value: 'user.update', label: 'Alteração de cadastro' },
   { value: 'user.reset_password', label: 'Redefinição de senha' },
+  { value: 'user.reactivate', label: 'Reativação' },
   { value: 'settings.update', label: 'Configuração' },
 ];
 
@@ -21,6 +22,7 @@ type AuditState = {
   block_reason?: string | null;
   reset?: boolean;
   key?: string;
+  closed?: boolean;
 };
 
 interface AuditEntry {
@@ -44,6 +46,10 @@ function formatWhen(value: string) {
 function describeState(state: AuditState | null) {
   if (!state) return '—';
   if (state.reset !== undefined) return state.reset ? 'senha redefinida' : 'antes da redefinição';
+  if (state.closed !== undefined) {
+    if (state.closed) return 'encerrada';
+    return state.is_active ? 'reativada' : 'fora da fila, ainda bloqueada';
+  }
   if (state.key) return `chave ${state.key}`;
   const access = state.is_active ? 'livre' : 'bloqueado';
   const hold = state.legal_hold ? ', ordem judicial' : '';

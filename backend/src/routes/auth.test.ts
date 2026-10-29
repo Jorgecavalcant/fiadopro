@@ -53,15 +53,10 @@ function createFakeDb() {
   const query = async (sqlRaw: string, params: unknown[] = []) => {
     const sql = sqlRaw.replace(/\s+/g, ' ').trim();
 
-    if (sql.startsWith('SELECT id FROM users WHERE email = $1')) {
-      const [email] = params as [string];
-      return { rows: users.filter((u) => u.email === email).map((u) => ({ id: u.id })) };
-    }
-
     if (
-      sql.startsWith(
-        'SELECT id, email, full_name, password_hash, is_active, role FROM users WHERE email = $1',
-      )
+      sql.startsWith('SELECT id, email, full_name, password_hash, is_active, role') &&
+      sql.includes('WHERE email = $1') &&
+      !sql.includes('google_id')
     ) {
       const [email] = params as [string];
       return { rows: users.filter((u) => u.email === email) };
@@ -97,8 +92,9 @@ function createFakeDb() {
 
     if (
       sql.startsWith(
-        'SELECT id, email, full_name, is_active, role, (password_hash IS NOT NULL) AS has_password FROM users WHERE google_id = $1 OR email = $2',
-      )
+        'SELECT id, email, full_name, is_active, role, (password_hash IS NOT NULL) AS has_password',
+      ) &&
+      sql.includes('WHERE google_id = $1 OR email = $2')
     ) {
       const [google_id, email] = params as [string, string];
       return { rows: users.filter((u) => u.google_id === google_id || u.email === email) };

@@ -5,6 +5,7 @@ import {
   Settings as SettingsIcon,
   FileBarChart,
   ClipboardList,
+  Archive,
   Search,
   KeyRound,
   ShieldCheck,
@@ -15,13 +16,14 @@ import {
 } from 'lucide-react';
 import { adminFetch } from './adminApi';
 import { AdminAuditTab } from './AdminAuditTab';
+import { AdminClosedTab } from './AdminClosedTab';
 import { AdminBlockDialog } from './AdminBlockDialog';
 import { BLOCK_REASON_LABEL } from './adminLabels';
 
 /* ============================================================
  * Tipos (espelham o envelope { success, ... } do backend /api/admin/*)
  * ============================================================ */
-type AdminTab = 'users' | 'metrics' | 'settings' | 'reports' | 'audit';
+type AdminTab = 'users' | 'metrics' | 'settings' | 'reports' | 'audit' | 'closed';
 
 interface AdminUser {
   id: string;
@@ -84,6 +86,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
     { id: 'settings', label: 'Configurações', icon: SettingsIcon },
     { id: 'reports', label: 'Relatórios', icon: FileBarChart },
     { id: 'audit', label: 'Registro', icon: ClipboardList },
+    { id: 'closed', label: 'Contas encerradas', icon: Archive },
   ];
 
   return (
@@ -117,6 +120,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
       {tab === 'settings' && <SettingsTab />}
       {tab === 'reports' && <ReportsTab />}
       {tab === 'audit' && <AdminAuditTab />}
+      {tab === 'closed' && <AdminClosedTab />}
     </div>
   );
 };

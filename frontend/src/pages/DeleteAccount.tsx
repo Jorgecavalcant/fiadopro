@@ -52,13 +52,13 @@ const DeleteAccount: React.FC = () => {
           O que acontece com seus dados
         </h2>
         <p>
-          A conta é desativada na hora e você não consegue mais usá-la. O nome, e-mail,
-          telefone, foto, senha e login Google do lojista saem na hora.
+          A conta fica desativada. CPF e Pix saem agora. O nome, o e-mail, o telefone e o
+          login ficam guardados para você voltar na mesma conta em até 30 dias.
         </p>
         <p>
-          Os clientes, fiados e pagamentos daquela loja são apagados em até 30 dias. Durante
-          esse período, esses registros continuam no servidor, mas o lojista não consegue
-          usar a conta.
+          Os clientes, fiados e pagamentos daquela loja são apagados depois desse prazo.
+          Durante esses 30 dias, dá para consultar o histórico se a outra pessoa ainda
+          entra no sistema, mas não fazer um lançamento novo.
         </p>
         <p>
           Uma cobrança já emitida, um backup até sua rotação e um registro mínimo de segurança

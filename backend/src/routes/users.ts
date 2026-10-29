@@ -93,23 +93,17 @@ router.delete('/me', requireAuth, async (req: AuthRequest, res: Response, next: 
       ));
     }
 
-    const anonEmail = `deleted_${userId}@removed.invalid`;
     await query(
       `UPDATE users SET
         deleted_at = NOW(),
         purge_after = NOW() + INTERVAL '30 days',
         deleted_reason = $1,
-        full_name = 'Conta removida',
-        email = $2,
-        phone = NULL,
-        avatar_url = NULL,
-        password_hash = NULL,
-        google_id = NULL,
         cpf = NULL,
         pix_key = NULL,
-        is_active = false
-       WHERE id = $3 AND deleted_at IS NULL`,
-      [body.reason || null, anonEmail, userId],
+        is_active = false,
+        login_retained = true
+       WHERE id = $2 AND deleted_at IS NULL`,
+      [body.reason || null, userId],
     );
 
     try {
@@ -128,7 +122,11 @@ router.delete('/me', requireAuth, async (req: AuthRequest, res: Response, next: 
 
     clearAuthCookie(res);
 
-    res.json({ success: true, message: 'Conta desativada. Os dados da loja serão apagados em até 30 dias.' });
+    res.json({
+      success: true,
+      message:
+        'Conta desativada. CPF e Pix saem agora. Dá para voltar em até 30 dias com o mesmo e-mail.',
+    });
   } catch (err) {
     if (err instanceof z.ZodError)
       return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));

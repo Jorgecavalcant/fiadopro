@@ -27,6 +27,7 @@ interface ServerCustomer {
   score: number | null;
   created_at: string;
   pending_count?: string | number;
+  counterpart_closed?: boolean;
 }
 
 interface ServerTransaction {
@@ -68,6 +69,7 @@ export interface Counterpart {
   owner_name: string;
   owner_phone: string | null;
   owner_pix_key: string | null;
+  owner_closed?: boolean;
   customer_id: string;
   balance: string | number;
   pending_count: string | number;
@@ -105,6 +107,7 @@ const toClientCustomer = (s: ServerCustomer, local?: Customer): Customer => ({
   notes: s.notes ?? local?.notes ?? [],
   score: s.score ?? local?.score,
   createdAt: local?.createdAt ?? new Date(s.created_at).getTime(),
+  counterpartClosed: s.counterpart_closed === true,
 });
 
 const toClientTransaction = (s: ServerTransaction, local?: Transaction): Transaction => ({
@@ -429,6 +432,43 @@ export async function rejectTransaction(id: string, note?: string): Promise<bool
       body: JSON.stringify({ note }),
     })) !== null
   );
+}
+
+export async function cancelTransaction(id: string): Promise<boolean> {
+  const data = await jsonFetch(`/transactions/${id}/cancel`, { method: 'POST', body: '{}' });
+  return Boolean(data?.success);
+}
+
+export async function saveCustomerToServer(customer: Customer, editing: boolean): Promise<string | 'offline' | null> {
+  const body = toServerCustomerBody(customer);
+  const send = async (method: 'POST' | 'PATCH', path: string) => {
+    const res = await fetch(`${API_URL}${path}`, {
+      method,
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    let data: { success?: boolean; error?: { message?: string } } | null = null;
+    try {
+      data = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    } catch {
+      data = null;
+    }
+    return { res, data };
+  };
+  try {
+    let { res, data } = await send(editing ? 'PATCH' : 'POST', editing ? `/customers/${customer.id}` : '/customers');
+    if (editing && res.status === 404) {
+      ({ res, data } = await send('POST', '/customers'));
+    }
+    if (!res.ok || data?.success === false) {
+      return data?.error?.message || 'Não foi possível salvar o cliente.';
+    }
+    shadowCustomers.set(customer.id, fingerprintCustomer(customer));
+    return null;
+  } catch {
+    return 'offline';
+  }
 }
 
 export async function resendTransaction(id: string): Promise<boolean> {

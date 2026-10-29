@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { query } from '../config/database.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
+import { ACCOUNT_CLOSED_TX_MESSAGE, partyAccountClosed } from '../services/accountAccess.js';
 
 const router = Router();
 
@@ -92,6 +93,9 @@ router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
 router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const body = DebtSchema.parse(req.body);
+    if (await partyAccountClosed([req.user!.sub])) {
+      return next(new ApiError(409, ACCOUNT_CLOSED_TX_MESSAGE, 'ACCOUNT_CLOSED'));
+    }
     const result = await query(
       `INSERT INTO debts (user_id, creditor_name, original_amount, current_amount, due_date, interest_rate, notes)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -166,6 +170,9 @@ router.post('/:id/payments', async (req: AuthRequest, res: Response, next: NextF
       req.user!.sub,
     ]);
     if (!own.rows[0]) return next(new ApiError(404, 'Dívida não encontrada', 'NOT_FOUND'));
+    if (await partyAccountClosed([req.user!.sub])) {
+      return next(new ApiError(409, ACCOUNT_CLOSED_TX_MESSAGE, 'ACCOUNT_CLOSED'));
+    }
 
     const { amount, payment_date, payment_method, notes } = z
       .object({

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Contas encerradas</title>
+  <link rel="stylesheet" href="painel.css" />
+  <style>html, body { width: 1440px; }</style>
+</head>
+<body>
+  <h2>Contas encerradas</h2>
+  <p class="intro">Contas que ainda podem voltar. O nome aparece só com a inicial.</p>
+  <div class="fp-card">
+    <table class="fp-table">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Encerrada</th>
+          <th>Prazo</th>
+          <th>Situação</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="font-weight:800">M*** S***</td>
+          <td>28/10/2026 09:00</td>
+          <td>12 dias</td>
+          <td><span class="fp-badge fp-badge-warning">Aguardando exclusão</span></td>
+          <td><button class="fp-btn fp-btn-primary" type="button">Reativar</button></td>
+        </tr>
+        <tr>
+          <td style="font-weight:800">A***</td>
+          <td>20/10/2026 14:10</td>
+          <td>4 dias</td>
+          <td><span class="fp-badge fp-badge-danger">Ordem judicial</span></td>
+          <td><button class="fp-btn fp-btn-primary" type="button">Reativar</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

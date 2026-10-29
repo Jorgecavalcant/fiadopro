@@ -58,7 +58,8 @@ router.get('/counterpart', async (req: AuthRequest, res: Response, next: NextFun
             + COALESCE(SUM(t.amount) FILTER (WHERE t.status = 'CONFIRMED' AND t.type = 'REFUND'), 0) AS balance,
               COUNT(*) FILTER (WHERE t.status = 'PENDING')  AS pending_count,
               COUNT(*) FILTER (WHERE t.status = 'CONFIRMED') AS confirmed_count,
-              MAX(t.occurred_at) AS last_activity
+              MAX(t.occurred_at) AS last_activity,
+              BOOL_OR(o.deleted_at IS NOT NULL AND o.purge_completed_at IS NULL) AS owner_closed
          FROM customers c
          JOIN users o ON o.id = c.owner_user_id
          LEFT JOIN transactions t ON t.customer_id = c.id

@@ -42,7 +42,17 @@ export async function purgeExpiredAccounts(): Promise<void> {
     await query(
       `UPDATE users
           SET purge_completed_at = NOW(),
-              deleted_reason = NULL
+              deleted_reason = NULL,
+              full_name = 'Conta removida',
+              email = 'deleted_' || id::text || '@removed.invalid',
+              phone = NULL,
+              avatar_url = NULL,
+              google_id = NULL,
+              cpf = NULL,
+              pix_key = NULL,
+              password_hash = NULL,
+              login_retained = false,
+              is_active = false
         WHERE id = $1
           AND purge_after <= NOW()
           AND purge_completed_at IS NULL`,

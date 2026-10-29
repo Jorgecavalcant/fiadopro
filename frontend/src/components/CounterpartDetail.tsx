@@ -5,6 +5,7 @@ import {
   CounterpartTransaction,
   fetchCounterpartTransactions,
   createCounterpartPayment,
+  cancelTransaction,
 } from '../services/syncService';
 import FullScreenModal from './FullScreenModal';
 
@@ -22,6 +23,7 @@ const STATUS_LABEL: Record<CounterpartTransaction['status'], { label: string; cl
     CONFIRMED: { label: 'Confirmado', className: 'bg-emerald-100 text-emerald-700' },
     PENDING: { label: 'Aguardando aprovação', className: 'bg-amber-100 text-amber-700' },
     REJECTED: { label: 'Recusado', className: 'bg-red-100 text-red-700' },
+    CANCELLED: { label: 'Cancelado', className: 'bg-slate-100 text-slate-600' },
   };
 
 const TYPE_LABEL: Record<CounterpartTransaction['type'], string> = {
@@ -102,12 +104,16 @@ export default function CounterpartDetail({
             className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-medium outline-none"
           />
         </div>
-        <button
-          onClick={() => setIsPayModalOpen(true)}
-          className="bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-black text-sm shadow-lg hover:bg-emerald-700 transition-all active:scale-95"
-        >
-          Realizar Pagamento
-        </button>
+        {counterpart.owner_closed ? (
+          <p className="text-sm font-bold text-amber-700 self-center">conta encerrada</p>
+        ) : (
+          <button
+            onClick={() => setIsPayModalOpen(true)}
+            className="bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-black text-sm shadow-lg hover:bg-emerald-700 transition-all active:scale-95"
+          >
+            Realizar Pagamento
+          </button>
+        )}
       </div>
 
       {loading && <p className="text-slate-500 text-sm">Carregando…</p>}
@@ -139,6 +145,19 @@ export default function CounterpartDetail({
                   </span>
                 </div>
               </div>
+              {counterpart.owner_closed && t.status === 'PENDING' && (
+                <button
+                  type="button"
+                  className="mt-2 text-xs font-black text-slate-600 underline"
+                  onClick={() => {
+                    void cancelTransaction(t.id).then((ok) => {
+                      if (ok) void reload();
+                    });
+                  }}
+                >
+                  Cancelar pendente
+                </button>
+              )}
               {t.attachment && (
                 <p className="text-xs text-indigo-500 mt-2 flex items-center gap-1">
                   <Paperclip size={12} /> Comprovante anexado

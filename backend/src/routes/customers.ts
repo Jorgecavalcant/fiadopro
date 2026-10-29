@@ -4,6 +4,9 @@ import { query } from '../config/database.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { linkCustomer } from '../services/linking.js';
+import { normalizeEmail } from '../utils/normalizeEmail.js';
+import { normalizePhone } from '../utils/phone.js';
+import { OWN_EMAIL_MESSAGE, OWN_PHONE_MESSAGE } from '../services/accountAccess.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -29,13 +32,41 @@ export const CustomerSchema = z.object({
 const CUSTOMER_COLUMNS = `id, owner_user_id, linked_user_id, name, phone, email, pix_key,
   trusted, overpayment_strategy, notes, score, created_at, updated_at`;
 
+const COUNTERPART_CLOSED = `EXISTS (
+  SELECT 1 FROM users u
+   WHERE u.id = customers.linked_user_id
+     AND u.deleted_at IS NOT NULL
+     AND u.purge_completed_at IS NULL
+) AS counterpart_closed`;
+
+async function ownContactError(
+  userId: string,
+  phone?: string | null,
+  email?: string | null,
+): Promise<string | null> {
+  const touchesPhone = phone !== undefined && phone !== null && phone !== '';
+  const touchesEmail = email !== undefined && email !== null && email !== '';
+  if (!touchesPhone && !touchesEmail) return null;
+  const me = await query('SELECT email, phone FROM users WHERE id = $1', [userId]);
+  const row = me.rows[0];
+  if (!row) return null;
+  if (touchesPhone && normalizePhone(phone) !== '' && normalizePhone(phone) === normalizePhone(row.phone)) {
+    return OWN_PHONE_MESSAGE;
+  }
+  if (touchesEmail && normalizeEmail(email as string) === normalizeEmail(String(row.email ?? ''))) {
+    return OWN_EMAIL_MESSAGE;
+  }
+  return null;
+}
+
 // GET /api/customers — todos os clientes do dono (com contagem de pendências)
 router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await query(
       `SELECT ${CUSTOMER_COLUMNS},
               (SELECT COUNT(*) FROM transactions t
-                WHERE t.customer_id = customers.id AND t.status = 'PENDING') AS pending_count
+                WHERE t.customer_id = customers.id AND t.status = 'PENDING') AS pending_count,
+              ${COUNTERPART_CLOSED}
          FROM customers
         WHERE owner_user_id = $1 AND deleted_at IS NULL
         ORDER BY name ASC`,
@@ -51,6 +82,8 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
 router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const body = CustomerSchema.parse(req.body);
+    const own = await ownContactError(req.user!.sub, body.phone, body.email);
+    if (own) return next(new ApiError(400, own, 'OWN_CONTACT'));
     const result = await query(
       `INSERT INTO customers (id, owner_user_id, name, phone, email, pix_key, trusted, overpayment_strategy, notes, score)
        VALUES (COALESCE($1::uuid, uuid_generate_v4()), $2, $3, $4, $5, $6, COALESCE($7, FALSE), COALESCE($8, 'RETURN'), COALESCE($9::jsonb, '[]'::jsonb), $10)
@@ -84,7 +117,7 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
 router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await query(
-      `SELECT ${CUSTOMER_COLUMNS} FROM customers
+      `SELECT ${CUSTOMER_COLUMNS}, ${COUNTERPART_CLOSED} FROM customers
         WHERE id = $1 AND owner_user_id = $2 AND deleted_at IS NULL`,
       [req.params.id, req.user!.sub],
     );
@@ -102,6 +135,12 @@ router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction)
     const fields = Object.entries(body).filter(([, v]) => v !== undefined);
     if (fields.length === 0)
       return next(new ApiError(400, 'Nenhum campo para atualizar', 'EMPTY_UPDATE'));
+    const own = await ownContactError(
+      req.user!.sub,
+      body.phone === undefined ? undefined : body.phone,
+      body.email === undefined ? undefined : body.email,
+    );
+    if (own) return next(new ApiError(400, own, 'OWN_CONTACT'));
 
     const setClause = fields
       .map(([k], i) => (k === 'notes' ? `${k} = $${i + 3}::jsonb` : `${k} = $${i + 3}`))

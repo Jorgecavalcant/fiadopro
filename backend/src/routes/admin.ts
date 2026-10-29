@@ -11,8 +11,14 @@ import {
   insertAuditEntry,
   listAdminAudit,
   updateAdminUser,
+  validateRequiredNote,
   withTransaction,
 } from '../services/adminAudit.js';
+import {
+  applyAdminReactivation,
+  closedAccountStatus,
+  maskPersonName,
+} from '../services/accountAccess.js';
 
 const router = Router();
 
@@ -64,6 +70,123 @@ router.get('/users', async (req: AuthRequest, res: Response, next: NextFunction)
       users: usersResult.rows,
       meta: { total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) },
     });
+  } catch (err) {
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    next(err);
+  }
+});
+
+const ClosedListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+function closedListItem(row: Record<string, unknown>) {
+  const legalHold = row.legal_hold === true;
+  return {
+    id: row.id,
+    name: maskPersonName(row.full_name as string | null),
+    deleted_at: row.deleted_at,
+    days_left: Number(row.days_left ?? 0),
+    status: closedAccountStatus(legalHold),
+  };
+}
+
+const CLOSED_WHERE = `deleted_at IS NOT NULL AND purge_completed_at IS NULL`;
+
+router.get('/users/closed', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { page, limit } = ClosedListQuerySchema.parse(req.query);
+    const offset = (page - 1) * limit;
+    const countResult = await query(
+      `SELECT COUNT(*)::int AS total FROM users WHERE ${CLOSED_WHERE}`,
+    );
+    const total = countResult.rows[0]?.total ?? 0;
+    const rows = await query(
+      `SELECT id, full_name, deleted_at, legal_hold,
+              GREATEST(0, CEIL(EXTRACT(EPOCH FROM (purge_after - NOW())) / 86400.0))::int AS days_left
+         FROM users
+        WHERE ${CLOSED_WHERE}
+        ORDER BY purge_after ASC NULLS LAST
+        LIMIT $1 OFFSET $2`,
+      [limit, offset],
+    );
+    res.json({
+      success: true,
+      users: rows.rows.map((row) => closedListItem(row)),
+      meta: { total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) },
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    next(err);
+  }
+});
+
+router.get('/users/closed/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const rows = await query(
+      `SELECT id, full_name, deleted_at, purge_after, deleted_reason, legal_hold,
+              GREATEST(0, CEIL(EXTRACT(EPOCH FROM (purge_after - NOW())) / 86400.0))::int AS days_left
+         FROM users
+        WHERE id = $1 AND ${CLOSED_WHERE}`,
+      [req.params.id],
+    );
+    const row = rows.rows[0];
+    if (!row) return next(new ApiError(404, 'Conta encerrada não encontrada', 'NOT_FOUND'));
+    res.json({
+      success: true,
+      user: {
+        ...closedListItem(row),
+        purge_after: row.purge_after,
+        deleted_reason: row.deleted_reason,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const ReactivateSchema = z.object({
+  note: z.string().max(500),
+});
+
+router.post('/users/:id/reactivate', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const body = ReactivateSchema.parse(req.body ?? {});
+    const noteError = validateRequiredNote(body.note);
+    if (noteError) return next(new ApiError(400, noteError, 'VALIDATION_ERROR'));
+    const note = body.note.trim();
+    const outcome = await withTransaction(async (sql) => {
+      const result = await applyAdminReactivation(sql, req.params.id);
+      if ('missing' in result) {
+        throw new ApiError(404, 'Usuário não encontrado', 'USER_NOT_FOUND');
+      }
+      const reactivated = 'user' in result ? result.user : undefined;
+      if (!reactivated) {
+        throw new ApiError(409, 'Esta conta não pode voltar.', 'NOT_REACTIVATABLE');
+      }
+      await insertAuditEntry(sql, {
+        adminId: req.user!.sub,
+        action: 'user.reactivate',
+        targetUserId: req.params.id,
+        reason: null,
+        note,
+        beforeState: { closed: true, legal_hold: result.beforeHold === true },
+        afterState: {
+          closed: false,
+          legal_hold: reactivated.legal_hold,
+          is_active: reactivated.is_active,
+        },
+        keepWhileOrderStands: reactivated.legal_hold,
+      });
+      return reactivated;
+    });
+    const message = outcome.legal_hold
+      ? 'A conta saiu da fila de exclusão e continua bloqueada por ordem judicial.'
+      : 'Conta reativada.';
+    res.json({ success: true, user: outcome, message });
   } catch (err) {
     if (err instanceof z.ZodError)
       return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
@@ -158,6 +281,7 @@ const AUDIT_ACTIONS = [
   'user.unblock',
   'user.update',
   'user.reset_password',
+  'user.reactivate',
   'settings.update',
 ] as const;
 
