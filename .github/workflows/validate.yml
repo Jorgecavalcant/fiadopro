@@ -40,6 +40,11 @@ jobs:
       - name: Testes (se existirem)
         run: |
           if npm run | grep -qE '^  test$'; then pnpm test; else echo "sem testes de backend ainda"; fi
+      - name: Backend — npm ci (igual ao Docker)
+        run: |
+          rm -rf node_modules
+          npm ci
+          npm run build
 
   frontend:
     name: Frontend — testes + build
