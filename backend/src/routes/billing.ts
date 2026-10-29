@@ -12,7 +12,13 @@ import {
   AsaasNotConfiguredError,
   AsaasRequestError,
 } from '../services/asaas.js';
-import { getUserPlan, maxReportMonths } from '../services/plans.js';
+import {
+  adPolicyFor,
+  getUserPlan,
+  maxReportMonths,
+  PRO_MONTHLY_PRICE,
+  publicPlanPrices,
+} from '../services/plans.js';
 
 const router = Router();
 
@@ -78,6 +84,8 @@ export async function getStatusHandler(req: AuthRequest, res: Response, next: Ne
       canceledAt: sub?.canceled_at ?? null,
       canCancel: Boolean(sub?.asaas_subscription_id) && !sub?.canceled_at,
       maxReportMonths: maxReportMonths(plan),
+      prices: publicPlanPrices(),
+      adPolicy: adPolicyFor(plan),
     });
   } catch (err) {
     next(err);
@@ -116,7 +124,7 @@ export async function subscribeHandler(req: AuthRequest, res: Response, next: Ne
       cpfCnpj,
     });
 
-    const price = Number(process.env.ASAAS_PRO_PRICE || '19.90');
+    const price = PRO_MONTHLY_PRICE;
     const nextDueDate = new Date().toISOString().slice(0, 10);
 
     const subscription = await createSubscription({

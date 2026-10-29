@@ -251,9 +251,16 @@ describe('billing — subscribeHandler', () => {
     const res = fakeRes();
     const next = vi.fn();
 
+    const previous = process.env.ASAAS_PRO_PRICE;
+    process.env.ASAAS_PRO_PRICE = '19.90';
     await subscribeHandler(req, res, next);
+    if (previous === undefined) delete process.env.ASAAS_PRO_PRICE;
+    else process.env.ASAAS_PRO_PRICE = previous;
 
     expect(next).not.toHaveBeenCalled();
+    expect(asaasService.createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({ value: 30 }),
+    );
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ success: true, invoiceUrl: 'https://asaas.com/i/xyz' }),
     );

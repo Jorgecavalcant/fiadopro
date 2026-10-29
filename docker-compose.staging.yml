@@ -53,7 +53,7 @@ services:
       ASAAS_API_KEY: ${ASAAS_API_KEY:-}
       ASAAS_WEBHOOK_TOKEN: ${ASAAS_WEBHOOK_TOKEN:-}
       ASAAS_BASE_URL: ${ASAAS_BASE_URL:-https://api-sandbox.asaas.com/v3}
-      ASAAS_PRO_PRICE: ${ASAAS_PRO_PRICE:-19.90}
+      ASAAS_PRO_PRICE: ${ASAAS_PRO_PRICE:-30.00}
     ports:
       - "127.0.0.1:10014:4000"
     depends_on:
