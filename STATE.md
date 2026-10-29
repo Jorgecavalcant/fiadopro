@@ -1,7 +1,7 @@
 ﻿# STATE — Fiado Pro
 **Produto:** Fiado Pro — Smart Credit Tracker para pequenos comerciantes
-**Ultima atualizacao:** 2026-10-28
-**Atualizado por:** agent-manager (login Google do site alinhado ao Client ID da API, sem merge)
+**Ultima atualizacao:** 2026-10-29
+**Atualizado por:** agent-manager (correcao da PR #40, sem merge)
 
 ---
 
@@ -136,6 +136,7 @@
 | 8 | Conta de teste revisor Apple — criar em www.fiadopro.com.br com dados ficticios | Jorge | ALTO | 17/04/2026 |
 | 9 | Login nativo do Google no app Android. O botão web não funciona no WebView do Capacitor (origem `https://localhost`). | Jorge + agentes | MEDIO | 28/10/2026 |
 | 10 | Revisar o CORS da API para o app Android. Hoje a API aceita `https://www.fiadopro.com.br` e `http://localhost:3000`. O app usa `https://localhost`. | agentes | MEDIO | 28/10/2026 |
+| 11 | ~~Último administrador podia se bloquear ou encerrar a própria conta~~ **RESOLVIDO (29/10/2026):** a API recusa encerrar ou bloquear quando isso deixaria a plataforma sem administrador ativo. A tela desabilita o bloqueio na própria linha. | jc-agent-manager | RESOLVIDO | 29/10/2026 |
 
 ---
 
@@ -156,6 +157,8 @@
 | 02/06/2026 | Implement | Sprint 5 — Prep de publicacao (agentes): auditoria de seguranca (bcrypt cost 12 confirmado, falso bloqueio Argon2 removido); pacote de conteudo das lojas (`docs/STORE-LISTING.md`); spec de assets (`docs/ASSETS-SPEC.md`); Vitest + 20 testes em `utils/credit.ts`; refator App.tsx para usar o modulo | 20/20 testes verdes; conteudo pronto para colar nos consoles | Jorge: contas/builds (Etapas 1-12 de SESSAO-SPRINT4) |
 | 03/06/2026 | Implement | Sprint 5 — Foco Play Store (Google ja pago, Apple adiada): subir targetSdk/compileSdk 34→35 (exigencia Play), toolchain AGP 8.2.1→8.7.2 + Gradle 8.2.1→8.9 + google-services 4.4.2; signingConfig via `keystore.properties` (gitignored) + `keystore.properties.example`; versionName 1.0.0; guia `docs/ANDROID-BUILD.md` | Projeto Android nos padroes atuais da Play; AAB assinavel via `./gradlew bundleRelease` | Jorge: instalar Android Studio, gerar keystore, rodar build, enviar SHA-256 |
 | 28/10/2026 | Implement | Login Google do site: `GOOGLE_CLIENT_ID` em `frontend/src/App.tsx` alinhado ao Client ID que a API já usa (projeto FiadoPro). VPS, .env, API e backend não foram alterados. | PR aberta, sem merge. O botão passa a funcionar só depois do deploy do frontend. | Jorge: merge, deploy, testar "Entrar com Google" em www.fiadopro.com.br |
+| 29/10/2026 | Implement | Trava do último administrador: encerrar a própria conta e bloquear no painel são recusados quando sobraria zero administrador ativo. Teste de integração em banco local. VPS e banco de produção não foram alterados. | PR aberta, sem merge. | Jorge: revisar a PR |
+| 29/10/2026 | Implement | Correção da PR #40. O GitHub recusou o envio porque a senha falsa do teste estava fixa no arquivo e o `pnpm-lock.yaml` não listava o banco de teste. A senha e o JWT de teste passam a ser gerados na hora. A trava e os testes continuam. | PR #40 atualizada, sem merge. | Jorge: revisar quando as verificações ficarem verdes |
 
 ---
 

@@ -91,7 +91,7 @@ async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
 /* ============================================================
  * Componente raiz
  * ============================================================ */
-const AdminPanel: React.FC = () => {
+const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
   const [tab, setTab] = useState<AdminTab>('users');
 
   const tabs: { id: AdminTab; label: string; icon: React.FC<{ className?: string }> }[] = [
@@ -127,7 +127,7 @@ const AdminPanel: React.FC = () => {
         ))}
       </div>
 
-      {tab === 'users' && <UsersTab />}
+      {tab === 'users' && <UsersTab currentUserId={currentUserId} />}
       {tab === 'metrics' && <MetricsTab />}
       {tab === 'settings' && <SettingsTab />}
       {tab === 'reports' && <ReportsTab />}
@@ -153,7 +153,7 @@ const ErrorBanner: React.FC<{ message: string }> = ({ message }) => (
 /* ============================================================
  * Aba: Usuários
  * ============================================================ */
-const UsersTab: React.FC = () => {
+const UsersTab: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [meta, setMeta] = useState<UsersMeta | null>(null);
   const [page, setPage] = useState(1);
@@ -313,18 +313,32 @@ const UsersTab: React.FC = () => {
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
-                      <button
-                        title={u.is_active ? 'Desativar' : 'Ativar'}
-                        onClick={() => toggleActive(u)}
-                        disabled={savingId === u.id}
-                        className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 disabled:opacity-50"
-                      >
-                        {u.is_active ? (
+                      {currentUserId === u.id && u.is_active ? (
+                        <button
+                          type="button"
+                          aria-label="Bloquear a própria conta"
+                          title="Você não pode bloquear a sua própria conta"
+                          disabled
+                          className="p-2 rounded-xl text-slate-300 cursor-not-allowed"
+                        >
                           <ShieldOff className="w-4 h-4" />
-                        ) : (
-                          <ShieldCheck className="w-4 h-4" />
-                        )}
-                      </button>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          aria-label={u.is_active ? 'Bloquear acesso' : 'Desbloquear acesso'}
+                          title={u.is_active ? 'Desativar' : 'Ativar'}
+                          onClick={() => toggleActive(u)}
+                          disabled={savingId === u.id}
+                          className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+                        >
+                          {u.is_active ? (
+                            <ShieldOff className="w-4 h-4" />
+                          ) : (
+                            <ShieldCheck className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
                       <button
                         title="Redefinir senha"
                         onClick={() => resetPassword(u)}

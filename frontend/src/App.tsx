@@ -5289,7 +5289,9 @@ const App: React.FC = () => {
             />
           )}
           {activeView === AppView.HELP && <HelpView />}
-          {activeView === AppView.ADMIN && user?.role === 'admin' && <AdminPanel />}
+          {activeView === AppView.ADMIN && user && user.role === 'admin' && (
+            <AdminPanel currentUserId={user.id} />
+          )}
         </Layout>
         {/* FAB - Floating Action Button */}
         <button
