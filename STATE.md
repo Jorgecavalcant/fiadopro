@@ -1,7 +1,7 @@
 ﻿# STATE — Fiado Pro
 **Produto:** Fiado Pro — Smart Credit Tracker para pequenos comerciantes
 **Ultima atualizacao:** 2026-10-29
-**Atualizado por:** agent-manager (correcao da PR #40, sem merge)
+**Atualizado por:** agent-manager (layout dos cards do Dashboard, sem merge)
 
 ---
 
@@ -159,6 +159,7 @@
 | 28/10/2026 | Implement | Login Google do site: `GOOGLE_CLIENT_ID` em `frontend/src/App.tsx` alinhado ao Client ID que a API já usa (projeto FiadoPro). VPS, .env, API e backend não foram alterados. | PR aberta, sem merge. O botão passa a funcionar só depois do deploy do frontend. | Jorge: merge, deploy, testar "Entrar com Google" em www.fiadopro.com.br |
 | 29/10/2026 | Implement | Trava do último administrador: encerrar a própria conta e bloquear no painel são recusados quando sobraria zero administrador ativo. Teste de integração em banco local. VPS e banco de produção não foram alterados. | PR aberta, sem merge. | Jorge: revisar a PR |
 | 29/10/2026 | Implement | Correção da PR #40. O GitHub recusou o envio porque a senha falsa do teste estava fixa no arquivo e o `pnpm-lock.yaml` não listava o banco de teste. A senha e o JWT de teste passam a ser gerados na hora. A trava e os testes continuam. | PR #40 atualizada, sem merge. | Jorge: revisar quando as verificações ficarem verdes |
+| 29/10/2026 | Implement | Cards do Dashboard: o título e o valor em R$ passam a caber no card no celular, no tablet e no computador. O card PRO fica do mesmo tamanho dos outros. Só o visual. Sem migration e sem mudar dados. | PR aberta, sem merge. | Jorge: revisar a PR |
 
 ---
 

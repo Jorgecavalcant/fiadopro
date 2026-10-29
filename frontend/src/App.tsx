@@ -78,6 +78,7 @@ import {
   UserCredentials,
 } from './types';
 import Layout from './components/Layout';
+import DashboardKpiCards from './components/DashboardKpiCards';
 import AdminPanel from './components/AdminPanel';
 import UpgradePlano from './components/UpgradePlano';
 import FullScreenModal from './components/FullScreenModal';
@@ -361,66 +362,7 @@ const DashboardView = ({ stats, formatCurrency, setActiveView, isPro, t }: any) 
 
   return (
     <div className="fp-view-enter" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* KPI Cards */}
-      <div className="fp-stagger grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
-        {kpis.map((kpi, i) => (
-          <div
-            key={i}
-            className={`fp-stat-card ${kpi.accent}${kpi.onClick ? ' fp-card-interactive' : ''}`}
-            onClick={kpi.onClick}
-            style={{ cursor: kpi.onClick ? 'pointer' : 'default' }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 16,
-              }}
-            >
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 12,
-                  background: kpi.iconBg,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: kpi.iconColor,
-                  flexShrink: 0,
-                }}
-              >
-                {kpi.icon}
-              </div>
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 800,
-                  letterSpacing: '0.1em',
-                  textTransform: 'uppercase',
-                  color: 'var(--fp-muted)',
-                }}
-              >
-                {kpi.label}
-              </span>
-            </div>
-            <div
-              style={{
-                fontSize: 26,
-                fontWeight: 900,
-                color: 'var(--fp-text)',
-                letterSpacing: '-0.02em',
-                lineHeight: 1.1,
-                marginBottom: 6,
-              }}
-            >
-              {kpi.value}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--fp-muted)', fontWeight: 500 }}>{kpi.sub}</div>
-          </div>
-        ))}
-      </div>
+      <DashboardKpiCards items={kpis} />
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
