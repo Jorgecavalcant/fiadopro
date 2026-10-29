@@ -126,14 +126,14 @@ import {
   buildChargeMessage,
   buildWhatsAppUrl,
 } from './utils/credit';
-import { formatDueDate, isOverdueDebt, summarizeOverdue } from './utils/overdue';
+import { isOverdueDebt, summarizeOverdue } from './utils/overdue';
 import {
   computeItemPrice,
   getItemQuantity,
   getItemUnitPrice,
   planEventSplitRecords,
-  formatDateBR,
 } from './utils/billSplit';
+import { brDateInputToTimestamp, formatBrDate, formatBrDateTime } from './utils/formatBr';
 
 function balanceDirection(
   rawBalance: number,
@@ -276,7 +276,7 @@ const MyExpensesView = ({
               <div className="flex-1 min-w-0">
                 <p className="font-black text-slate-900 truncate">{exp.description}</p>
                 <p className="text-xs text-slate-400 font-bold mt-1">
-                  {exp.eventName} · {new Date(exp.date).toLocaleDateString('pt-BR')}
+                  {exp.eventName} · {formatBrDate(exp.date)}
                 </p>
               </div>
               <div className="text-right shrink-0">
@@ -317,7 +317,7 @@ const MyExpensesView = ({
               <div className="flex-1 min-w-0">
                 <p className="font-black text-slate-700 truncate">{exp.description}</p>
                 <p className="text-xs text-slate-400 font-bold mt-1">
-                  {exp.eventName} · {new Date(exp.date).toLocaleDateString('pt-BR')}
+                  {exp.eventName} · {formatBrDate(exp.date)}
                 </p>
               </div>
               <div className="text-right shrink-0">
@@ -669,10 +669,7 @@ const DashboardView = ({ stats, formatCurrency, setActiveView, isPro, t }: any) 
                         {formatCurrency(tx.amount)}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--fp-muted)', marginTop: 1 }}>
-                        {new Date(tx.timestamp).toLocaleDateString('pt-BR', {
-                          day: '2-digit',
-                          month: 'short',
-                        })}
+                        {formatBrDate(tx.timestamp)}
                       </div>
                     </td>
                   </tr>
@@ -1476,7 +1473,7 @@ const SplitBillView = ({
                     {event.name}
                   </h3>
                   <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-6">
-                    {new Date(event.date).toLocaleDateString()}
+                    {formatBrDate(event.date)}
                   </p>
                 </div>
                 <div className="pt-6 border-t border-slate-50 flex justify-between items-end">
@@ -1539,6 +1536,7 @@ const EventDetailView = ({
   const [lastAddedParticipantId, setLastAddedParticipantId] = useState<string | null>(null);
   const participantRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const [lastAddedItemId, setLastAddedItemId] = useState<string | null>(null);
+  const [splitDueDate, setSplitDueDate] = useState('');
   const itemRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const event = events.find((e: any) => e.id === selectedEventId);
 
@@ -1563,6 +1561,10 @@ const EventDetailView = ({
     }
     setLastAddedItemId(null);
   }, [lastAddedItemId]);
+
+  useEffect(() => {
+    setSplitDueDate('');
+  }, [selectedEventId]);
 
   if (!event) return null;
 
@@ -1677,7 +1679,7 @@ const EventDetailView = ({
       .join('');
 
     const statusColor = event.isCompleted ? '#10b981' : '#f59e0b';
-    const content = `<html><head><title>${esc(event.name)}</title><style>body { font-family: sans-serif; padding: 40px; color: #334155; } table { width: 100%; border-collapse: collapse; margin-bottom: 30px; } th, td { padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left; } th { font-size: 12px; text-transform: uppercase; color: #94a3b8; } .status { font-weight: bold; color: ${statusColor}; }</style></head><body><h1>${esc(event.name)} <span class="status">[${event.isCompleted ? 'QUITADO' : 'PENDENTE'}]</span></h1><p>Data: ${esc(new Date(event.date).toLocaleDateString())} | Total: ${formatCurrency(totalBill)}</p><h3>Itens Consumidos</h3><table><thead><tr><th>Item</th><th style="text-align:right">Qtd</th><th style="text-align:right">Valor Unit.</th><th style="text-align:right">Total</th></tr></thead><tbody>${itemsList}</tbody></table><h3>Divisão por Pessoa</h3><table><thead><tr><th>Nome</th><th>Itens</th><th style="text-align:right">Parte</th></tr></thead><tbody>${participantsList}</tbody></table><script>window.onload = () => window.print();</script></body></html>`;
+    const content = `<html><head><title>${esc(event.name)}</title><style>body { font-family: sans-serif; padding: 40px; color: #334155; } table { width: 100%; border-collapse: collapse; margin-bottom: 30px; } th, td { padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left; } th { font-size: 12px; text-transform: uppercase; color: #94a3b8; } .status { font-weight: bold; color: ${statusColor}; }</style></head><body><h1>${esc(event.name)} <span class="status">[${event.isCompleted ? 'QUITADO' : 'PENDENTE'}]</span></h1><p>Data: ${esc(formatBrDate(event.date))} | Total: ${formatCurrency(totalBill)}</p><h3>Itens Consumidos</h3><table><thead><tr><th>Item</th><th style="text-align:right">Qtd</th><th style="text-align:right">Valor Unit.</th><th style="text-align:right">Total</th></tr></thead><tbody>${itemsList}</tbody></table><h3>Divisão por Pessoa</h3><table><thead><tr><th>Nome</th><th>Itens</th><th style="text-align:right">Parte</th></tr></thead><tbody>${participantsList}</tbody></table><script>window.onload = () => window.print();</script></body></html>`;
     printWindow.document.write(content);
     printWindow.document.close();
   };
@@ -1685,6 +1687,7 @@ const EventDetailView = ({
   const handleConfirmSplit = () => {
     if (!confirm(t.confirmSplitQuestion || t.confirmSplit + '?')) return;
 
+    const chosenDue = brDateInputToTimestamp(splitDueDate);
     const wasAlreadyConfirmed = event.isCompleted;
     const newCustomersList: Customer[] = [];
     // Um item por participante com valor a pagar — usado por planEventSplitRecords para
@@ -1777,7 +1780,13 @@ const EventDetailView = ({
       const updatesById = new Map(txPlan.updates.map((u) => [u.id, u]));
       const mapped = prev.map((tx) => {
         const upd = updatesById.get(tx.id);
-        return upd ? { ...tx, amount: upd.amount, description: upd.description } : tx;
+        if (!upd) return tx;
+        return {
+          ...tx,
+          amount: upd.amount,
+          description: upd.description,
+          ...(chosenDue ? { dueDate: chosenDue } : {}),
+        };
       });
       const created: Transaction[] = txPlan.creates.map((c) => ({
         id: generateId(),
@@ -1788,6 +1797,7 @@ const EventDetailView = ({
         timestamp: Date.now(),
         eventId: event.id,
         status: 'CONFIRMED',
+        ...(chosenDue ? { dueDate: chosenDue } : {}),
       }));
       return created.length > 0 ? [...mapped, ...created] : mapped;
     });
@@ -1813,7 +1823,7 @@ const EventDetailView = ({
     // Histórico da reconfirmação: só quando o evento já tinha sido confirmado antes e
     // algum participante teve a transação ATUALIZADA (não criada agora pela 1ª vez).
     if (wasAlreadyConfirmed && updatedCustomerIds.size > 0) {
-      const noteText = `Divisão atualizada em ${formatDateBR()}`;
+      const noteText = `Divisão atualizada em ${formatBrDate(new Date())}`;
       setCustomers((prev: Customer[]) =>
         prev.map((c) =>
           updatedCustomerIds.has(c.id)
@@ -1917,9 +1927,7 @@ const EventDetailView = ({
         <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-12">
           <div>
             <h2 className="text-3xl font-black text-slate-900 mb-2">{event.name}</h2>
-            <p className="text-slate-400 font-bold text-sm">
-              {new Date(event.date).toLocaleDateString()}
-            </p>
+            <p className="text-slate-400 font-bold text-sm">{formatBrDate(event.date)}</p>
           </div>
           <div className="md:text-right">
             <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mb-1">
@@ -2167,6 +2175,32 @@ const EventDetailView = ({
               </div>
             </div>
 
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const allItemIds = event.items.map((item: BillItem) => item.id);
+                  if (allItemIds.length === 0 || event.participants.length === 0) return;
+                  updateEventContent((ev: BillEvent) => ({
+                    ...ev,
+                    participants: ev.participants.map((person) => ({
+                      ...person,
+                      itemIds: allItemIds,
+                    })),
+                  }));
+                }}
+                disabled={event.items.length === 0 || event.participants.length === 0}
+                className="w-full bg-white border-2 border-emerald-200 text-emerald-700 px-4 py-3 rounded-2xl text-sm font-black hover:bg-emerald-50 transition-all disabled:opacity-40"
+              >
+                Dividir igualmente entre todos
+              </button>
+              <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                Toque no nome de cada item, embaixo da pessoa, para marcar o que ela consumiu. O
+                botão acima marca todos os itens para todas as pessoas. Cada item continua dividido
+                só entre quem está marcado.
+              </p>
+            </div>
+
             <div className="space-y-6">
               {event.participants.map((p: any) => (
                 <div
@@ -2337,11 +2371,34 @@ const EventDetailView = ({
                       </button>
                     ))}
                   </div>
+                  {p.itemIds.length === 0 && event.items.length > 0 && (
+                    <p className="text-[11px] text-slate-400 font-bold mt-3">
+                      Nenhum item marcado para esta pessoa.
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
 
             <div className="bg-indigo-50 border-2 border-indigo-200 rounded-t42lg p-8 shadow-sm">
+              <label
+                htmlFor="split-due-date"
+                className="block text-indigo-400 font-black uppercase tracking-widest text-[10px] mb-2"
+              >
+                Vencimento das dívidas (opcional)
+              </label>
+              <input
+                id="split-due-date"
+                type="date"
+                value={splitDueDate}
+                onChange={(e) => setSplitDueDate(e.target.value)}
+                className="w-full px-4 py-3 bg-white border-2 border-indigo-100 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-indigo-400"
+              />
+              <p className="text-xs font-bold text-indigo-700 mt-2 mb-6">
+                {splitDueDate
+                  ? `Vence em ${formatBrDate(splitDueDate)}`
+                  : 'Se ficar em branco, a dívida fica sem vencimento.'}
+              </p>
               <p className="text-indigo-400 font-black uppercase tracking-widest text-[10px] mb-4">
                 CÁLCULO FINAL
               </p>
@@ -2522,7 +2579,7 @@ const InstallmentGroupCard = ({
                       <td
                         className={`py-3 px-4 font-bold text-xs ${status === 'overdue' ? 'text-red-600 font-black' : 'text-slate-500'}`}
                       >
-                        {formatDueDate(tx.dueDate)}
+                        {tx.dueDate ? formatBrDate(tx.dueDate) : 'Sem vencimento'}
                       </td>
                       <td
                         className={`py-3 px-4 text-right font-black ${status === 'overdue' ? 'text-red-700' : 'text-slate-900'}`}
@@ -2714,7 +2771,7 @@ const CustomerDetailView = ({
       .map((tx: Transaction) => {
         const { label, color, sign } = typeLabel(tx.type);
         return `<tr>
-        <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b">${new Date(tx.timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b">${formatBrDate(tx.timestamp)}</td>
         <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#0f172a;font-weight:600">${esc(tx.description)}</td>
         <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:11px;font-weight:700;text-align:center"><span style="background:${color}18;color:${color};padding:2px 8px;border-radius:99px">${label}</span></td>
         <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:14px;font-weight:800;text-align:right;color:${color}">${sign}${formatCurrency(tx.amount)}</td>
@@ -2729,7 +2786,7 @@ const CustomerDetailView = ({
           : '#64748B';
     const filterInfo =
       startDate || endDate
-        ? `<p style="font-size:12px;color:#64748b;margin:4px 0 0">Período: ${startDate || 'Início'} até ${endDate || 'Hoje'}</p>`
+        ? `<p style="font-size:12px;color:#64748b;margin:4px 0 0">Período: ${startDate ? formatBrDate(startDate) : 'Início'} até ${endDate ? formatBrDate(endDate) : 'Hoje'}</p>`
         : '';
     const html = `<!DOCTYPE html><html lang="pt-BR">
 <head><meta charset="utf-8"><title>Extrato — ${esc(selectedCustomer.name)}</title>
@@ -2757,7 +2814,7 @@ const CustomerDetailView = ({
 </div>
 <table><thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th style="text-align:right">Valor</th></tr></thead>
 <tbody>${items}</tbody></table>
-<p style="margin-top:24px;font-size:11px;color:#94a3b8;text-align:center">Gerado em ${new Date().toLocaleString('pt-BR')} via FiadoPro</p>
+<p style="margin-top:24px;font-size:11px;color:#94a3b8;text-align:center">Gerado em ${formatBrDateTime(new Date())} via FiadoPro</p>
 <script>window.onload = function(){ window.print(); }</script>
 </body></html>`;
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
@@ -2855,7 +2912,8 @@ const CustomerDetailView = ({
                   </p>
                 ) : (
                   <p className="text-amber-600 font-bold flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 text-sm">
-                    <Phone className="w-4 h-4" /> Telefone pendente — adicione para não perder este cadastro
+                    <Phone className="w-4 h-4" /> Telefone pendente — adicione para não perder este
+                    cadastro
                   </p>
                 )}
                 {selectedCustomer.email && (
@@ -2922,52 +2980,52 @@ const CustomerDetailView = ({
         {selectedCustomer.counterpartClosed ? (
           <p className="mb-12 text-sm font-bold text-amber-700">conta encerrada</p>
         ) : (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-12 relative z-10">
-          <button
-            onClick={() => {
-              setTransactionType('DEBT');
-              setEditTransactionData(null);
-              setIsTransactionModalOpen(true);
-            }}
-            className="md:col-span-2 flex items-center justify-center gap-2.5 text-white py-4 rounded-t42lg font-bold text-base shadow-t42sm hover:brightness-110 transition-all active:scale-95"
-            style={{ background: '#1C2446' }}
-          >
-            <ArrowUpRight className="w-5 h-5" /> {t.newPurchase}
-          </button>
-          <button
-            onClick={() => {
-              setTransactionType('PAYMENT');
-              setEditTransactionData(null);
-              setIsTransactionModalOpen(true);
-            }}
-            className="md:col-span-2 flex items-center justify-center gap-2.5 text-white py-4 rounded-t42lg font-bold text-base shadow-t42sm hover:brightness-110 transition-all active:scale-95"
-            style={{ background: '#2E9D6F' }}
-          >
-            <ArrowDownLeft className="w-5 h-5" /> {t.logPayment}
-          </button>
-          <button
-            onClick={() => {
-              setTransactionType('ABATIMENTO');
-              setEditTransactionData(null);
-              setIsTransactionModalOpen(true);
-            }}
-            className="md:col-span-2 flex items-center justify-center gap-2.5 bg-white text-sm py-3 min-h-[48px] rounded-t42lg font-semibold hover:bg-gray-50 transition-all active:scale-95"
-            style={{ color: '#7252E2', border: '1.5px solid #7252E2' }}
-          >
-            <RefreshCcw className="w-5 h-5" /> Abatimento
-          </button>
-          <button
-            onClick={() => {
-              setTransactionType('REFUND');
-              setEditTransactionData(null);
-              setIsTransactionModalOpen(true);
-            }}
-            className="md:col-span-2 flex items-center justify-center gap-2.5 bg-white text-sm py-3 min-h-[48px] rounded-t42lg font-semibold hover:bg-gray-50 transition-all active:scale-95"
-            style={{ color: '#3D559C', border: '1.5px solid #3D559C' }}
-          >
-            <ArrowDownCircle className="w-5 h-5" /> Devolução
-          </button>
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-12 relative z-10">
+            <button
+              onClick={() => {
+                setTransactionType('DEBT');
+                setEditTransactionData(null);
+                setIsTransactionModalOpen(true);
+              }}
+              className="md:col-span-2 flex items-center justify-center gap-2.5 text-white py-4 rounded-t42lg font-bold text-base shadow-t42sm hover:brightness-110 transition-all active:scale-95"
+              style={{ background: '#1C2446' }}
+            >
+              <ArrowUpRight className="w-5 h-5" /> {t.newPurchase}
+            </button>
+            <button
+              onClick={() => {
+                setTransactionType('PAYMENT');
+                setEditTransactionData(null);
+                setIsTransactionModalOpen(true);
+              }}
+              className="md:col-span-2 flex items-center justify-center gap-2.5 text-white py-4 rounded-t42lg font-bold text-base shadow-t42sm hover:brightness-110 transition-all active:scale-95"
+              style={{ background: '#2E9D6F' }}
+            >
+              <ArrowDownLeft className="w-5 h-5" /> {t.logPayment}
+            </button>
+            <button
+              onClick={() => {
+                setTransactionType('ABATIMENTO');
+                setEditTransactionData(null);
+                setIsTransactionModalOpen(true);
+              }}
+              className="md:col-span-2 flex items-center justify-center gap-2.5 bg-white text-sm py-3 min-h-[48px] rounded-t42lg font-semibold hover:bg-gray-50 transition-all active:scale-95"
+              style={{ color: '#7252E2', border: '1.5px solid #7252E2' }}
+            >
+              <RefreshCcw className="w-5 h-5" /> Abatimento
+            </button>
+            <button
+              onClick={() => {
+                setTransactionType('REFUND');
+                setEditTransactionData(null);
+                setIsTransactionModalOpen(true);
+              }}
+              className="md:col-span-2 flex items-center justify-center gap-2.5 bg-white text-sm py-3 min-h-[48px] rounded-t42lg font-semibold hover:bg-gray-50 transition-all active:scale-95"
+              style={{ color: '#3D559C', border: '1.5px solid #3D559C' }}
+            >
+              <ArrowDownCircle className="w-5 h-5" /> Devolução
+            </button>
+          </div>
         )}
 
         {selectedCustomer.rawBalance < 0 && !selectedCustomer.counterpartClosed && (
@@ -3016,18 +3074,28 @@ const CustomerDetailView = ({
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
                     className="bg-transparent border-none text-[10px] font-bold text-slate-600 p-0 focus:ring-0 w-24"
-                    placeholder={t.startDate}
-                    title={t.startDate}
+                    aria-label={t.startDate}
+                    title={startDate ? formatBrDate(startDate) : t.startDate}
                   />
+                  {startDate ? (
+                    <span className="text-[10px] font-black text-slate-700 whitespace-nowrap">
+                      {formatBrDate(startDate)}
+                    </span>
+                  ) : null}
                   <span className="text-slate-300">|</span>
                   <input
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
                     className="bg-transparent border-none text-[10px] font-bold text-slate-600 p-0 focus:ring-0 w-24"
-                    placeholder={t.endDate}
-                    title={t.endDate}
+                    aria-label={t.endDate}
+                    title={endDate ? formatBrDate(endDate) : t.endDate}
                   />
+                  {endDate ? (
+                    <span className="text-[10px] font-black text-slate-700 whitespace-nowrap">
+                      {formatBrDate(endDate)}
+                    </span>
+                  ) : null}
                 </div>
                 {(startDate || endDate) && (
                   <button
@@ -3097,7 +3165,11 @@ const CustomerDetailView = ({
                             <span
                               className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${tx.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}
                             >
-                              {tx.status === 'PENDING' ? 'Pendente' : tx.status === 'CANCELLED' ? 'Cancelado' : 'Rejeitado'}
+                              {tx.status === 'PENDING'
+                                ? 'Pendente'
+                                : tx.status === 'CANCELLED'
+                                  ? 'Cancelado'
+                                  : 'Rejeitado'}
                             </span>
                           )}
                           {selectedCustomer.counterpartClosed && tx.status === 'PENDING' && (
@@ -3140,12 +3212,12 @@ const CustomerDetailView = ({
                           )}
                         </div>
                         <p className="text-xs text-slate-400 font-bold">
-                          {new Date(tx.timestamp).toLocaleString()}
+                          {formatBrDateTime(tx.timestamp)}
                         </p>
                         <p
                           className={`text-xs font-bold ${overdue ? 'text-red-700' : 'text-slate-500'}`}
                         >
-                          {tx.dueDate ? `Vencimento ${formatDueDate(tx.dueDate)}` : 'Sem vencimento'}
+                          {tx.dueDate ? `Vencimento ${formatBrDate(tx.dueDate)}` : 'Sem vencimento'}
                           {overdue ? ' · Em atraso' : ''}
                         </p>
                       </div>
@@ -3319,7 +3391,7 @@ const CustomerDetailView = ({
                               {note.text}
                             </p>
                             <p className="text-[10px] text-slate-400 mt-3 font-black uppercase tracking-wider">
-                              {new Date(note.createdAt).toLocaleString()}
+                              {formatBrDateTime(note.createdAt)}
                             </p>
                             <div className="absolute top-4 right-4 flex gap-1">
                               <button
@@ -3613,10 +3685,7 @@ const ProfileView = ({
 
       <UpgradePlano />
 
-      <DeleteAccountPanels
-        googleOnly={user?.hasPassword === false}
-        onDelete={onDeleteAccount}
-      />
+      <DeleteAccountPanels googleOnly={user?.hasPassword === false} onDelete={onDeleteAccount} />
     </div>
   );
 };
@@ -3830,9 +3899,7 @@ const NotificationsView = ({
                   {t.amount}
                 </p>
                 <p className="text-2xl font-black text-emerald-600">{formatCurrency(tx.amount)}</p>
-                <p className="text-xs text-slate-400 mt-1">
-                  {new Date(tx.timestamp).toLocaleString()}
-                </p>
+                <p className="text-xs text-slate-400 mt-1">{formatBrDateTime(tx.timestamp)}</p>
               </div>
               <div className="flex gap-3">
                 <button
@@ -3903,7 +3970,7 @@ const AuditLogView = ({ auditLog, t }: { auditLog: AuditEntry[]; t: Translation 
               </div>
             </div>
             <p className="text-xs text-slate-400 font-bold whitespace-nowrap">
-              {new Date(entry.timestamp).toLocaleString()}
+              {formatBrDateTime(entry.timestamp)}
             </p>
           </div>
         ))}
@@ -3993,6 +4060,7 @@ const App: React.FC = () => {
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [isEditCustomerModalOpen, setIsEditCustomerModalOpen] = useState(false);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [dueDateInput, setDueDateInput] = useState('');
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [catalog, setCatalog] = useState<{
@@ -4161,7 +4229,11 @@ const App: React.FC = () => {
         if (data.isPro !== undefined) setIsPro(data.isPro);
         if (data.debts) setDebts(data.debts);
         if (data.auditLog) setAuditLog(data.auditLog);
-        if (data.plan?.type === 'FREE' || data.plan?.type === 'PRO' || data.plan?.type === 'ENTERPRISE') {
+        if (
+          data.plan?.type === 'FREE' ||
+          data.plan?.type === 'PRO' ||
+          data.plan?.type === 'ENTERPRISE'
+        ) {
           const storedType = data.plan.type as PlanType;
           const expired =
             typeof data.plan.expiresAt === 'number' && data.plan.expiresAt < Date.now();
@@ -4300,6 +4372,10 @@ const App: React.FC = () => {
     setInstallmentPreFill(null);
   }, [activeView]);
 
+  useEffect(() => {
+    if (!isTransactionModalOpen) setDueDateInput('');
+  }, [isTransactionModalOpen]);
+
   const customersWithBalance: CustomerWithBalance[] = useMemo(() => {
     const rows = customers.map((c) => {
       const customerTransactions = transactions.filter(
@@ -4386,7 +4462,7 @@ const App: React.FC = () => {
         (t) => t.timestamp <= d.getTime() && t.status === 'CONFIRMED',
       );
       return {
-        date: d.toLocaleDateString(language, { day: '2-digit', month: '2-digit' }),
+        date: formatBrDate(d),
         Offered: tillNow.filter((t) => t.type === 'DEBT').reduce((a, b) => a + b.amount, 0),
         Received: tillNow.filter((t) => t.type === 'PAYMENT').reduce((a, b) => a + b.amount, 0),
       };
@@ -4402,7 +4478,7 @@ const App: React.FC = () => {
       evolutionData,
       defaultRate: totalReceivable > 0 ? (totalOverdue / totalReceivable) * 100 : 0,
     };
-  }, [customersWithBalance, transactions, customers, language]);
+  }, [customersWithBalance, transactions, customers]);
 
   const handleShareWhatsApp = (_mode: string) => {
     const selected = customersWithBalance.find((c) => c.id === selectedCustomerId);
@@ -4640,7 +4716,7 @@ const App: React.FC = () => {
                 description: desc,
                 paymentMethod: method,
                 type: transactionType,
-                dueDate: dueDate ? new Date(dueDate).getTime() : undefined,
+                dueDate: brDateInputToTimestamp(dueDate),
                 eventId: eventId || undefined,
                 ...(attachment ? { attachment } : {}),
                 ...(creditConfirmed ? { creditConfirmed: true } : {}),
@@ -4662,7 +4738,7 @@ const App: React.FC = () => {
         const rate = hasInterest ? installmentInterestRate : 0;
         const installmentValue =
           Math.round(calcInstallment(principal, rate, installmentCount) * 100) / 100;
-        const baseDueDate = dueDate ? new Date(dueDate).getTime() : Date.now() + 30 * 86400000;
+        const baseDueDate = brDateInputToTimestamp(dueDate) ?? Date.now() + 30 * 86400000;
 
         const installments: Transaction[] = Array.from({ length: installmentCount }, (_, i) => ({
           id: generateId(),
@@ -4704,7 +4780,7 @@ const App: React.FC = () => {
             description: desc,
             timestamp: Date.now(),
             paymentMethod: method,
-            dueDate: dueDate ? new Date(dueDate).getTime() : undefined,
+            dueDate: brDateInputToTimestamp(dueDate),
             status: 'CONFIRMED',
             eventId: eventId || undefined,
             ...(creditConfirmed ? { creditConfirmed: true } : {}),
@@ -4812,7 +4888,12 @@ const App: React.FC = () => {
     }
   };
 
-  const handleRegister = async (name: string, email: string, password: string, reactivate = false) => {
+  const handleRegister = async (
+    name: string,
+    email: string,
+    password: string,
+    reactivate = false,
+  ) => {
     if (!name || !email || !password) {
       setLoginError('Preencha todos os campos.');
       return;
@@ -5787,7 +5868,9 @@ const App: React.FC = () => {
                                   {c.name}
                                 </p>
                                 <p style={{ fontSize: 12, color: '#94A3B8', margin: '2px 0 0' }}>
-                                  {c.counterpartClosed ? 'conta encerrada' : c.phone || 'Sem telefone'}
+                                  {c.counterpartClosed
+                                    ? 'conta encerrada'
+                                    : c.phone || 'Sem telefone'}
                                 </p>
                               </div>
                               <ChevronRight
@@ -5958,6 +6041,18 @@ const App: React.FC = () => {
                       />
                     </div>
                     {noteFilterDate && (
+                      <span
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 800,
+                          color: '#334155',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {formatBrDate(noteFilterDate)}
+                      </span>
+                    )}
+                    {noteFilterDate && (
                       <button
                         onClick={() => setNoteFilterDate('')}
                         style={{
@@ -5982,8 +6077,7 @@ const App: React.FC = () => {
                       .filter(
                         (n) =>
                           !noteFilterDate ||
-                          new Date(n.createdAt).toLocaleDateString() ===
-                            new Date(noteFilterDate + 'T00:00:00').toLocaleDateString(),
+                          formatBrDate(n.createdAt) === formatBrDate(noteFilterDate),
                       )
                       .slice()
                       .reverse()
@@ -6077,7 +6171,7 @@ const App: React.FC = () => {
                                   marginBottom: 0,
                                 }}
                               >
-                                {new Date(note.createdAt).toLocaleString()}
+                                {formatBrDateTime(note.createdAt)}
                               </p>
                               <div
                                 style={{
@@ -6265,17 +6359,29 @@ const App: React.FC = () => {
                         showToast(`Já existe ${sameName.name} com esse nome. O cadastro segue.`);
                       }
                       const editing = isEditCustomerModalOpen;
-                      const existing = editing ? customers.find((c) => c.id === selectedCustomerId) : undefined;
+                      const existing = editing
+                        ? customers.find((c) => c.id === selectedCustomerId)
+                        : undefined;
                       const draftId = editing ? selectedCustomerId || '' : generateId();
                       const draft = {
-                        ...(existing ?? { notes: [], createdAt: Date.now(), overpaymentStrategy: 'PROFIT' as const }),
+                        ...(existing ?? {
+                          notes: [],
+                          createdAt: Date.now(),
+                          overpaymentStrategy: 'PROFIT' as const,
+                        }),
                         ...cData,
                         id: draftId,
                       };
                       if (user && draftId) {
-                        const saved = await saveCustomerToServer(draft, editing && Boolean(existing));
+                        const saved = await saveCustomerToServer(
+                          draft,
+                          editing && Boolean(existing),
+                        );
                         if (saved && saved !== 'offline') {
-                          if (saved.message === 'Esse telefone é o seu.' || saved.message === 'Esse e-mail é o seu.') {
+                          if (
+                            saved.message === 'Esse telefone é o seu.' ||
+                            saved.message === 'Esse e-mail é o seu.'
+                          ) {
                             setCustomerFormWarning(saved.message);
                             return;
                           }
@@ -6428,7 +6534,10 @@ const App: React.FC = () => {
                       </div>
                     ))}
                     {customerFormWarning && (
-                      <p role="alert" style={{ color: '#b45309', fontWeight: 700, marginBottom: 12 }}>
+                      <p
+                        role="alert"
+                        style={{ color: '#b45309', fontWeight: 700, marginBottom: 12 }}
+                      >
                         {customerFormWarning}
                       </p>
                     )}
@@ -6704,7 +6813,7 @@ const App: React.FC = () => {
                         {/* Alteração crítica: Mostrar TODOS os eventos para permitir vínculo retroativo */}
                         {events.map((ev) => (
                           <option key={ev.id} value={ev.id}>
-                            {ev.name} ({new Date(ev.date).toLocaleDateString()})
+                            {ev.name} ({formatBrDate(ev.date)})
                           </option>
                         ))}
                       </select>
@@ -6717,8 +6826,16 @@ const App: React.FC = () => {
                         <input
                           name="dueDate"
                           type="date"
+                          value={dueDateInput}
+                          onChange={(e) => setDueDateInput(e.target.value)}
+                          aria-label={t.dueDate}
                           className="w-full px-5 py-3 bg-white border-2 border-[#CCD2E9] rounded-t42md font-bold focus:outline-none focus:border-[#5967D8]"
                         />
+                        {dueDateInput ? (
+                          <p className="text-xs font-bold text-slate-500 mt-2">
+                            {formatBrDate(dueDateInput)}
+                          </p>
+                        ) : null}
                       </div>
                     ) : (
                       <div>

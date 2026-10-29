@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { formatBrDateTime } from '../utils/formatBr';
 import { adminFetch } from './adminApi';
 
 type GrantKind = 'cortesia' | 'trial' | 'cupom';
@@ -38,7 +39,7 @@ function formatWhen(value: string | null) {
   if (!value) return 'Sem prazo';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  return formatBrDateTime(date);
 }
 
 function toIso(value: string) {

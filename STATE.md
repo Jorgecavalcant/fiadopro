@@ -178,6 +178,7 @@
 | 29/10/2026 | Implement | A devolução aumenta o saldo e aproxima o crédito de zero. Abatimento diminui, como o pagamento. O acerto de lucro grava uma dívida no valor do crédito, ou só esconde o negativo na tela quando a estratégia é lucro. A sincronização pede a confirmação e segue para o próximo item. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 29/10/2026 | Implement | O mesmo celular não entra duas vezes na mesma loja. O servidor responde 409 e a tela abre o cadastro que já existe. Nome repetido só avisa. Não há índice único, para o deploy não quebrar se a produção já tiver número repetido. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 29/10/2026 | Implement | O log do celular repetido guarda só o código DUPLICATE_PHONE. A importação offline também recusa o número repetido. A resposta para o lojista continua mostrando o nome. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
+| 29/10/2026 | Implement | Datas e horas aparecem em dd/mm/aaaa, no fuso de São Paulo. A ajuda usa o nome real dos botões. Dividir Conta ganha vencimento opcional e o botão de dividir igualmente. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 
 ---
 

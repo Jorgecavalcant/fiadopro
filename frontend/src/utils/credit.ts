@@ -1,6 +1,7 @@
 // Lógica de crédito pura (sem React, sem DOM) — extraída do App.tsx para ser testável.
 // O saldo vem de uma função só, a mesma do servidor.
 import type { Transaction } from '../types';
+import { formatBrDate } from './formatBr';
 import { balanceSign, computeRawBalance as ledgerBalance } from '../../../backend/src/domain/balance.ts';
 
 export { balanceSign };
@@ -104,7 +105,7 @@ export const buildChargeMessage = (params: ChargeMessageParams): string => {
     pixKey,
     formatCurrency,
   } = params;
-  const date = params.date ?? new Date().toLocaleDateString('pt-BR');
+  const date = params.date ?? formatBrDate(new Date());
   const pixInfo = pixKey ? `\n${CHARGE_EMOJI.card} *Pix:* ${pixKey}` : '';
 
   let recentList = '';
@@ -113,8 +114,7 @@ export const buildChargeMessage = (params: ChargeMessageParams): string => {
       `\n\n${CHARGE_EMOJI.clipboard} *Lançamentos recentes:*\n` +
       recentDebts
         .map(
-          (t) =>
-            `• ${new Date(t.timestamp).toLocaleDateString('pt-BR')} — ${t.description}: ${formatCurrency(t.amount)}`,
+          (t) => `• ${formatBrDate(t.timestamp)} — ${t.description}: ${formatCurrency(t.amount)}`,
         )
         .join('\n');
   }
