@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Download, Search, Paperclip, X, Send } from 'lucide-react';
+import { ArrowLeft, Download, Search, Paperclip, X } from 'lucide-react';
 import {
   Counterpart,
   CounterpartTransaction,
@@ -7,7 +7,9 @@ import {
   createCounterpartPayment,
   cancelTransaction,
 } from '../services/syncService';
-import { formatBrDate } from '../utils/formatBr';
+import { amountFieldMessage, formatBrDate } from '../utils/formatBr';
+import CurrencyInput from './CurrencyInput';
+import SaveButton from './SaveButton';
 import FullScreenModal from './FullScreenModal';
 
 interface CounterpartDetailProps {
@@ -201,7 +203,8 @@ interface PaymentModalProps {
 }
 
 function PaymentModal({ openDebts, onClose, onSubmit }: PaymentModalProps) {
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState<number | null>(null);
+  const [amountError, setAmountError] = useState('');
   const [description, setDescription] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<
     'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'COMPENSATION'
@@ -231,15 +234,16 @@ function PaymentModal({ openDebts, onClose, onSubmit }: PaymentModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const value = parseFloat(amount);
-    if (!value || value <= 0) {
-      setError('Informe um valor válido.');
+    const nextAmountError = amountFieldMessage(amount);
+    if (nextAmountError || amount == null) {
+      setAmountError(nextAmountError || 'Informe um valor maior que zero');
       return;
     }
+    setAmountError('');
     setError('');
     setSubmitting(true);
     const ok = await onSubmit({
-      amount: value,
+      amount,
       description: description || 'Pagamento',
       payment_method: paymentMethod,
       attachment,
@@ -302,20 +306,26 @@ function PaymentModal({ openDebts, onClose, onSubmit }: PaymentModalProps) {
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <div style={{ maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form noValidate onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">
                   Valor (R$)
                 </label>
-                <input
-                  required
-                  type="number"
-                  step="0.01"
+                <CurrencyInput
+                  aria-label="Valor"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-5 py-4 bg-white border-2 border-[#CCD2E9] rounded-t42md text-4xl font-black focus:outline-none focus:border-[#2E9D6F]"
                   autoFocus
+                  onChange={(next) => {
+                    setAmount(next);
+                    if (amountError) setAmountError('');
+                  }}
+                  className="w-full px-5 py-4 bg-white border-2 border-[#CCD2E9] rounded-t42md text-4xl font-black focus:outline-none focus:border-[#2E9D6F]"
                 />
+                {amountError ? (
+                  <p role="alert" className="text-sm font-bold text-red-600 mt-2">
+                    {amountError}
+                  </p>
+                ) : null}
               </div>
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">
@@ -377,15 +387,15 @@ function PaymentModal({ openDebts, onClose, onSubmit }: PaymentModalProps) {
 
               {error && <p className="text-sm font-bold text-red-600">{error}</p>}
 
-              <button
-                type="submit"
-                disabled={submitting}
+              <SaveButton
+                saving={submitting}
+                label="Enviar Pagamento"
                 style={{
                   width: '100%',
                   padding: '16px',
                   borderRadius: 14,
                   border: 'none',
-                  cursor: 'pointer',
+                  cursor: submitting ? 'not-allowed' : 'pointer',
                   fontWeight: 800,
                   fontSize: 16,
                   color: 'white',
@@ -397,9 +407,7 @@ function PaymentModal({ openDebts, onClose, onSubmit }: PaymentModalProps) {
                   gap: 8,
                   opacity: submitting ? 0.6 : 1,
                 }}
-              >
-                <Send size={18} /> {submitting ? 'Enviando...' : 'Enviar Pagamento'}
-              </button>
+              />
               <p className="text-xs text-slate-400 text-center">
                 O comerciante será notificado e precisa aprovar este pagamento.
               </p>

@@ -91,6 +91,9 @@ import {
 } from './services/aiService';
 import { translations, Translation } from './translations';
 import HelpView from './components/HelpView';
+import CurrencyInput from './components/CurrencyInput';
+import BrDateField from './components/BrDateField';
+import SaveButton from './components/SaveButton';
 import ReceivablesListView from './components/ReceivablesListView';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -133,7 +136,14 @@ import {
   getItemUnitPrice,
   planEventSplitRecords,
 } from './utils/billSplit';
-import { brDateInputToTimestamp, formatBrDate, formatBrDateTime } from './utils/formatBr';
+import {
+  amountFieldMessage,
+  brDateInputToTimestamp,
+  descriptionFieldMessage,
+  formatBrDate,
+  formatBrDateTime,
+  timestampToIsoDate,
+} from './utils/formatBr';
 
 function balanceDirection(
   rawBalance: number,
@@ -2051,15 +2061,11 @@ const EventDetailView = ({
                         <label className="text-[9px] text-slate-400 font-black uppercase mb-1 block">
                           {t.unitPrice}
                         </label>
-                        <span className="absolute left-3 top-1/2 translate-y-1 text-slate-400 font-bold text-xs">
-                          R$
-                        </span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={unitPrice === 0 ? '' : unitPrice}
-                          onChange={(e) => {
-                            const newUnitPrice = parseFloat(e.target.value) || 0;
+                        <CurrencyInput
+                          aria-label={t.unitPrice}
+                          value={unitPrice === 0 ? null : unitPrice}
+                          onChange={(next) => {
+                            const newUnitPrice = next ?? 0;
                             updateEventContent((ev: BillEvent) => ({
                               ...ev,
                               items: ev.items.map((i: any) =>
@@ -2078,8 +2084,8 @@ const EventDetailView = ({
                               ),
                             }));
                           }}
-                          placeholder="0,00"
-                          className="w-full pl-9 pr-4 py-2 bg-white border-2 border-[#E4E8F5] rounded-t42sm font-black text-sm text-right outline-none focus:border-[#5967D8]"
+                          placeholder="R$ 0,00"
+                          className="w-full px-4 py-2 bg-white border-2 border-[#E4E8F5] rounded-t42sm font-black text-sm text-right outline-none focus:border-[#5967D8]"
                         />
                       </div>
                       <div className="flex flex-col items-end">
@@ -2387,11 +2393,11 @@ const EventDetailView = ({
               >
                 Vencimento das dívidas (opcional)
               </label>
-              <input
+              <BrDateField
                 id="split-due-date"
-                type="date"
+                ariaLabel="Vencimento das dívidas"
                 value={splitDueDate}
-                onChange={(e) => setSplitDueDate(e.target.value)}
+                onChange={setSplitDueDate}
                 className="w-full px-4 py-3 bg-white border-2 border-indigo-100 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-indigo-400"
               />
               <p className="text-xs font-bold text-indigo-700 mt-2 mb-6">
@@ -3069,33 +3075,19 @@ const CustomerDetailView = ({
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
                   <CalendarDays className="w-4 h-4 text-slate-400" />
-                  <input
-                    type="date"
+                  <BrDateField
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="bg-transparent border-none text-[10px] font-bold text-slate-600 p-0 focus:ring-0 w-24"
-                    aria-label={t.startDate}
-                    title={startDate ? formatBrDate(startDate) : t.startDate}
+                    onChange={setStartDate}
+                    ariaLabel={t.startDate}
+                    className="bg-transparent border-none text-xs font-bold text-slate-700 p-0 focus:ring-0 w-28"
                   />
-                  {startDate ? (
-                    <span className="text-[10px] font-black text-slate-700 whitespace-nowrap">
-                      {formatBrDate(startDate)}
-                    </span>
-                  ) : null}
                   <span className="text-slate-300">|</span>
-                  <input
-                    type="date"
+                  <BrDateField
                     value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="bg-transparent border-none text-[10px] font-bold text-slate-600 p-0 focus:ring-0 w-24"
-                    aria-label={t.endDate}
-                    title={endDate ? formatBrDate(endDate) : t.endDate}
+                    onChange={setEndDate}
+                    ariaLabel={t.endDate}
+                    className="bg-transparent border-none text-xs font-bold text-slate-700 p-0 focus:ring-0 w-28"
                   />
-                  {endDate ? (
-                    <span className="text-[10px] font-black text-slate-700 whitespace-nowrap">
-                      {formatBrDate(endDate)}
-                    </span>
-                  ) : null}
                 </div>
                 {(startDate || endDate) && (
                   <button
@@ -3142,129 +3134,133 @@ const CustomerDetailView = ({
                 filteredTransactions.map((tx: Transaction) => {
                   const overdue = isOverdueDebt(tx, selectedCustomer.rawBalance);
                   return (
-                  <div
-                    key={tx.id}
-                    className={`group flex items-center justify-between p-6 rounded-t42lg border transition-all hover:shadow-md ${overdue ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-transparent hover:border-indigo-100 hover:bg-white'}`}
-                  >
-                    <div className="flex items-center gap-5">
-                      <div
-                        className={`p-3 rounded-2xl ${tx.type === 'DEBT' ? 'bg-orange-100 text-orange-600' : tx.type === 'PAYMENT' ? 'bg-emerald-100 text-emerald-600' : tx.type === 'ABATIMENTO' ? 'bg-purple-100 text-purple-600' : 'bg-indigo-100 text-indigo-600'}`}
-                      >
-                        {tx.type === 'DEBT' ? (
-                          <ArrowUpRight className="w-5 h-5" />
-                        ) : tx.type === 'ABATIMENTO' ? (
-                          <RefreshCcw className="w-5 h-5" />
-                        ) : (
-                          <ArrowDownLeft className="w-5 h-5" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-black text-slate-900 line-clamp-1">{tx.description}</p>
-                          {tx.status !== 'CONFIRMED' && (
-                            <span
-                              className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${tx.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}
-                            >
-                              {tx.status === 'PENDING'
-                                ? 'Pendente'
-                                : tx.status === 'CANCELLED'
-                                  ? 'Cancelado'
-                                  : 'Rejeitado'}
-                            </span>
-                          )}
-                          {selectedCustomer.counterpartClosed && tx.status === 'PENDING' && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void cancelTransaction(tx.id).then((ok: boolean) => {
-                                  if (ok)
-                                    setTransactions((prev: Transaction[]) =>
-                                      prev.map((p: Transaction) =>
-                                        p.id === tx.id ? { ...p, status: 'CANCELLED' } : p,
-                                      ),
-                                    );
-                                });
-                              }}
-                              className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase bg-slate-200 text-slate-700"
-                            >
-                              Cancelar
-                            </button>
-                          )}
-                          {tx.status === 'REJECTED' && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void resendTransaction(tx.id).then((ok: boolean) => {
-                                  if (ok)
-                                    setTransactions((prev: Transaction[]) =>
-                                      prev.map((p: Transaction) =>
-                                        p.id === tx.id ? { ...p, status: 'PENDING' as const } : p,
-                                      ),
-                                    );
-                                });
-                              }}
-                              className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
-                              title="Reenviar para aprovação"
-                            >
-                              Reenviar
-                            </button>
+                    <div
+                      key={tx.id}
+                      className={`group flex items-center justify-between p-6 rounded-t42lg border transition-all hover:shadow-md ${overdue ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-transparent hover:border-indigo-100 hover:bg-white'}`}
+                    >
+                      <div className="flex items-center gap-5">
+                        <div
+                          className={`p-3 rounded-2xl ${tx.type === 'DEBT' ? 'bg-orange-100 text-orange-600' : tx.type === 'PAYMENT' ? 'bg-emerald-100 text-emerald-600' : tx.type === 'ABATIMENTO' ? 'bg-purple-100 text-purple-600' : 'bg-indigo-100 text-indigo-600'}`}
+                        >
+                          {tx.type === 'DEBT' ? (
+                            <ArrowUpRight className="w-5 h-5" />
+                          ) : tx.type === 'ABATIMENTO' ? (
+                            <RefreshCcw className="w-5 h-5" />
+                          ) : (
+                            <ArrowDownLeft className="w-5 h-5" />
                           )}
                         </div>
-                        <p className="text-xs text-slate-400 font-bold">
-                          {formatBrDateTime(tx.timestamp)}
-                        </p>
-                        <p
-                          className={`text-xs font-bold ${overdue ? 'text-red-700' : 'text-slate-500'}`}
-                        >
-                          {tx.dueDate ? `Vencimento ${formatBrDate(tx.dueDate)}` : 'Sem vencimento'}
-                          {overdue ? ' · Em atraso' : ''}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 sm:gap-4">
-                      {tx.attachment &&
-                        /^data:(image\/(jpeg|png|gif|webp)|application\/pdf);base64,/.test(
-                          tx.attachment.data,
-                        ) && (
-                          <a
-                            href={tx.attachment.data}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            download={tx.attachment.name}
-                            onClick={(e) => e.stopPropagation()}
-                            className="p-1.5 text-indigo-400 hover:text-indigo-600 transition-colors"
-                            title={`Ver comprovante: ${tx.attachment.name}`}
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-black text-slate-900 line-clamp-1">
+                              {tx.description}
+                            </p>
+                            {tx.status !== 'CONFIRMED' && (
+                              <span
+                                className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${tx.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}
+                              >
+                                {tx.status === 'PENDING'
+                                  ? 'Pendente'
+                                  : tx.status === 'CANCELLED'
+                                    ? 'Cancelado'
+                                    : 'Rejeitado'}
+                              </span>
+                            )}
+                            {selectedCustomer.counterpartClosed && tx.status === 'PENDING' && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void cancelTransaction(tx.id).then((ok: boolean) => {
+                                    if (ok)
+                                      setTransactions((prev: Transaction[]) =>
+                                        prev.map((p: Transaction) =>
+                                          p.id === tx.id ? { ...p, status: 'CANCELLED' } : p,
+                                        ),
+                                      );
+                                  });
+                                }}
+                                className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase bg-slate-200 text-slate-700"
+                              >
+                                Cancelar
+                              </button>
+                            )}
+                            {tx.status === 'REJECTED' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void resendTransaction(tx.id).then((ok: boolean) => {
+                                    if (ok)
+                                      setTransactions((prev: Transaction[]) =>
+                                        prev.map((p: Transaction) =>
+                                          p.id === tx.id ? { ...p, status: 'PENDING' as const } : p,
+                                        ),
+                                      );
+                                  });
+                                }}
+                                className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                                title="Reenviar para aprovação"
+                              >
+                                Reenviar
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-400 font-bold">
+                            {formatBrDateTime(tx.timestamp)}
+                          </p>
+                          <p
+                            className={`text-xs font-bold ${overdue ? 'text-red-700' : 'text-slate-500'}`}
                           >
-                            <Receipt className="w-4 h-4" />
-                          </a>
-                        )}
-                      <p
-                        className={`text-lg font-black whitespace-nowrap ${tx.type === 'DEBT' ? 'text-slate-900' : tx.type === 'PAYMENT' ? 'text-emerald-600' : tx.type === 'ABATIMENTO' ? 'text-purple-600' : 'text-indigo-600'}`}
-                      >
-                        {balanceSign(tx.type) < 0 ? '−' : '+'}
-                        {formatCurrency(tx.amount)}
-                      </p>
-                      <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => {
-                            setEditTransactionData(tx);
-                            setTransactionType(tx.type);
-                            setIsTransactionModalOpen(true);
-                          }}
-                          className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
+                            {tx.dueDate
+                              ? `Vencimento ${formatBrDate(tx.dueDate)}`
+                              : 'Sem vencimento'}
+                            {overdue ? ' · Em atraso' : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 sm:gap-4">
+                        {tx.attachment &&
+                          /^data:(image\/(jpeg|png|gif|webp)|application\/pdf);base64,/.test(
+                            tx.attachment.data,
+                          ) && (
+                            <a
+                              href={tx.attachment.data}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              download={tx.attachment.name}
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-1.5 text-indigo-400 hover:text-indigo-600 transition-colors"
+                              title={`Ver comprovante: ${tx.attachment.name}`}
+                            >
+                              <Receipt className="w-4 h-4" />
+                            </a>
+                          )}
+                        <p
+                          className={`text-lg font-black whitespace-nowrap ${tx.type === 'DEBT' ? 'text-slate-900' : tx.type === 'PAYMENT' ? 'text-emerald-600' : tx.type === 'ABATIMENTO' ? 'text-purple-600' : 'text-indigo-600'}`}
                         >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTransaction(tx.id)}
-                          className="p-2 text-slate-400 hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                          {balanceSign(tx.type) < 0 ? '−' : '+'}
+                          {formatCurrency(tx.amount)}
+                        </p>
+                        <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => {
+                              setEditTransactionData(tx);
+                              setTransactionType(tx.type);
+                              setIsTransactionModalOpen(true);
+                            }}
+                            className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTransaction(tx.id)}
+                            className="p-2 text-slate-400 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
                   );
                 })
               )}
@@ -3648,13 +3644,11 @@ const ProfileView = ({
             />
           </div>
           <div className="md:col-span-2 pt-6">
-            <button
-              type="submit"
-              disabled={savingProfile}
-              className="w-full bg-indigo-600 text-white py-5 rounded-t42lg font-black text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-60"
-            >
-              {savingProfile ? 'Salvando…' : t.saveChanges}
-            </button>
+            <SaveButton
+              saving={savingProfile}
+              label={t.saveChanges}
+              className="w-full bg-indigo-600 text-white py-5 rounded-t42lg font-black text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+            />
           </div>
         </form>
       </div>
@@ -4024,9 +4018,10 @@ const App: React.FC = () => {
     idToken?: string;
   }>(null);
   const [customerFormWarning, setCustomerFormWarning] = useState('');
-  const [duplicateCustomer, setDuplicateCustomer] = useState<{ id: string; message: string } | null>(
-    null,
-  );
+  const [duplicateCustomer, setDuplicateCustomer] = useState<{
+    id: string;
+    message: string;
+  } | null>(null);
   const [planLimitReason, setPlanLimitReason] = useState<string | null>(null);
   const [savingCustomer, setSavingCustomer] = useState(false);
   const [savingTransaction, setSavingTransaction] = useState(false);
@@ -4041,7 +4036,6 @@ const App: React.FC = () => {
   const [resetConfirm, setResetConfirm] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const googleBtnRef = useRef<HTMLDivElement>(null);
-  const amountInputRef = useRef<HTMLInputElement>(null);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddSearch, setQuickAddSearch] = useState('');
   const [quickAddStep, setQuickAddStep] = useState<1 | 2>(1);
@@ -4053,7 +4047,12 @@ const App: React.FC = () => {
   const [installmentCount, setInstallmentCount] = useState(2);
   const [hasInterest, setHasInterest] = useState(false);
   const [installmentInterestRate, setInstallmentInterestRate] = useState(2.5);
-  const [currentAmountValue, setCurrentAmountValue] = useState<number>(0);
+  const [currentAmountValue, setCurrentAmountValue] = useState<number | null>(null);
+  const [draftDescription, setDraftDescription] = useState('');
+  const [amountError, setAmountError] = useState('');
+  const [descriptionError, setDescriptionError] = useState('');
+  const [customerNameError, setCustomerNameError] = useState('');
+  const [eventNameError, setEventNameError] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -4373,8 +4372,34 @@ const App: React.FC = () => {
   }, [activeView]);
 
   useEffect(() => {
-    if (!isTransactionModalOpen) setDueDateInput('');
-  }, [isTransactionModalOpen]);
+    if (!isTransactionModalOpen) {
+      setDueDateInput('');
+      setAmountError('');
+      setDescriptionError('');
+      setCurrentAmountValue(null);
+      setDraftDescription('');
+      return;
+    }
+    setAmountError('');
+    setDescriptionError('');
+    if (editTransactionData) {
+      setCurrentAmountValue(editTransactionData.amount > 0 ? editTransactionData.amount : null);
+      setDraftDescription(editTransactionData.description ?? '');
+      setDueDateInput(
+        editTransactionData.dueDate ? timestampToIsoDate(editTransactionData.dueDate) : '',
+      );
+      return;
+    }
+    if (installmentPreFill) {
+      setCurrentAmountValue(installmentPreFill.amount > 0 ? installmentPreFill.amount : null);
+      setDraftDescription(installmentPreFill.description ?? '');
+      setDueDateInput('');
+      return;
+    }
+    setCurrentAmountValue(null);
+    setDraftDescription('');
+    setDueDateInput('');
+  }, [isTransactionModalOpen, editTransactionData, installmentPreFill]);
 
   const customersWithBalance: CustomerWithBalance[] = useMemo(() => {
     const rows = customers.map((c) => {
@@ -4644,170 +4669,171 @@ const App: React.FC = () => {
   const addTransaction = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (savingTransactionRef.current) return;
+    if (!selectedCustomerId) return;
+    const amount = currentAmountValue ?? 0;
+    const desc = draftDescription.trim();
+    const nextAmountError = amountFieldMessage(currentAmountValue);
+    const nextDescriptionError = descriptionFieldMessage(draftDescription);
+    setAmountError(nextAmountError);
+    setDescriptionError(nextDescriptionError);
+    if (nextAmountError || nextDescriptionError) return;
     savingTransactionRef.current = true;
     setSavingTransaction(true);
     try {
-    if (!selectedCustomerId) return;
-    const formData = new FormData(e.currentTarget);
-    const amount = parseFloat(formData.get('amount') as string);
-    if (!isFinite(amount) || amount <= 0) {
-      showToast('Informe um valor maior que zero');
-      return;
-    }
-    let creditConfirmed = false;
-    if (transactionType === 'PAYMENT') {
-      const customer = customersWithBalance.find((c) => c.id === selectedCustomerId);
-      if (customer) {
-        const base = balanceBeforeEdit(customer.rawBalance, editTransactionData);
-        const owedCents = Math.max(0, Math.round(base * 100));
-        const amountCents = Math.round(amount * 100);
-        if (owedCents - amountCents < 0) {
-          const extra = (amountCents - owedCents) / 100;
-          const owed = owedCents / 100;
-          const confirmed = window.confirm(
-            `${customer.name} devia ${formatCurrency(owed)}. Os ${formatCurrency(extra)} a mais vão ficar como crédito dele (você vai dever a ele). Confirmar?`,
-          );
-          if (!confirmed) return;
-          creditConfirmed = true;
+      const formData = new FormData(e.currentTarget);
+      let creditConfirmed = false;
+      if (transactionType === 'PAYMENT') {
+        const customer = customersWithBalance.find((c) => c.id === selectedCustomerId);
+        if (customer) {
+          const base = balanceBeforeEdit(customer.rawBalance, editTransactionData);
+          const owedCents = Math.max(0, Math.round(base * 100));
+          const amountCents = Math.round(amount * 100);
+          if (owedCents - amountCents < 0) {
+            const extra = (amountCents - owedCents) / 100;
+            const owed = owedCents / 100;
+            const confirmed = window.confirm(
+              `${customer.name} devia ${formatCurrency(owed)}. Os ${formatCurrency(extra)} a mais vão ficar como crédito dele (você vai dever a ele). Confirmar?`,
+            );
+            if (!confirmed) return;
+            creditConfirmed = true;
+          }
         }
       }
-    }
-    const desc = formData.get('description') as string;
-    const method = formData.get('paymentMethod') as PaymentMethod;
-    const dueDate = formData.get('dueDate') as string;
-    const eventId = formData.get('eventId') as string;
-    const attachmentFile = formData.get('attachment') as File;
-    const attachmentFile2 = formData.get('attachment_file') as File;
-    const finalAttachmentFile =
-      attachmentFile && attachmentFile.size > 0
-        ? attachmentFile
-        : attachmentFile2 && attachmentFile2.size > 0
-          ? attachmentFile2
-          : null;
+      const method = formData.get('paymentMethod') as PaymentMethod;
+      const dueDate = dueDateInput;
+      const eventId = formData.get('eventId') as string;
+      const attachmentFile = formData.get('attachment') as File;
+      const attachmentFile2 = formData.get('attachment_file') as File;
+      const finalAttachmentFile =
+        attachmentFile && attachmentFile.size > 0
+          ? attachmentFile
+          : attachmentFile2 && attachmentFile2.size > 0
+            ? attachmentFile2
+            : null;
 
-    let attachment: { data: string; mimeType: string; name: string } | undefined = undefined;
-    if (finalAttachmentFile && finalAttachmentFile.size > 0) {
-      const readFile = (file: File): Promise<string> =>
-        new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target?.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-      try {
-        const dataUrl = await readFile(finalAttachmentFile);
-        attachment = {
-          data: dataUrl,
-          mimeType: finalAttachmentFile.type,
-          name: finalAttachmentFile.name,
-        };
-      } catch {
-        /* ignore attachment errors */
+      let attachment: { data: string; mimeType: string; name: string } | undefined = undefined;
+      if (finalAttachmentFile && finalAttachmentFile.size > 0) {
+        const readFile = (file: File): Promise<string> =>
+          new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target?.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        try {
+          const dataUrl = await readFile(finalAttachmentFile);
+          attachment = {
+            data: dataUrl,
+            mimeType: finalAttachmentFile.type,
+            name: finalAttachmentFile.name,
+          };
+        } catch {
+          /* ignore attachment errors */
+        }
       }
-    }
 
-    if (editTransactionData) {
-      setTransactions((prev) =>
-        prev.map((tx) =>
-          tx.id === editTransactionData.id
-            ? {
-                ...tx,
-                amount,
-                description: desc,
-                paymentMethod: method,
-                type: transactionType,
-                dueDate: brDateInputToTimestamp(dueDate),
-                eventId: eventId || undefined,
-                ...(attachment ? { attachment } : {}),
-                ...(creditConfirmed ? { creditConfirmed: true } : {}),
-              }
-            : tx,
-        ),
-      );
-      addAuditEntry(
-        'UPDATE',
-        'TRANSACTION',
-        editTransactionData.id,
-        `${user?.name} editou: ${desc} — R$ ${amount}`,
-      );
-      setEditTransactionData(null);
-    } else {
-      if (isInstallment && transactionType === 'DEBT') {
-        const groupId = generateId();
-        const principal = amount;
-        const rate = hasInterest ? installmentInterestRate : 0;
-        const installmentValue =
-          Math.round(calcInstallment(principal, rate, installmentCount) * 100) / 100;
-        const baseDueDate = brDateInputToTimestamp(dueDate) ?? Date.now() + 30 * 86400000;
-
-        const installments: Transaction[] = Array.from({ length: installmentCount }, (_, i) => ({
-          id: generateId(),
-          customerId: selectedCustomerId,
-          amount: installmentValue,
-          type: 'DEBT' as TransactionType,
-          description: `${desc} — Parcela ${i + 1}/${installmentCount}`,
-          timestamp: Date.now() + i,
-          dueDate: baseDueDate + i * 30 * 86400000,
-          status: 'CONFIRMED' as const,
-          eventId: eventId || undefined,
-          installmentNumber: i + 1,
-          totalInstallments: installmentCount,
-          installmentGroupId: groupId,
-          interestRate: hasInterest ? installmentInterestRate : undefined,
-          ...(i === 0 && attachment ? { attachment } : {}),
-        }));
-
-        setTransactions((prev) => [...prev, ...installments]);
-        addAuditEntry(
-          'CREATE',
-          'TRANSACTION',
-          groupId,
-          `${user?.name} lançou ${installmentCount} parcelas: ${desc}`,
-        );
-        setIsInstallment(false);
-        setInstallmentCount(2);
-        setHasInterest(false);
-        setCurrentAmountValue(0);
-      } else {
-        const newId = generateId();
-        setTransactions((prev) => [
-          ...prev,
-          {
-            id: newId,
-            customerId: selectedCustomerId,
-            amount,
-            type: transactionType,
-            description: desc,
-            timestamp: Date.now(),
-            paymentMethod: method,
-            dueDate: brDateInputToTimestamp(dueDate),
-            status: 'CONFIRMED',
-            eventId: eventId || undefined,
-            ...(creditConfirmed ? { creditConfirmed: true } : {}),
-            ...(attachment ? { attachment } : {}),
-            ...(installmentPreFill
+      if (editTransactionData) {
+        setTransactions((prev) =>
+          prev.map((tx) =>
+            tx.id === editTransactionData.id
               ? {
-                  installmentGroupId: installmentPreFill.installmentGroupId,
-                  installmentNumber: installmentPreFill.installmentNumber,
+                  ...tx,
+                  amount,
+                  description: desc,
+                  paymentMethod: method,
+                  type: transactionType,
+                  dueDate: brDateInputToTimestamp(dueDate),
+                  eventId: eventId || undefined,
+                  ...(attachment ? { attachment } : {}),
+                  ...(creditConfirmed ? { creditConfirmed: true } : {}),
                 }
-              : {}),
-          },
-        ]);
-        addAuditEntry(
-          'CREATE',
-          'TRANSACTION',
-          newId,
-          `${user?.name} criou: ${desc} — R$ ${amount}`,
+              : tx,
+          ),
         );
+        addAuditEntry(
+          'UPDATE',
+          'TRANSACTION',
+          editTransactionData.id,
+          `${user?.name} editou: ${desc} — R$ ${amount}`,
+        );
+        setEditTransactionData(null);
+      } else {
+        if (isInstallment && transactionType === 'DEBT') {
+          const groupId = generateId();
+          const principal = amount;
+          const rate = hasInterest ? installmentInterestRate : 0;
+          const installmentValue =
+            Math.round(calcInstallment(principal, rate, installmentCount) * 100) / 100;
+          const baseDueDate = brDateInputToTimestamp(dueDate) ?? Date.now() + 30 * 86400000;
+
+          const installments: Transaction[] = Array.from({ length: installmentCount }, (_, i) => ({
+            id: generateId(),
+            customerId: selectedCustomerId,
+            amount: installmentValue,
+            type: 'DEBT' as TransactionType,
+            description: `${desc} — Parcela ${i + 1}/${installmentCount}`,
+            timestamp: Date.now() + i,
+            dueDate: baseDueDate + i * 30 * 86400000,
+            status: 'CONFIRMED' as const,
+            eventId: eventId || undefined,
+            installmentNumber: i + 1,
+            totalInstallments: installmentCount,
+            installmentGroupId: groupId,
+            interestRate: hasInterest ? installmentInterestRate : undefined,
+            ...(i === 0 && attachment ? { attachment } : {}),
+          }));
+
+          setTransactions((prev) => [...prev, ...installments]);
+          addAuditEntry(
+            'CREATE',
+            'TRANSACTION',
+            groupId,
+            `${user?.name} lançou ${installmentCount} parcelas: ${desc}`,
+          );
+          setIsInstallment(false);
+          setInstallmentCount(2);
+          setHasInterest(false);
+          setCurrentAmountValue(null);
+        } else {
+          const newId = generateId();
+          setTransactions((prev) => [
+            ...prev,
+            {
+              id: newId,
+              customerId: selectedCustomerId,
+              amount,
+              type: transactionType,
+              description: desc,
+              timestamp: Date.now(),
+              paymentMethod: method,
+              dueDate: brDateInputToTimestamp(dueDate),
+              status: 'CONFIRMED',
+              eventId: eventId || undefined,
+              ...(creditConfirmed ? { creditConfirmed: true } : {}),
+              ...(attachment ? { attachment } : {}),
+              ...(installmentPreFill
+                ? {
+                    installmentGroupId: installmentPreFill.installmentGroupId,
+                    installmentNumber: installmentPreFill.installmentNumber,
+                  }
+                : {}),
+            },
+          ]);
+          addAuditEntry(
+            'CREATE',
+            'TRANSACTION',
+            newId,
+            `${user?.name} criou: ${desc} — R$ ${amount}`,
+          );
+        }
       }
-    }
-    if (!editTransactionData) {
-      if (transactionType === 'DEBT') hapticMedium().catch(() => {});
-      else if (transactionType === 'PAYMENT') hapticSuccess().catch(() => {});
-    }
-    setIsTransactionModalOpen(false);
-    setCurrentAmountValue(0);
-    setInstallmentPreFill(null);
+      if (!editTransactionData) {
+        if (transactionType === 'DEBT') hapticMedium().catch(() => {});
+        else if (transactionType === 'PAYMENT') hapticSuccess().catch(() => {});
+      }
+      setIsTransactionModalOpen(false);
+      setCurrentAmountValue(null);
+      setInstallmentPreFill(null);
     } finally {
       savingTransactionRef.current = false;
       setSavingTransaction(false);
@@ -5455,11 +5481,7 @@ const App: React.FC = () => {
               events={events}
               setEvents={setEvents}
               setIsEventModalOpen={(open: boolean) => {
-                if (
-                  open &&
-                  Number.isFinite(plan.maxEvents) &&
-                  events.length >= plan.maxEvents
-                ) {
+                if (open && Number.isFinite(plan.maxEvents) && events.length >= plan.maxEvents) {
                   showPlanLimit('eventos', plan.maxEvents);
                   return;
                 }
@@ -6021,10 +6043,10 @@ const App: React.FC = () => {
                           color: '#94A3B8',
                         }}
                       />
-                      <input
-                        type="date"
+                      <BrDateField
+                        ariaLabel="Filtrar anotações por data"
                         value={noteFilterDate}
-                        onChange={(e) => setNoteFilterDate(e.target.value)}
+                        onChange={setNoteFilterDate}
                         style={{
                           width: '100%',
                           paddingLeft: 40,
@@ -6040,18 +6062,6 @@ const App: React.FC = () => {
                         }}
                       />
                     </div>
-                    {noteFilterDate && (
-                      <span
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 800,
-                          color: '#334155',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {formatBrDate(noteFilterDate)}
-                      </span>
-                    )}
                     {noteFilterDate && (
                       <button
                         onClick={() => setNoteFilterDate('')}
@@ -6311,139 +6321,146 @@ const App: React.FC = () => {
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 <div style={{ maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
                   <form
+                    noValidate
                     onSubmit={async (e) => {
                       e.preventDefault();
                       if (savingCustomerRef.current) return;
+                      const fd = new FormData(e.currentTarget);
+                      const name = String(fd.get('name') ?? '').trim();
+                      if (!name) {
+                        setCustomerNameError('Informe o nome');
+                        return;
+                      }
+                      setCustomerNameError('');
                       savingCustomerRef.current = true;
                       setSavingCustomer(true);
                       try {
-                      setCustomerFormWarning('');
-                      const fd = new FormData(e.currentTarget);
-                      const cData = {
-                        name: fd.get('name') as string,
-                        phone: (fd.get('phone') as string).trim(),
-                        email: fd.get('email') as string,
-                        pixKey: fd.get('pixKey') as string,
-                      };
-                      if (!cData.phone) {
-                        showToast(t.phoneRequired);
-                        return;
-                      }
-                      const ignoreId = isEditCustomerModalOpen ? selectedCustomerId : null;
-                      const normalizedPhone = normalizeCustomerPhone(cData.phone);
-                      const phoneOwner = normalizedPhone
-                        ? customers.find(
-                            (c) =>
-                              c.id !== ignoreId &&
-                              normalizeCustomerPhone(c.phone) === normalizedPhone,
-                          )
-                        : undefined;
-                      if (!isEditCustomerModalOpen && !canAddCustomer() && !phoneOwner) {
-                        showPlanLimit('clientes', plan.maxCustomers);
-                        return;
-                      }
-                      if (phoneOwner) {
-                        setDuplicateCustomer({
-                          id: phoneOwner.id,
-                          message: `Já existe ${phoneOwner.name} com esse número`,
-                        });
-                        return;
-                      }
-                      setDuplicateCustomer(null);
-                      const sameName = customers.find(
-                        (c) =>
-                          c.id !== ignoreId &&
-                          c.name.trim().toLowerCase() === cData.name.trim().toLowerCase(),
-                      );
-                      if (sameName) {
-                        showToast(`Já existe ${sameName.name} com esse nome. O cadastro segue.`);
-                      }
-                      const editing = isEditCustomerModalOpen;
-                      const existing = editing
-                        ? customers.find((c) => c.id === selectedCustomerId)
-                        : undefined;
-                      const draftId = editing ? selectedCustomerId || '' : generateId();
-                      const draft = {
-                        ...(existing ?? {
-                          notes: [],
-                          createdAt: Date.now(),
-                          overpaymentStrategy: 'PROFIT' as const,
-                        }),
-                        ...cData,
-                        id: draftId,
-                      };
-                      if (user && draftId) {
-                        const saved = await saveCustomerToServer(
-                          draft,
-                          editing && Boolean(existing),
-                        );
-                        if (saved && saved !== 'offline') {
-                          if (
-                            saved.message === 'Esse telefone é o seu.' ||
-                            saved.message === 'Esse e-mail é o seu.'
-                          ) {
-                            setCustomerFormWarning(saved.message);
-                            return;
-                          }
-                          if (saved.code === 'PLAN_LIMIT') {
-                            showPlanLimit(
-                              'clientes',
-                              limitCountFromServer(saved.message, plan.maxCustomers),
-                            );
-                            return;
-                          }
-                          if (saved.code === 'DUPLICATE_PHONE' && saved.existingCustomerId) {
-                            setDuplicateCustomer({
-                              id: saved.existingCustomerId,
-                              message: saved.message,
-                            });
-                            return;
-                          }
-                          showToast(saved.message);
+                        setCustomerFormWarning('');
+                        const cData = {
+                          name,
+                          phone: (fd.get('phone') as string).trim(),
+                          email: fd.get('email') as string,
+                          pixKey: fd.get('pixKey') as string,
+                        };
+                        if (!cData.phone) {
+                          showToast(t.phoneRequired);
                           return;
                         }
-                      }
-                      if (isEditCustomerModalOpen) {
-                        setCustomers((prev) =>
-                          prev.map((c) => (c.id === selectedCustomerId ? { ...c, ...cData } : c)),
-                        );
-                        addAuditEntry(
-                          'UPDATE',
-                          'CUSTOMER',
-                          selectedCustomerId || '',
-                          `${user?.name} editou cliente: ${cData.name}`,
-                        );
-                      } else {
-                        const newId = draftId;
-                        setCustomers((prev) => [
-                          ...prev,
-                          {
-                            id: newId,
-                            ...cData,
-                            notes: [],
-                            createdAt: draft.createdAt,
-                            overpaymentStrategy: 'PROFIT',
-                          },
-                        ]);
-                        addAuditEntry(
-                          'CREATE',
-                          'CUSTOMER',
-                          newId,
-                          `${user?.name} cadastrou cliente: ${cData.name}`,
-                        );
-                        if (pendingTransactionAfterCreate) {
-                          setSelectedCustomerId(newId);
-                          setActiveView(AppView.CUSTOMER_DETAIL);
-                          setTransactionType(quickAddType);
-                          setEditTransactionData(null);
-                          setInstallmentInterestRate(user?.defaultInterestRate || 2.5);
-                          setTimeout(() => setIsTransactionModalOpen(true), 100);
-                          setPendingTransactionAfterCreate(false);
-                          setPendingNewCustomerName('');
+                        const ignoreId = isEditCustomerModalOpen ? selectedCustomerId : null;
+                        const normalizedPhone = normalizeCustomerPhone(cData.phone);
+                        const phoneOwner = normalizedPhone
+                          ? customers.find(
+                              (c) =>
+                                c.id !== ignoreId &&
+                                normalizeCustomerPhone(c.phone) === normalizedPhone,
+                            )
+                          : undefined;
+                        if (!isEditCustomerModalOpen && !canAddCustomer() && !phoneOwner) {
+                          showPlanLimit('clientes', plan.maxCustomers);
+                          return;
                         }
-                      }
-                      setIsCustomerModalOpen(false);
-                      setIsEditCustomerModalOpen(false);
+                        if (phoneOwner) {
+                          setDuplicateCustomer({
+                            id: phoneOwner.id,
+                            message: `Já existe ${phoneOwner.name} com esse número`,
+                          });
+                          return;
+                        }
+                        setDuplicateCustomer(null);
+                        const sameName = customers.find(
+                          (c) =>
+                            c.id !== ignoreId &&
+                            c.name.trim().toLowerCase() === cData.name.trim().toLowerCase(),
+                        );
+                        if (sameName) {
+                          showToast(`Já existe ${sameName.name} com esse nome. O cadastro segue.`);
+                        }
+                        const editing = isEditCustomerModalOpen;
+                        const existing = editing
+                          ? customers.find((c) => c.id === selectedCustomerId)
+                          : undefined;
+                        const draftId = editing ? selectedCustomerId || '' : generateId();
+                        const draft = {
+                          ...(existing ?? {
+                            notes: [],
+                            createdAt: Date.now(),
+                            overpaymentStrategy: 'PROFIT' as const,
+                          }),
+                          ...cData,
+                          id: draftId,
+                        };
+                        if (user && draftId) {
+                          const saved = await saveCustomerToServer(
+                            draft,
+                            editing && Boolean(existing),
+                          );
+                          if (saved && saved !== 'offline') {
+                            if (
+                              saved.message === 'Esse telefone é o seu.' ||
+                              saved.message === 'Esse e-mail é o seu.'
+                            ) {
+                              setCustomerFormWarning(saved.message);
+                              return;
+                            }
+                            if (saved.code === 'PLAN_LIMIT') {
+                              showPlanLimit(
+                                'clientes',
+                                limitCountFromServer(saved.message, plan.maxCustomers),
+                              );
+                              return;
+                            }
+                            if (saved.code === 'DUPLICATE_PHONE' && saved.existingCustomerId) {
+                              setDuplicateCustomer({
+                                id: saved.existingCustomerId,
+                                message: saved.message,
+                              });
+                              return;
+                            }
+                            showToast(saved.message);
+                            return;
+                          }
+                        }
+                        if (isEditCustomerModalOpen) {
+                          setCustomers((prev) =>
+                            prev.map((c) => (c.id === selectedCustomerId ? { ...c, ...cData } : c)),
+                          );
+                          addAuditEntry(
+                            'UPDATE',
+                            'CUSTOMER',
+                            selectedCustomerId || '',
+                            `${user?.name} editou cliente: ${cData.name}`,
+                          );
+                        } else {
+                          const newId = draftId;
+                          setCustomers((prev) => [
+                            ...prev,
+                            {
+                              id: newId,
+                              ...cData,
+                              notes: [],
+                              createdAt: draft.createdAt,
+                              overpaymentStrategy: 'PROFIT',
+                            },
+                          ]);
+                          addAuditEntry(
+                            'CREATE',
+                            'CUSTOMER',
+                            newId,
+                            `${user?.name} cadastrou cliente: ${cData.name}`,
+                          );
+                          if (pendingTransactionAfterCreate) {
+                            setSelectedCustomerId(newId);
+                            setActiveView(AppView.CUSTOMER_DETAIL);
+                            setTransactionType(quickAddType);
+                            setEditTransactionData(null);
+                            setInstallmentInterestRate(user?.defaultInterestRate || 2.5);
+                            setTimeout(() => setIsTransactionModalOpen(true), 100);
+                            setPendingTransactionAfterCreate(false);
+                            setPendingNewCustomerName('');
+                          }
+                        }
+                        setIsCustomerModalOpen(false);
+                        setIsEditCustomerModalOpen(false);
                       } finally {
                         savingCustomerRef.current = false;
                         setSavingCustomer(false);
@@ -6511,8 +6528,11 @@ const App: React.FC = () => {
                           {field.label}
                         </label>
                         <input
-                          required={field.required}
                           name={field.name}
+                          aria-label={field.label}
+                          onInput={() => {
+                            if (field.name === 'name') setCustomerNameError('');
+                          }}
                           type={field.type}
                           defaultValue={field.defaultValue || ''}
                           placeholder={field.placeholder}
@@ -6531,6 +6551,14 @@ const App: React.FC = () => {
                           onFocus={(e) => (e.target.style.borderColor = '#6366F1')}
                           onBlur={(e) => (e.target.style.borderColor = '#E2E8F0')}
                         />
+                        {field.name === 'name' && customerNameError ? (
+                          <p
+                            role="alert"
+                            style={{ color: '#DC2626', fontWeight: 700, marginTop: 8 }}
+                          >
+                            {customerNameError}
+                          </p>
+                        ) : null}
                       </div>
                     ))}
                     {customerFormWarning && (
@@ -6547,10 +6575,9 @@ const App: React.FC = () => {
                         onOpen={() => openExistingCustomer(duplicateCustomer.id)}
                       />
                     )}
-                    <button
-                      type="submit"
-                      disabled={savingCustomer}
-                      aria-busy={savingCustomer}
+                    <SaveButton
+                      saving={savingCustomer}
+                      label={isEditCustomerModalOpen ? 'Salvar Alterações' : 'Cadastrar Cliente'}
                       style={{
                         width: '100%',
                         padding: '16px',
@@ -6569,10 +6596,7 @@ const App: React.FC = () => {
                         gap: 8,
                         opacity: savingCustomer ? 0.7 : 1,
                       }}
-                    >
-                      {savingCustomer && <Loader2 className="w-5 h-5 animate-spin" />}
-                      {isEditCustomerModalOpen ? 'Salvar Alterações' : 'Cadastrar Cliente'}
-                    </button>
+                    />
                   </form>
                 </div>
               </div>
@@ -6722,7 +6746,7 @@ const App: React.FC = () => {
                         </span>
                       </div>
                     )}
-                  <form onSubmit={addTransaction} className="space-y-6">
+                  <form noValidate onSubmit={addTransaction} className="space-y-6">
                     {installmentPreFill && (
                       <div className="flex items-center gap-3 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
                         <svg
@@ -6750,30 +6774,30 @@ const App: React.FC = () => {
                       <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">
                         {t.amount} (R$)
                       </label>
-                      <input
-                        required
-                        ref={amountInputRef}
-                        name="amount"
-                        type="number"
-                        step="0.01"
-                        defaultValue={
-                          installmentPreFill?.amount || editTransactionData?.amount || ''
-                        }
-                        onChange={(e) => setCurrentAmountValue(parseFloat(e.target.value) || 0)}
-                        className="w-full px-5 py-4 bg-white border-2 border-[#CCD2E9] rounded-t42md text-4xl font-black focus:outline-none focus:border-[#5967D8]"
+                      <CurrencyInput
+                        aria-label={t.amount}
+                        value={currentAmountValue}
                         autoFocus
+                        onChange={(next) => {
+                          setCurrentAmountValue(next);
+                          if (amountError) setAmountError('');
+                        }}
+                        className="w-full px-5 py-4 bg-white border-2 border-[#CCD2E9] rounded-t42md text-4xl font-black focus:outline-none focus:border-[#5967D8]"
                       />
+                      {amountError ? (
+                        <p role="alert" className="text-sm font-bold text-red-600 mt-2">
+                          {amountError}
+                        </p>
+                      ) : null}
                       {transactionType === 'PAYMENT' &&
                         selectedCustomer &&
                         selectedCustomer.rawBalance > 0 && (
                           <button
                             type="button"
                             onClick={() => {
-                              const valor = (
-                                Math.round(selectedCustomer.rawBalance * 100) / 100
-                              ).toFixed(2);
-                              if (amountInputRef.current) amountInputRef.current.value = valor;
-                              setCurrentAmountValue(Number(valor));
+                              const valor = Math.round(selectedCustomer.rawBalance * 100) / 100;
+                              setCurrentAmountValue(valor);
+                              setAmountError('');
                             }}
                             className="mt-3 w-full py-3 rounded-2xl font-black text-base text-white"
                             style={{ background: '#1C2446' }}
@@ -6787,13 +6811,20 @@ const App: React.FC = () => {
                         {t.description}
                       </label>
                       <input
-                        required
+                        aria-label={t.description}
                         name="description"
-                        defaultValue={
-                          installmentPreFill?.description || editTransactionData?.description || ''
-                        }
+                        value={draftDescription}
+                        onChange={(e) => {
+                          setDraftDescription(e.target.value);
+                          if (descriptionError) setDescriptionError('');
+                        }}
                         className="w-full px-5 py-4 bg-white border-2 border-[#CCD2E9] rounded-t42md font-bold focus:outline-none focus:border-[#5967D8]"
                       />
+                      {descriptionError ? (
+                        <p role="alert" className="text-sm font-bold text-red-600 mt-2">
+                          {descriptionError}
+                        </p>
+                      ) : null}
                       {transactionType === 'ABATIMENTO' && (
                         <p className="text-xs text-purple-600 font-bold mt-1">
                           Ex: Recebido em mercadoria, serviço prestado, troca, etc.
@@ -6823,19 +6854,12 @@ const App: React.FC = () => {
                         <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">
                           {t.dueDate}
                         </label>
-                        <input
-                          name="dueDate"
-                          type="date"
+                        <BrDateField
+                          ariaLabel={t.dueDate}
                           value={dueDateInput}
-                          onChange={(e) => setDueDateInput(e.target.value)}
-                          aria-label={t.dueDate}
+                          onChange={setDueDateInput}
                           className="w-full px-5 py-3 bg-white border-2 border-[#CCD2E9] rounded-t42md font-bold focus:outline-none focus:border-[#5967D8]"
                         />
-                        {dueDateInput ? (
-                          <p className="text-xs font-bold text-slate-500 mt-2">
-                            {formatBrDate(dueDateInput)}
-                          </p>
-                        ) : null}
                       </div>
                     ) : (
                       <div>
@@ -6922,7 +6946,7 @@ const App: React.FC = () => {
                                   Valor/parcela
                                 </label>
                                 <p className="px-4 py-3 bg-white rounded-xl font-black text-lg text-indigo-600">
-                                  {currentAmountValue > 0 ? (
+                                  {currentAmountValue != null && currentAmountValue > 0 ? (
                                     formatCurrency(
                                       Math.round(
                                         calcInstallment(
@@ -6940,7 +6964,8 @@ const App: React.FC = () => {
                                 </p>
                               </div>
                             </div>
-                            {currentAmountValue > 0 &&
+                            {currentAmountValue != null &&
+                              currentAmountValue > 0 &&
                               (() => {
                                 const installmentVal =
                                   Math.round(
@@ -7005,10 +7030,9 @@ const App: React.FC = () => {
                         )}
                       </div>
                     )}
-                    <button
-                      type="submit"
-                      disabled={savingTransaction}
-                      aria-busy={savingTransaction}
+                    <SaveButton
+                      saving={savingTransaction}
+                      label={editTransactionData ? 'Salvar Alterações' : t.confirmTransaction}
                       style={{
                         width: '100%',
                         padding: '16px',
@@ -7034,10 +7058,7 @@ const App: React.FC = () => {
                         gap: 8,
                         opacity: savingTransaction ? 0.7 : 1,
                       }}
-                    >
-                      {savingTransaction && <Loader2 className="w-5 h-5 animate-spin" />}
-                      {editTransactionData ? 'Salvar Alterações' : t.confirmTransaction}
-                    </button>
+                    />
                   </form>
                 </div>
               </div>
@@ -7208,9 +7229,17 @@ const App: React.FC = () => {
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 <div style={{ maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
                   <form
+                    noValidate
                     onSubmit={(e) => {
                       e.preventDefault();
                       if (savingEventRef.current) return;
+                      const fd = new FormData(e.currentTarget);
+                      const eventName = String(fd.get('name') ?? '').trim();
+                      if (!eventName) {
+                        setEventNameError('Informe o nome do evento');
+                        return;
+                      }
+                      setEventNameError('');
                       savingEventRef.current = true;
                       setSavingEvent(true);
                       try {
@@ -7218,10 +7247,9 @@ const App: React.FC = () => {
                           showPlanLimit('eventos', plan.maxEvents);
                           return;
                         }
-                        const fd = new FormData(e.currentTarget);
                         const event: BillEvent = {
                           id: generateId(),
-                          name: fd.get('name') as string,
+                          name: eventName,
                           date: Date.now(),
                           items: [],
                           participants: [
@@ -7260,9 +7288,10 @@ const App: React.FC = () => {
                       {t.eventName}
                     </label>
                     <input
-                      required
                       name="name"
+                      aria-label={t.eventName}
                       placeholder="Ex: Churrasco no Final de Semana"
+                      onInput={() => setEventNameError('')}
                       autoFocus
                       style={{
                         width: '100%',
@@ -7279,10 +7308,22 @@ const App: React.FC = () => {
                       onFocus={(e) => (e.target.style.borderColor = '#6366F1')}
                       onBlur={(e) => (e.target.style.borderColor = '#E2E8F0')}
                     />
-                    <button
-                      type="submit"
-                      disabled={savingEvent}
-                      aria-busy={savingEvent}
+                    {eventNameError ? (
+                      <p
+                        role="alert"
+                        style={{
+                          color: '#DC2626',
+                          fontWeight: 700,
+                          marginTop: -12,
+                          marginBottom: 16,
+                        }}
+                      >
+                        {eventNameError}
+                      </p>
+                    ) : null}
+                    <SaveButton
+                      saving={savingEvent}
+                      label="Criar Evento e Adicionar Participantes"
                       style={{
                         width: '100%',
                         padding: '16px',
@@ -7300,10 +7341,7 @@ const App: React.FC = () => {
                         gap: 8,
                         opacity: savingEvent ? 0.7 : 1,
                       }}
-                    >
-                      {savingEvent && <Loader2 className="w-5 h-5 animate-spin" />}
-                      Criar Evento e Adicionar Participantes
-                    </button>
+                    />
                   </form>
                 </div>
               </div>
