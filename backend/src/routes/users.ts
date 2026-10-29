@@ -7,6 +7,7 @@ import { ApiError } from '../middleware/errorHandler.js';
 import { clearAuthCookie } from '../utils/jwt.js';
 import { sendAccountDeletionEmail } from '../services/email.js';
 import { confirmAccountDeletion } from '../services/accountPurge.js';
+import { isLastActiveAdmin, LAST_ADMIN_DELETE_MESSAGE } from '../services/lastAdmin.js';
 
 const router = Router();
 
@@ -77,6 +78,10 @@ router.delete('/me', requireAuth, async (req: AuthRequest, res: Response, next: 
         ? 'Senha incorreta'
         : 'Confirmacao invalida';
       return next(new ApiError(401, message, confirmationError));
+    }
+
+    if (await isLastActiveAdmin(userId)) {
+      return next(new ApiError(409, LAST_ADMIN_DELETE_MESSAGE, 'LAST_ADMIN'));
     }
 
     const anonEmail = `deleted_${userId}@removed.invalid`;

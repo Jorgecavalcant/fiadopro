@@ -5,6 +5,7 @@ import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { sendPasswordResetEmail } from '../services/email.js';
+import { isLastActiveAdmin, LAST_ADMIN_BLOCK_MESSAGE } from '../services/lastAdmin.js';
 
 const router = Router();
 
@@ -87,6 +88,10 @@ router.patch('/users/:id', async (req: AuthRequest, res: Response, next: NextFun
       req.params.id,
     ]);
     if (!own.rows[0]) return next(new ApiError(404, 'Usuário não encontrado', 'USER_NOT_FOUND'));
+
+    if (body.is_active === false && (await isLastActiveAdmin(req.params.id))) {
+      return next(new ApiError(409, LAST_ADMIN_BLOCK_MESSAGE, 'LAST_ADMIN'));
+    }
 
     const fields = Object.entries(body).filter(([, v]) => v !== undefined);
     const setClause = fields.map(([k], i) => `${k} = $${i + 2}`).join(', ');
