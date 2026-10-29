@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dividir conta — protótipo</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <p class="brand">Fiado Pro<span>Loja TESTE</span></p>
+      <a href="painel.html">Painel</a>
+      <a href="clientes.html">Clientes</a>
+      <a class="active" href="dividir.html">Dividir conta</a>
+      <a href="admin.html">Admin</a>
+    </aside>
+    <div class="main">
+      <header class="top">
+        <div>
+          <h1>Dividir conta</h1>
+          <p>Evento TESTE Churrasco</p>
+        </div>
+      </header>
+      <div class="content stack">
+        <article class="card stack">
+          <div class="row"><strong>Carne</strong><span>R$ 80,00</span></div>
+          <div class="row"><strong>Bebida</strong><span>R$ 40,00</span></div>
+          <div class="row"><span class="muted">Total</span><strong>R$ 120,00</strong></div>
+        </article>
+        <article class="card">
+          <h2>Pessoas</h2>
+          <div class="row" style="margin-bottom:8px"><span>TESTE Ana</span><strong>R$ 60,00</strong></div>
+          <div class="row"><span>TESTE Bruno</span><strong>R$ 60,00</strong></div>
+        </article>
+        <div class="field">
+          <label for="vence">Vencimento das dívidas</label>
+          <input id="vence" value="30/11/2026" readonly />
+          <p class="muted">Em branco, a dívida fica sem vencimento. O que grava continua o meio-dia de São Paulo.</p>
+        </div>
+        <button class="btn btn-secondary" type="button">Dividir igualmente</button>
+        <button class="btn btn-primary" type="button">Confirmar divisão</button>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <a href="painel.html">Painel</a>
+      <a href="clientes.html">Clientes</a>
+      <a class="active" href="dividir.html">Dividir</a>
+      <a href="admin.html">Admin</a>
+    </nav>
+  </div>
+</body>
+</html>

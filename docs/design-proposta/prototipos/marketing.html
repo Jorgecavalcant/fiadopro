@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Marketing — protótipo</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <p class="brand">Fiado Pro<span>Admin TESTE</span></p>
+      <a href="painel.html">Painel</a>
+      <a href="admin.html">Admin</a>
+      <a class="active" href="marketing.html">Marketing</a>
+      <a href="anuncios.html">Anúncios</a>
+    </aside>
+    <div class="main">
+      <header class="top">
+        <div>
+          <h1>Marketing</h1>
+          <p>Simulação da Fase 3. Nada disso existe no app ainda.</p>
+        </div>
+      </header>
+      <div class="content stack">
+        <article class="card stack">
+          <h2>Patrocinador</h2>
+          <div class="field"><label for="nome">Nome</label><input id="nome" value="Padaria TESTE" readonly /></div>
+          <div class="grid-2">
+            <div class="field"><label for="ini">Início</label><input id="ini" value="01/11/2026" readonly /></div>
+            <div class="field"><label for="fim">Fim</label><input id="fim" value="30/11/2026" readonly /></div>
+          </div>
+          <aside class="alert alert-info">
+            <strong>Contrato ativo até 30/11/2026</strong>
+            <p>No dia seguinte o anúncio desliga sozinho. Renovar só pelo admin ou quando o pagamento do contrato for confirmado.</p>
+          </aside>
+        </article>
+        <article class="card stack">
+          <h2>Criativo</h2>
+          <div class="preview">Prévia · imagem ou vídeo TESTE</div>
+          <p class="muted">Link de exemplo: exemplo.test/padaria — sem endereço real.</p>
+          <button class="btn btn-secondary" type="button">Enviar imagem ou vídeo</button>
+        </article>
+        <article class="card stack">
+          <h2>Espaços</h2>
+          <label><input type="checkbox" checked disabled /> Barra do topo</label>
+          <label><input type="checkbox" checked disabled /> Tela cheia (só Free, 1 vez por período)</label>
+          <label><input type="checkbox" disabled /> Enterprise não usa espaço</label>
+        </article>
+        <article class="card stack">
+          <h2>Resultados</h2>
+          <p class="note">A tabela abaixo é desenho de tela. Os traços não são medição.</p>
+          <table>
+            <thead><tr><th>Peça</th><th>Período</th><th>Vistas</th></tr></thead>
+            <tbody>
+              <tr><td>Padaria TESTE</td><td>01/11 a 30/11</td><td>—</td></tr>
+            </tbody>
+          </table>
+          <button class="btn btn-primary" type="button">Gerar PDF</button>
+        </article>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <a href="painel.html">Painel</a>
+      <a href="admin.html">Admin</a>
+      <a class="active" href="marketing.html">Marketing</a>
+      <a href="anuncios.html">Anúncios</a>
+    </nav>
+  </div>
+</body>
+</html>
