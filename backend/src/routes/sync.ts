@@ -5,6 +5,8 @@ import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { linkCustomer } from '../services/linking.js';
 import { assertCanAddCustomers } from '../services/planLimits.js';
+import { activeCustomerWithSamePhone, duplicatePhoneError } from './customers.js';
+import { confirmedBalanceExpr, paymentLeavesCredit } from '../domain/balance.js';
 
 const router = Router();
 // Importação carrega anexos em base64 — limite maior SÓ nesta rota
@@ -26,11 +28,13 @@ const ImportCustomerSchema = z.object({
   createdAt: z.number().optional(),
 });
 
-const ImportTransactionSchema = z.object({
+export const ImportTransactionSchema = z.object({
   id: z.string().uuid(),
   customerId: z.string().uuid(),
   type: z.enum(['DEBT', 'PAYMENT', 'REFUND', 'ABATIMENTO']),
-  amount: z.number().positive(),
+  amount: z.number().positive('Informe um valor maior que zero'),
+  /** O lojista já confirmou que o valor a maior vira crédito. Não é coluna. */
+  confirmCredit: z.boolean().optional(),
   description: z.string().max(2000).default(''),
   timestamp: z.number(),
   dueDate: z.number().optional().nullable(),
@@ -78,8 +82,22 @@ router.post('/import', async (req: AuthRequest, res: Response, next: NextFunctio
     await assertCanAddCustomers(userId, incomingIds.length - already);
     let customersImported = 0;
     let transactionsImported = 0;
+    const rejected: { id: string; code: string; message: string; existingCustomerId: string }[] =
+      [];
+    const creditConfirmationRequired: string[] = [];
 
     for (const c of body.customers) {
+      const duplicate = await activeCustomerWithSamePhone(userId, c.phone, c.id);
+      if (duplicate) {
+        const error = duplicatePhoneError(duplicate);
+        rejected.push({
+          id: c.id,
+          code: 'DUPLICATE_PHONE',
+          message: error.message,
+          existingCustomerId: duplicate.id,
+        });
+        continue;
+      }
       const r = await query(
         `INSERT INTO customers (id, owner_user_id, name, phone, email, pix_key, trusted, overpayment_strategy, notes, score, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, FALSE), COALESCE($8, 'RETURN'), COALESCE($9::jsonb, '[]'::jsonb), $10, COALESCE($11, NOW()))
@@ -109,6 +127,20 @@ router.post('/import', async (req: AuthRequest, res: Response, next: NextFunctio
 
     for (const t of body.transactions) {
       if (!ownedIds.has(t.customerId)) continue; // nunca importar contra cliente de outro dono
+      if (t.type === 'PAYMENT') {
+        const bal = await query(
+          `SELECT ${confirmedBalanceExpr()} AS balance
+             FROM transactions
+            WHERE customer_id = $1`,
+          [t.customerId],
+        );
+        const rawBalance = bal.rows[0]?.balance ?? 0;
+        const balance = typeof rawBalance === 'number' ? rawBalance : Number(rawBalance);
+        if (paymentLeavesCredit(balance, t.amount) && t.confirmCredit !== true) {
+          creditConfirmationRequired.push(t.id);
+          continue;
+        }
+      }
       const r = await query(
         `INSERT INTO transactions (id, customer_id, owner_user_id, type, status, amount, description,
                                    occurred_at, due_date, payment_method, attachment,
@@ -144,7 +176,13 @@ router.post('/import', async (req: AuthRequest, res: Response, next: NextFunctio
       }
     }
 
-    res.json({ success: true, customersImported, transactionsImported });
+    res.json({
+      success: true,
+      customersImported,
+      transactionsImported,
+      rejected,
+      creditConfirmationRequired,
+    });
   } catch (err) {
     if (err instanceof z.ZodError)
       return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));

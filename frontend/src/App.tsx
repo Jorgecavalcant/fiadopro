@@ -100,7 +100,11 @@ import { Keyboard } from '@capacitor/keyboard';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { hapticMedium, hapticSuccess } from './utils/haptics';
 import { showToast } from './utils/toast';
-import { canShowCheckout, isAndroidApp } from './utils/androidStore';
+import { canShowCheckout } from './utils/androidStore';
+import {
+  DuplicateCustomerNotice,
+  normalizeCustomerPhone,
+} from './components/DuplicateCustomerNotice';
 import { planPricesFromStatus, showsFullscreenAd } from './utils/planPrice';
 import InboxAprovacoes from './components/InboxAprovacoes';
 import MinhasDividas from './components/MinhasDividas';
@@ -117,10 +121,12 @@ import {
 } from './services/syncService';
 import {
   calculateScore,
+  balanceSign,
   computeRawBalance,
   buildChargeMessage,
   buildWhatsAppUrl,
 } from './utils/credit';
+import { isOverdueDebt, summarizeOverdue } from './utils/overdue';
 import {
   computeItemPrice,
   getItemQuantity,
@@ -128,6 +134,26 @@ import {
   planEventSplitRecords,
 } from './utils/billSplit';
 import { brDateInputToTimestamp, formatBrDate, formatBrDateTime } from './utils/formatBr';
+
+function balanceDirection(
+  rawBalance: number,
+  formatCurrency: (value: number) => string,
+): { text: string; color: string } {
+  if (rawBalance > 0) {
+    return { text: `Te deve ${formatCurrency(rawBalance)}`, color: '#DC2626' };
+  }
+  if (rawBalance < 0) {
+    return { text: `Você deve ${formatCurrency(Math.abs(rawBalance))}`, color: '#059669' };
+  }
+  return { text: 'Em dia', color: '#94A3B8' };
+}
+
+function balanceBeforeEdit(rawBalance: number, edited: Transaction | null): number {
+  if (!edited || edited.status !== 'CONFIRMED') return rawBalance;
+  const cents = Math.round(rawBalance * 100);
+  const amount = Math.round(edited.amount * 100);
+  return (cents - balanceSign(edited.type) * amount) / 100;
+}
 
 const STORAGE_KEY = 'fiado_pro_data_v14';
 const API_URL = import.meta.env.VITE_API_URL || 'https://www.fiadopro.com.br/api';
@@ -701,7 +727,7 @@ const CustomerManagementView = ({
     () => ({
       total: customersWithBalance.length,
       withDebt: customersWithBalance.filter((c) => c.rawBalance > 0).length,
-      overdue: customersWithBalance.filter((c) => c.isOverdue).length,
+      overdue: summarizeOverdue(transactions, customersWithBalance).count,
       creditBalance: customersWithBalance.filter((c) => c.rawBalance < 0).length,
       avgScore: customersWithBalance.length
         ? Math.round(
@@ -1105,20 +1131,23 @@ const CustomerManagementView = ({
                         )}
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 100 }}>
+                    <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 120 }}>
                       {scoreBar(c.score ?? 700)}
-                      <p
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 900,
-                          marginTop: 6,
-                          color:
-                            c.rawBalance > 0 ? '#DC2626' : c.rawBalance < 0 ? '#059669' : '#94A3B8',
-                        }}
-                      >
-                        {c.rawBalance !== 0 && (c.rawBalance > 0 ? '+' : '')}
-                        {formatCurrency(c.rawBalance)}
-                      </p>
+                      {(() => {
+                        const sense = balanceDirection(c.rawBalance, formatCurrency);
+                        return (
+                          <p
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 900,
+                              marginTop: 6,
+                              color: sense.color,
+                            }}
+                          >
+                            {sense.text}
+                          </p>
+                        );
+                      })()}
                     </div>
                     <ChevronRight
                       style={{ width: 16, height: 16, color: '#CBD5E1', flexShrink: 0 }}
@@ -1498,6 +1527,8 @@ const EventDetailView = ({
   t,
   user,
   addAuditEntry,
+  maxParticipantsPerEvent,
+  onParticipantsLimit,
 }: any) => {
   const [isScanning, setIsScanning] = useState(false);
   const [participantDropdown, setParticipantDropdown] = useState<string | null>(null);
@@ -2077,6 +2108,17 @@ const EventDetailView = ({
                     checked={event.ownerParticipating}
                     onChange={(e) => {
                       const isChecked = e.target.checked;
+                      const participantCeiling = Number(maxParticipantsPerEvent);
+                      if (
+                        isChecked &&
+                        !event.participants.some((p: { isOwner?: boolean }) => p.isOwner) &&
+                        Number.isFinite(participantCeiling) &&
+                        event.participants.length >= participantCeiling &&
+                        onParticipantsLimit
+                      ) {
+                        onParticipantsLimit();
+                        return;
+                      }
                       updateEventContent((ev: BillEvent) => {
                         let newParticipants = [...ev.participants];
                         if (isChecked && !newParticipants.some((p) => p.isOwner)) {
@@ -2107,6 +2149,15 @@ const EventDetailView = ({
                 </label>
                 <button
                   onClick={() => {
+                    const participantCeiling = Number(maxParticipantsPerEvent);
+                    if (
+                      Number.isFinite(participantCeiling) &&
+                      event.participants.length >= participantCeiling &&
+                      onParticipantsLimit
+                    ) {
+                      onParticipantsLimit();
+                      return;
+                    }
                     const newParticipantId = generateId();
                     updateEventContent((ev: BillEvent) => ({
                       ...ev,
@@ -2394,11 +2445,13 @@ const InstallmentGroupCard = ({
   formatCurrency,
   t,
   onPayInstallment,
+  customerRawBalance = 0,
 }: {
   group: InstallmentGroup;
   formatCurrency: (v: number) => string;
   t: any;
   onPayInstallment: (tx: Transaction) => void;
+  customerRawBalance?: number;
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -2413,7 +2466,7 @@ const InstallmentGroupCard = ({
   const getInstallmentStatus = (tx: Transaction) => {
     const isPaid = isPaidByRunningBalance(tx.installmentNumber ?? 0);
     if (isPaid) return 'paid';
-    const isOverdue = tx.dueDate ? Date.now() > tx.dueDate : false;
+    const isOverdue = isOverdueDebt(tx, customerRawBalance);
     return isOverdue ? 'overdue' : 'pending';
   };
 
@@ -2526,7 +2579,7 @@ const InstallmentGroupCard = ({
                       <td
                         className={`py-3 px-4 font-bold text-xs ${status === 'overdue' ? 'text-red-600 font-black' : 'text-slate-500'}`}
                       >
-                        {tx.dueDate ? formatBrDate(tx.dueDate) : '—'}
+                        {tx.dueDate ? formatBrDate(tx.dueDate) : 'Sem vencimento'}
                       </td>
                       <td
                         className={`py-3 px-4 text-right font-black ${status === 'overdue' ? 'text-red-700' : 'text-slate-900'}`}
@@ -2711,7 +2764,7 @@ const CustomerDetailView = ({
       if (type === 'DEBT') return { label: 'Débito', color: '#DC2626', sign: '+' };
       if (type === 'PAYMENT') return { label: 'Pagamento', color: '#059669', sign: '-' };
       if (type === 'ABATIMENTO') return { label: 'Abatimento', color: '#7C3AED', sign: '-' };
-      if (type === 'REFUND') return { label: 'Devolução', color: '#2563EB', sign: '-' };
+      if (type === 'REFUND') return { label: 'Devolução', color: '#2563EB', sign: '+' };
       return { label: type, color: '#334155', sign: '' };
     };
     const items = filteredTransactions
@@ -2880,12 +2933,14 @@ const CustomerDetailView = ({
             <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mb-1">
               {t.currentBalance}
             </p>
-            <p
-              className={`text-4xl font-black ${selectedCustomer.rawBalance > 0 ? (selectedCustomer.isOverdue ? 'text-red-600' : 'text-orange-500') : selectedCustomer.rawBalance < 0 ? 'text-green-600' : 'text-slate-400'}`}
-            >
-              {selectedCustomer.rawBalance < 0 ? '-' : ''}
-              {formatCurrency(Math.abs(selectedCustomer.rawBalance))}
-            </p>
+            {(() => {
+              const sense = balanceDirection(selectedCustomer.rawBalance, formatCurrency);
+              return (
+                <p className="text-3xl font-black" style={{ color: sense.color }}>
+                  {sense.text}
+                </p>
+              );
+            })()}
             {(() => {
               const score = calculateScore(selectedCustomer, transactions);
               const cat = scoreCategory(score, t);
@@ -3084,10 +3139,12 @@ const CustomerDetailView = ({
                   )}
                 </div>
               ) : (
-                filteredTransactions.map((tx: Transaction) => (
+                filteredTransactions.map((tx: Transaction) => {
+                  const overdue = isOverdueDebt(tx, selectedCustomer.rawBalance);
+                  return (
                   <div
                     key={tx.id}
-                    className="group flex items-center justify-between p-6 bg-slate-50 rounded-t42lg border border-transparent hover:border-indigo-100 hover:bg-white transition-all hover:shadow-md"
+                    className={`group flex items-center justify-between p-6 rounded-t42lg border transition-all hover:shadow-md ${overdue ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-transparent hover:border-indigo-100 hover:bg-white'}`}
                   >
                     <div className="flex items-center gap-5">
                       <div
@@ -3157,11 +3214,12 @@ const CustomerDetailView = ({
                         <p className="text-xs text-slate-400 font-bold">
                           {formatBrDateTime(tx.timestamp)}
                         </p>
-                        {tx.dueDate ? (
-                          <p className="text-xs text-slate-500 font-bold">
-                            Vence em {formatBrDate(tx.dueDate)}
-                          </p>
-                        ) : null}
+                        <p
+                          className={`text-xs font-bold ${overdue ? 'text-red-700' : 'text-slate-500'}`}
+                        >
+                          {tx.dueDate ? `Vencimento ${formatBrDate(tx.dueDate)}` : 'Sem vencimento'}
+                          {overdue ? ' · Em atraso' : ''}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 sm:gap-4">
@@ -3184,7 +3242,7 @@ const CustomerDetailView = ({
                       <p
                         className={`text-lg font-black whitespace-nowrap ${tx.type === 'DEBT' ? 'text-slate-900' : tx.type === 'PAYMENT' ? 'text-emerald-600' : tx.type === 'ABATIMENTO' ? 'text-purple-600' : 'text-indigo-600'}`}
                       >
-                        {tx.type === 'DEBT' ? '+' : tx.type === 'ABATIMENTO' ? '⊖' : '-'}
+                        {balanceSign(tx.type) < 0 ? '−' : '+'}
                         {formatCurrency(tx.amount)}
                       </p>
                       <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
@@ -3207,7 +3265,8 @@ const CustomerDetailView = ({
                       </div>
                     </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -3435,6 +3494,7 @@ const CustomerDetailView = ({
                 group={group}
                 formatCurrency={formatCurrency}
                 t={t}
+                customerRawBalance={selectedCustomer.rawBalance}
                 onPayInstallment={(tx: Transaction) =>
                   onPayInstallment && onPayInstallment(tx, group)
                 }
@@ -3964,6 +4024,16 @@ const App: React.FC = () => {
     idToken?: string;
   }>(null);
   const [customerFormWarning, setCustomerFormWarning] = useState('');
+  const [duplicateCustomer, setDuplicateCustomer] = useState<{ id: string; message: string } | null>(
+    null,
+  );
+  const [planLimitReason, setPlanLimitReason] = useState<string | null>(null);
+  const [savingCustomer, setSavingCustomer] = useState(false);
+  const [savingTransaction, setSavingTransaction] = useState(false);
+  const [savingEvent, setSavingEvent] = useState(false);
+  const savingCustomerRef = useRef(false);
+  const savingTransactionRef = useRef(false);
+  const savingEventRef = useRef(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
   const [resetToken, setResetToken] = useState('');
@@ -3971,6 +4041,7 @@ const App: React.FC = () => {
   const [resetConfirm, setResetConfirm] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const googleBtnRef = useRef<HTMLDivElement>(null);
+  const amountInputRef = useRef<HTMLInputElement>(null);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddSearch, setQuickAddSearch] = useState('');
   const [quickAddStep, setQuickAddStep] = useState<1 | 2>(1);
@@ -4077,14 +4148,42 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
-    schedulePush(true, customers, transactions, (patches) => {
-      setTransactions((prev) =>
-        prev.map((tx) => {
-          const patch = patches.find((p) => p.id === tx.id);
-          return patch ? { ...tx, status: patch.status } : tx;
-        }),
-      );
-    });
+    schedulePush(
+      true,
+      customers,
+      transactions,
+      (patches) => {
+        setTransactions((prev) =>
+          prev.map((tx) => {
+            const patch = patches.find((p) => p.id === tx.id);
+            return patch ? { ...tx, status: patch.status } : tx;
+          }),
+        );
+      },
+      (txId) => {
+        const tx = transactions.find((item) => item.id === txId);
+        if (!tx || tx.creditConfirmed) return;
+        const customer = customers.find((item) => item.id === tx.customerId);
+        const others = transactions.filter(
+          (item) =>
+            item.customerId === tx.customerId && item.status === 'CONFIRMED' && item.id !== tx.id,
+        );
+        const balance = computeRawBalance(others);
+        const owed = Math.max(0, balance);
+        const extra = Math.max(0, Math.round((tx.amount - owed) * 100) / 100);
+        const confirmed = window.confirm(
+          `${customer?.name ?? 'O cliente'} devia ${formatCurrency(owed)}. Os ${formatCurrency(extra)} a mais vão ficar como crédito dele (você vai dever a ele). Confirmar?`,
+        );
+        if (!confirmed) {
+          showToast('O pagamento continua neste aparelho até você confirmar o crédito.');
+          return;
+        }
+        setTransactions((prev) =>
+          prev.map((item) => (item.id === txId ? { ...item, creditConfirmed: true } : item)),
+        );
+      },
+      (notice) => setDuplicateCustomer(notice),
+    );
   }, [user, customers, transactions]);
 
   const handleUpdateNote = (noteId: string) => {
@@ -4278,34 +4377,61 @@ const App: React.FC = () => {
   }, [isTransactionModalOpen]);
 
   const customersWithBalance: CustomerWithBalance[] = useMemo(() => {
-    return customers.map((c) => {
+    const rows = customers.map((c) => {
       const customerTransactions = transactions.filter(
         (tData) => tData.customerId === c.id && tData.status === 'CONFIRMED',
       );
-      // DEBT aumenta saldo; PAYMENT/ABATIMENTO/REFUND reduzem (REFUND pode gerar saldo negativo → TO_PAY)
+      // DEBT e REFUND aumentam. PAYMENT e ABATIMENTO diminuem.
       const rawBalance = computeRawBalance(customerTransactions);
 
       const lastActivity =
         customerTransactions.length > 0
           ? Math.max(...customerTransactions.map((t) => t.timestamp))
           : c.createdAt;
-      // isOverdue: só marca como vencido se o débito tem dueDate explícita e passou do prazo
-      const isOverdue =
-        rawBalance > 0 &&
-        customerTransactions.some((t) => t.type === 'DEBT' && t.dueDate && Date.now() > t.dueDate);
       const displayBalance = rawBalance < 0 && c.overpaymentStrategy === 'PROFIT' ? 0 : rawBalance;
       return {
         ...c,
         balance: displayBalance,
         rawBalance: rawBalance,
         lastActivity,
-        isOverdue,
+        isOverdue: false,
         score: calculateScore(c, transactions),
       };
     });
+    const overdueIds = new Set(summarizeOverdue(transactions, rows).customerIds);
+    return rows.map((c) => ({ ...c, isOverdue: overdueIds.has(c.id) }));
   }, [customers, transactions]);
 
   const canAddCustomer = () => customers.length < plan.maxCustomers;
+
+  const showPlanLimit = (kind: 'clientes' | 'eventos' | 'participantes', max: number) => {
+    if (!Number.isFinite(max)) return;
+    const planName = plan.type === 'FREE' ? 'Grátis' : plan.type === 'PRO' ? 'Pro' : 'Enterprise';
+    const message = `Você atingiu o limite de ${max} ${kind} do plano ${planName}`;
+    if (!canShowCheckout()) {
+      showToast(message);
+      return;
+    }
+    setPlanLimitReason(message);
+    setIsUpgradeModalOpen(true);
+  };
+
+  const limitCountFromServer = (message: string, fallback: number) => {
+    const found = message.match(/\d+/);
+    if (!found) return fallback;
+    const value = Number(found[0]);
+    return Number.isFinite(value) ? value : fallback;
+  };
+
+  const openExistingCustomer = (id: string) => {
+    setDuplicateCustomer(null);
+    setCustomerFormWarning('');
+    setIsCustomerModalOpen(false);
+    setIsEditCustomerModalOpen(false);
+    setPendingTransactionAfterCreate(false);
+    setPendingNewCustomerName('');
+    navigateToCustomer(id);
+  };
 
   const stats = useMemo(() => {
     const totalReceivable = customersWithBalance.reduce(
@@ -4314,9 +4440,7 @@ const App: React.FC = () => {
     );
     // Mudança Crítica: Contar como devedor ativo qualquer pessoa com saldo positivo no extrato
     const activeDebtors = customersWithBalance.filter((c) => c.rawBalance > 0).length;
-    const totalOverdue = customersWithBalance
-      .filter((c) => c.isOverdue)
-      .reduce((acc, c) => acc + c.rawBalance, 0);
+    const totalOverdue = summarizeOverdue(transactions, customersWithBalance).amount;
     const totalFuture = Math.max(0, totalReceivable - totalOverdue);
     const totalPaid = transactions
       .filter((t) => t.type === 'PAYMENT' && t.status === 'CONFIRMED')
@@ -4519,12 +4643,34 @@ const App: React.FC = () => {
 
   const addTransaction = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (savingTransactionRef.current) return;
+    savingTransactionRef.current = true;
+    setSavingTransaction(true);
+    try {
     if (!selectedCustomerId) return;
     const formData = new FormData(e.currentTarget);
     const amount = parseFloat(formData.get('amount') as string);
     if (!isFinite(amount) || amount <= 0) {
-      showToast('Informe um valor válido maior que zero.');
+      showToast('Informe um valor maior que zero');
       return;
+    }
+    let creditConfirmed = false;
+    if (transactionType === 'PAYMENT') {
+      const customer = customersWithBalance.find((c) => c.id === selectedCustomerId);
+      if (customer) {
+        const base = balanceBeforeEdit(customer.rawBalance, editTransactionData);
+        const owedCents = Math.max(0, Math.round(base * 100));
+        const amountCents = Math.round(amount * 100);
+        if (owedCents - amountCents < 0) {
+          const extra = (amountCents - owedCents) / 100;
+          const owed = owedCents / 100;
+          const confirmed = window.confirm(
+            `${customer.name} devia ${formatCurrency(owed)}. Os ${formatCurrency(extra)} a mais vão ficar como crédito dele (você vai dever a ele). Confirmar?`,
+          );
+          if (!confirmed) return;
+          creditConfirmed = true;
+        }
+      }
     }
     const desc = formData.get('description') as string;
     const method = formData.get('paymentMethod') as PaymentMethod;
@@ -4573,6 +4719,7 @@ const App: React.FC = () => {
                 dueDate: brDateInputToTimestamp(dueDate),
                 eventId: eventId || undefined,
                 ...(attachment ? { attachment } : {}),
+                ...(creditConfirmed ? { creditConfirmed: true } : {}),
               }
             : tx,
         ),
@@ -4636,6 +4783,7 @@ const App: React.FC = () => {
             dueDate: brDateInputToTimestamp(dueDate),
             status: 'CONFIRMED',
             eventId: eventId || undefined,
+            ...(creditConfirmed ? { creditConfirmed: true } : {}),
             ...(attachment ? { attachment } : {}),
             ...(installmentPreFill
               ? {
@@ -4660,6 +4808,10 @@ const App: React.FC = () => {
     setIsTransactionModalOpen(false);
     setCurrentAmountValue(0);
     setInstallmentPreFill(null);
+    } finally {
+      savingTransactionRef.current = false;
+      setSavingTransaction(false);
+    }
   };
 
   const handleGoogleCallback = async (idToken: string, reactivate = false) => {
@@ -5120,7 +5272,10 @@ const App: React.FC = () => {
       {showsFullscreenAd(catalog?.adPolicy) && (
         <AdBanner
           onUpgrade={() => {
-            if (canShowCheckout()) setIsUpgradeModalOpen(true);
+            if (canShowCheckout()) {
+              setPlanLimitReason(null);
+              setIsUpgradeModalOpen(true);
+            }
           }}
           t={t}
         />
@@ -5151,7 +5306,10 @@ const App: React.FC = () => {
           setLanguage={setLanguage}
           isPro={plan.hasAI}
           onUpgrade={() => {
-            if (canShowCheckout()) setIsUpgradeModalOpen(true);
+            if (canShowCheckout()) {
+              setPlanLimitReason(null);
+              setIsUpgradeModalOpen(true);
+            }
           }}
           user={user}
           onLogout={() => {
@@ -5229,8 +5387,7 @@ const App: React.FC = () => {
                           <p
                             className={`text-2xl font-black ${c.rawBalance > 0 ? 'text-red-600' : c.rawBalance < 0 ? 'text-green-600' : 'text-slate-400'}`}
                           >
-                            {c.rawBalance < 0 ? '-' : ''}
-                            {formatCurrency(Math.abs(c.rawBalance))}
+                            {balanceDirection(c.rawBalance, formatCurrency).text}
                           </p>
                         </div>
                         <ChevronRight className="w-6 h-6 text-slate-200 group-hover:text-indigo-600 transition-all" />
@@ -5256,7 +5413,10 @@ const App: React.FC = () => {
               aiAdvice={aiAdvice}
               isPro={isPro}
               setIsUpgradeModalOpen={() => {
-                if (canShowCheckout()) setIsUpgradeModalOpen(true);
+                if (canShowCheckout()) {
+                  setPlanLimitReason(null);
+                  setIsUpgradeModalOpen(true);
+                }
               }}
               handleShareWhatsApp={handleShareWhatsApp}
               deleteCustomer={(id: string) => {
@@ -5294,7 +5454,17 @@ const App: React.FC = () => {
             <SplitBillView
               events={events}
               setEvents={setEvents}
-              setIsEventModalOpen={setIsEventModalOpen}
+              setIsEventModalOpen={(open: boolean) => {
+                if (
+                  open &&
+                  Number.isFinite(plan.maxEvents) &&
+                  events.length >= plan.maxEvents
+                ) {
+                  showPlanLimit('eventos', plan.maxEvents);
+                  return;
+                }
+                setIsEventModalOpen(open);
+              }}
               setSelectedEventId={setSelectedEventId}
               setActiveView={setActiveView}
               formatCurrency={formatCurrency}
@@ -5320,6 +5490,10 @@ const App: React.FC = () => {
               t={t}
               user={user}
               addAuditEntry={addAuditEntry}
+              maxParticipantsPerEvent={plan.maxParticipantsPerEvent}
+              onParticipantsLimit={() =>
+                showPlanLimit('participantes', plan.maxParticipantsPerEvent)
+              }
             />
           )}
           {activeView === AppView.RECEIVABLES_LIST && (
@@ -6107,6 +6281,8 @@ const App: React.FC = () => {
               >
                 <button
                   onClick={() => {
+                    setDuplicateCustomer(null);
+                    setCustomerFormWarning('');
                     setIsCustomerModalOpen(false);
                     setIsEditCustomerModalOpen(false);
                     setPendingTransactionAfterCreate(false);
@@ -6137,6 +6313,10 @@ const App: React.FC = () => {
                   <form
                     onSubmit={async (e) => {
                       e.preventDefault();
+                      if (savingCustomerRef.current) return;
+                      savingCustomerRef.current = true;
+                      setSavingCustomer(true);
+                      try {
                       setCustomerFormWarning('');
                       const fd = new FormData(e.currentTarget);
                       const cData = {
@@ -6149,23 +6329,34 @@ const App: React.FC = () => {
                         showToast(t.phoneRequired);
                         return;
                       }
-                      if (!isEditCustomerModalOpen) {
-                        if (!canAddCustomer()) {
-                          if (isAndroidApp()) {
-                            showToast('Limite de clientes do plano gratuito atingido.');
-                          } else {
-                            showToast(t.maxCustomersReached);
-                            setIsUpgradeModalOpen(true);
-                          }
-                          return;
-                        }
-                        const duplicate = customers.find(
-                          (c) => c.phone.replace(/\D/g, '') === cData.phone.replace(/\D/g, ''),
-                        );
-                        if (duplicate) {
-                          showToast(t.phoneDuplicate);
-                          return;
-                        }
+                      const ignoreId = isEditCustomerModalOpen ? selectedCustomerId : null;
+                      const normalizedPhone = normalizeCustomerPhone(cData.phone);
+                      const phoneOwner = normalizedPhone
+                        ? customers.find(
+                            (c) =>
+                              c.id !== ignoreId &&
+                              normalizeCustomerPhone(c.phone) === normalizedPhone,
+                          )
+                        : undefined;
+                      if (!isEditCustomerModalOpen && !canAddCustomer() && !phoneOwner) {
+                        showPlanLimit('clientes', plan.maxCustomers);
+                        return;
+                      }
+                      if (phoneOwner) {
+                        setDuplicateCustomer({
+                          id: phoneOwner.id,
+                          message: `Já existe ${phoneOwner.name} com esse número`,
+                        });
+                        return;
+                      }
+                      setDuplicateCustomer(null);
+                      const sameName = customers.find(
+                        (c) =>
+                          c.id !== ignoreId &&
+                          c.name.trim().toLowerCase() === cData.name.trim().toLowerCase(),
+                      );
+                      if (sameName) {
+                        showToast(`Já existe ${sameName.name} com esse nome. O cadastro segue.`);
                       }
                       const editing = isEditCustomerModalOpen;
                       const existing = editing
@@ -6182,19 +6373,33 @@ const App: React.FC = () => {
                         id: draftId,
                       };
                       if (user && draftId) {
-                        const message = await saveCustomerToServer(
+                        const saved = await saveCustomerToServer(
                           draft,
                           editing && Boolean(existing),
                         );
-                        if (
-                          message === 'Esse telefone é o seu.' ||
-                          message === 'Esse e-mail é o seu.'
-                        ) {
-                          setCustomerFormWarning(message);
-                          return;
-                        }
-                        if (message && message !== 'offline') {
-                          showToast(message);
+                        if (saved && saved !== 'offline') {
+                          if (
+                            saved.message === 'Esse telefone é o seu.' ||
+                            saved.message === 'Esse e-mail é o seu.'
+                          ) {
+                            setCustomerFormWarning(saved.message);
+                            return;
+                          }
+                          if (saved.code === 'PLAN_LIMIT') {
+                            showPlanLimit(
+                              'clientes',
+                              limitCountFromServer(saved.message, plan.maxCustomers),
+                            );
+                            return;
+                          }
+                          if (saved.code === 'DUPLICATE_PHONE' && saved.existingCustomerId) {
+                            setDuplicateCustomer({
+                              id: saved.existingCustomerId,
+                              message: saved.message,
+                            });
+                            return;
+                          }
+                          showToast(saved.message);
                           return;
                         }
                       }
@@ -6239,6 +6444,10 @@ const App: React.FC = () => {
                       }
                       setIsCustomerModalOpen(false);
                       setIsEditCustomerModalOpen(false);
+                      } finally {
+                        savingCustomerRef.current = false;
+                        setSavingCustomer(false);
+                      }
                     }}
                     className="space-y-6"
                   >
@@ -6332,22 +6541,36 @@ const App: React.FC = () => {
                         {customerFormWarning}
                       </p>
                     )}
+                    {duplicateCustomer && (
+                      <DuplicateCustomerNotice
+                        message={duplicateCustomer.message}
+                        onOpen={() => openExistingCustomer(duplicateCustomer.id)}
+                      />
+                    )}
                     <button
                       type="submit"
+                      disabled={savingCustomer}
+                      aria-busy={savingCustomer}
                       style={{
                         width: '100%',
                         padding: '16px',
                         borderRadius: 16,
                         border: 'none',
-                        cursor: 'pointer',
+                        cursor: savingCustomer ? 'not-allowed' : 'pointer',
                         fontWeight: 900,
                         fontSize: 16,
                         color: 'white',
                         background: 'linear-gradient(135deg,#6366F1,#8B5CF6)',
                         boxShadow: '0 4px 20px rgba(99,102,241,0.3)',
                         marginTop: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        opacity: savingCustomer ? 0.7 : 1,
                       }}
                     >
+                      {savingCustomer && <Loader2 className="w-5 h-5 animate-spin" />}
                       {isEditCustomerModalOpen ? 'Salvar Alterações' : 'Cadastrar Cliente'}
                     </button>
                   </form>
@@ -6444,6 +6667,48 @@ const App: React.FC = () => {
               </div>
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 <div style={{ maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
+                  {(transactionType === 'DEBT' || transactionType === 'PAYMENT') &&
+                    selectedCustomer && (
+                      <div
+                        role="status"
+                        style={{
+                          marginBottom: 20,
+                          padding: '18px 20px',
+                          borderRadius: 18,
+                          background:
+                            selectedCustomer.rawBalance > 0
+                              ? '#FEF2F2'
+                              : selectedCustomer.rawBalance < 0
+                                ? '#ECFDF5'
+                                : '#F8FAFC',
+                          border: '1px solid #E2E8F0',
+                        }}
+                      >
+                        <p
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 800,
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            color: '#64748B',
+                            margin: 0,
+                          }}
+                        >
+                          Saldo atual
+                        </p>
+                        <p
+                          style={{
+                            fontSize: 28,
+                            fontWeight: 900,
+                            margin: '6px 0 0',
+                            color: balanceDirection(selectedCustomer.rawBalance, formatCurrency)
+                              .color,
+                          }}
+                        >
+                          {balanceDirection(selectedCustomer.rawBalance, formatCurrency).text}
+                        </p>
+                      </div>
+                    )}
                   {(transactionType === 'ABATIMENTO' || transactionType === 'REFUND') &&
                     selectedCustomer && (
                       <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
@@ -6487,6 +6752,7 @@ const App: React.FC = () => {
                       </label>
                       <input
                         required
+                        ref={amountInputRef}
                         name="amount"
                         type="number"
                         step="0.01"
@@ -6497,6 +6763,24 @@ const App: React.FC = () => {
                         className="w-full px-5 py-4 bg-white border-2 border-[#CCD2E9] rounded-t42md text-4xl font-black focus:outline-none focus:border-[#5967D8]"
                         autoFocus
                       />
+                      {transactionType === 'PAYMENT' &&
+                        selectedCustomer &&
+                        selectedCustomer.rawBalance > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const valor = (
+                                Math.round(selectedCustomer.rawBalance * 100) / 100
+                              ).toFixed(2);
+                              if (amountInputRef.current) amountInputRef.current.value = valor;
+                              setCurrentAmountValue(Number(valor));
+                            }}
+                            className="mt-3 w-full py-3 rounded-2xl font-black text-base text-white"
+                            style={{ background: '#1C2446' }}
+                          >
+                            Quitar
+                          </button>
+                        )}
                     </div>
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">
@@ -6723,12 +7007,14 @@ const App: React.FC = () => {
                     )}
                     <button
                       type="submit"
+                      disabled={savingTransaction}
+                      aria-busy={savingTransaction}
                       style={{
                         width: '100%',
                         padding: '16px',
                         borderRadius: 14,
                         border: 'none',
-                        cursor: 'pointer',
+                        cursor: savingTransaction ? 'not-allowed' : 'pointer',
                         fontWeight: 800,
                         fontSize: 16,
                         color: 'white',
@@ -6742,8 +7028,14 @@ const App: React.FC = () => {
                                 : 'linear-gradient(135deg,#2E9D6F,#25835D)',
                         boxShadow: '0 8px 24px rgba(16,22,47,0.18)',
                         marginTop: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        opacity: savingTransaction ? 0.7 : 1,
                       }}
                     >
+                      {savingTransaction && <Loader2 className="w-5 h-5 animate-spin" />}
                       {editTransactionData ? 'Salvar Alterações' : t.confirmTransaction}
                     </button>
                   </form>
@@ -6757,6 +7049,14 @@ const App: React.FC = () => {
           <FullScreenModal>
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4">
               <div className="bg-white w-full max-w-2xl rounded-t42xl shadow-2xl p-10 space-y-8 animate-in zoom-in overflow-y-auto max-h-[90vh]">
+                {planLimitReason && (
+                  <p
+                    role="status"
+                    className="text-center text-base font-black text-amber-900 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3"
+                  >
+                    {planLimitReason}
+                  </p>
+                )}
                 <div className="text-center">
                   <div className="bg-indigo-600 w-20 h-20 rounded-full flex items-center justify-center mx-auto text-amber-300 shadow-xl mb-4">
                     <Crown className="w-10 h-10" />
@@ -6843,7 +7143,10 @@ const App: React.FC = () => {
                   })}
                 </div>
                 <button
-                  onClick={() => setIsUpgradeModalOpen(false)}
+                  onClick={() => {
+                    setPlanLimitReason(null);
+                    setIsUpgradeModalOpen(false);
+                  }}
                   className="w-full text-slate-400 text-sm font-bold uppercase tracking-widest"
                 >
                   Fechar
@@ -6907,28 +7210,40 @@ const App: React.FC = () => {
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      const fd = new FormData(e.currentTarget);
-                      const event: BillEvent = {
-                        id: generateId(),
-                        name: fd.get('name') as string,
-                        date: Date.now(),
-                        items: [],
-                        participants: [
-                          {
-                            id: generateId(),
-                            name: user?.name || 'Eu',
-                            itemIds: [],
-                            isOwner: true,
-                          },
-                        ],
-                        isCompleted: false,
-                        ownerParticipating: true,
-                        splitDirty: false,
-                      };
-                      setEvents((prev) => [...prev, event]);
-                      setSelectedEventId(event.id);
-                      setIsEventModalOpen(false);
-                      setActiveView(AppView.EVENT_DETAIL);
+                      if (savingEventRef.current) return;
+                      savingEventRef.current = true;
+                      setSavingEvent(true);
+                      try {
+                        if (Number.isFinite(plan.maxEvents) && events.length >= plan.maxEvents) {
+                          showPlanLimit('eventos', plan.maxEvents);
+                          return;
+                        }
+                        const fd = new FormData(e.currentTarget);
+                        const event: BillEvent = {
+                          id: generateId(),
+                          name: fd.get('name') as string,
+                          date: Date.now(),
+                          items: [],
+                          participants: [
+                            {
+                              id: generateId(),
+                              name: user?.name || 'Eu',
+                              itemIds: [],
+                              isOwner: true,
+                            },
+                          ],
+                          isCompleted: false,
+                          ownerParticipating: true,
+                          splitDirty: false,
+                        };
+                        setEvents((prev) => [...prev, event]);
+                        setSelectedEventId(event.id);
+                        setIsEventModalOpen(false);
+                        setActiveView(AppView.EVENT_DETAIL);
+                      } finally {
+                        savingEventRef.current = false;
+                        setSavingEvent(false);
+                      }
                     }}
                   >
                     <label
@@ -6966,19 +7281,27 @@ const App: React.FC = () => {
                     />
                     <button
                       type="submit"
+                      disabled={savingEvent}
+                      aria-busy={savingEvent}
                       style={{
                         width: '100%',
                         padding: '16px',
                         borderRadius: 16,
                         border: 'none',
-                        cursor: 'pointer',
+                        cursor: savingEvent ? 'not-allowed' : 'pointer',
                         fontWeight: 900,
                         fontSize: 16,
                         color: 'white',
                         background: 'linear-gradient(135deg,#0EA5E9,#6366F1)',
                         boxShadow: '0 4px 20px rgba(14,165,233,0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        opacity: savingEvent ? 0.7 : 1,
                       }}
                     >
+                      {savingEvent && <Loader2 className="w-5 h-5 animate-spin" />}
                       Criar Evento e Adicionar Participantes
                     </button>
                   </form>

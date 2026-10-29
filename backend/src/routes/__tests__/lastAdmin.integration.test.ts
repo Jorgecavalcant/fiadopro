@@ -141,6 +141,7 @@ beforeAll(async () => {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  await applyMigration('015_email_confirmation.sql');
   await applyMigration('011_admin_block_audit.sql');
   await query('CREATE TABLE IF NOT EXISTS debts (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID)');
   await query('CREATE TABLE IF NOT EXISTS payments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), debt_id UUID)');
