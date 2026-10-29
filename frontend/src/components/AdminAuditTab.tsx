@@ -10,6 +10,7 @@ const ACTIONS = [
   { value: 'user.reset_password', label: 'Redefinição de senha' },
   { value: 'user.reactivate', label: 'Reativação' },
   { value: 'settings.update', label: 'Configuração' },
+  { value: 'overview.export', label: 'Exportação da visão geral' },
 ];
 
 const ACTION_LABEL: Record<string, string> = Object.fromEntries(
@@ -23,6 +24,11 @@ type AuditState = {
   reset?: boolean;
   key?: string;
   closed?: boolean;
+  format?: string;
+  preset?: string;
+  from?: string;
+  to?: string;
+  type?: string | null;
 };
 
 interface AuditEntry {
@@ -46,11 +52,12 @@ function formatWhen(value: string) {
 function describeState(state: AuditState | null) {
   if (!state) return '—';
   if (state.reset !== undefined) return state.reset ? 'senha redefinida' : 'antes da redefinição';
-  if (state.closed !== undefined) {
-    if (state.closed) return 'encerrada';
-    return state.is_active ? 'reativada' : 'fora da fila, ainda bloqueada';
-  }
   if (state.key) return `chave ${state.key}`;
+  if (state.format) {
+    const period = state.preset ? `atalho ${state.preset}` : `${state.from ?? '—'} a ${state.to ?? '—'}`;
+    const kind = state.type ? state.type : 'todos os tipos';
+    return `exportação ${state.format}, ${period}, ${kind}`;
+  }
   const access = state.is_active ? 'livre' : 'bloqueado';
   const hold = state.legal_hold ? ', ordem judicial' : '';
   const reason = state.block_reason ? `, ${BLOCK_REASON_LABEL[state.block_reason] || state.block_reason}` : '';

@@ -69,3 +69,34 @@ describe('painel admin — bloquear a própria linha', () => {
     act(() => root.unmount());
   });
 });
+
+describe('painel admin — abas', () => {
+  it('mostra Visão geral e não mostra Configurações nem Relatórios', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          success: true,
+          users: [],
+          meta: { total: 0, page: 1, limit: 20, totalPages: 1 },
+        }),
+      })),
+    );
+
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root: Root = createRoot(host);
+    await act(async () => {
+      root.render(<AdminPanel />);
+    });
+
+    const text = document.body.textContent ?? '';
+    expect(text).toContain('Visão geral');
+    expect(text).not.toContain('Configurações');
+    expect(text).not.toContain('Relatórios');
+    expect(text).not.toContain('Métricas');
+
+    act(() => root.unmount());
+  });
+});

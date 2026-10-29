@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Visão geral estática sem login — 360px</title>
+  <link rel="stylesheet" href="./visao-geral-estatico.css" />
+  <style>
+    html, body { width: 360px; }
+  </style>
+</head>
+<body>
+  <h2>Painel Administrativo</h2>
+  <p class="period">Usuários, visão geral e registro de ações</p>
+  <div class="tabs">
+    <span>Usuários</span>
+    <span class="on">Visão geral</span>
+    <span>Registro</span>
+  </div>
+  <div class="fp-overview-filters" role="group" aria-label="Período">
+    <button type="button" class="fp-btn fp-btn-ghost">7 dias</button>
+    <button type="button" class="fp-btn fp-btn-primary">30 dias</button>
+    <button type="button" class="fp-btn fp-btn-ghost">90 dias</button>
+    <button type="button" class="fp-btn fp-btn-ghost">12 meses</button>
+    <input class="fp-input" type="date" aria-label="Data inicial" value="2026-04-01" />
+    <input class="fp-input" type="date" aria-label="Data final" value="2026-04-30" />
+    <button type="button" class="fp-btn fp-btn-ghost">Aplicar período</button>
+    <select class="fp-input" aria-label="Tipo de lançamento">
+      <option>Todos os tipos</option>
+    </select>
+  </div>
+  <div class="fp-overview-filters">
+    <button type="button" class="fp-btn fp-btn-primary">Exportar PDF</button>
+    <button type="button" class="fp-btn fp-btn-primary">Exportar planilha</button>
+    <button type="button" class="fp-btn fp-btn-ghost" disabled title="Em breve">Analisar com IA</button>
+  </div>
+  <p class="period">2026-04-01 a 2026-04-30 · todos os tipos</p>
+  <div class="fp-kpi-grid">
+    <div class="fp-stat-card fp-kpi-card primary">
+      <div class="fp-kpi-head"><div class="fp-kpi-icon" style="background:#EEF2FF"></div><span class="fp-kpi-label">Usuários ativos</span></div>
+      <div class="fp-kpi-value" title="17">17</div>
+      <div class="fp-kpi-sub">Contas criadas no período</div>
+    </div>
+    <div class="fp-stat-card fp-kpi-card success">
+      <div class="fp-kpi-head"><div class="fp-kpi-icon" style="background:#DCFCE7"></div><span class="fp-kpi-label">Clientes</span></div>
+      <div class="fp-kpi-value" title="23">23</div>
+      <div class="fp-kpi-sub">Cadastros no período</div>
+    </div>
+    <div class="fp-stat-card fp-kpi-card primary">
+      <div class="fp-kpi-head"><div class="fp-kpi-icon" style="background:#F0F3FD"></div><span class="fp-kpi-label">Lançamentos</span></div>
+      <div class="fp-kpi-value" title="41">41</div>
+      <div class="fp-kpi-sub">Movimentos no período</div>
+    </div>
+    <div class="fp-stat-card fp-kpi-card warning">
+      <div class="fp-kpi-head"><div class="fp-kpi-icon" style="background:#FEF3C7"></div><span class="fp-kpi-label">Volume confirmado</span></div>
+      <div class="fp-kpi-value" title="R$ 88,50">R$ 88,50</div>
+      <div class="fp-kpi-sub">Soma já confirmada</div>
+    </div>
+    <div class="fp-stat-card fp-kpi-card danger">
+      <div class="fp-kpi-head"><div class="fp-kpi-icon" style="background:#FEE2E2"></div><span class="fp-kpi-label">Contas bloqueadas</span></div>
+      <div class="fp-kpi-value" title="3">3</div>
+      <div class="fp-kpi-sub">Bloqueio no período</div>
+    </div>
+    <div class="fp-stat-card fp-kpi-card warning">
+      <div class="fp-kpi-head"><div class="fp-kpi-icon" style="background:#F3E8FF"></div><span class="fp-kpi-label">Contas encerradas</span></div>
+      <div class="fp-kpi-value" title="5">5</div>
+      <div class="fp-kpi-sub">Encerramento no período</div>
+    </div>
+  </div>
+  <script>
+    const box = document.documentElement.getBoundingClientRect();
+    const cut = [];
+    document.querySelectorAll('button, .fp-kpi-card, .fp-kpi-value').forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.right > box.width + 1 || r.left < -1 || r.width < 1) {
+        cut.push((el.textContent || '').trim().slice(0, 40));
+      }
+    });
+    const cards = [...document.querySelectorAll('.fp-kpi-grid .fp-kpi-card')];
+    const row = cards.slice(0, 2).map((el) => Math.round(el.getBoundingClientRect().width));
+    document.documentElement.dataset.cut = cut.join(' | ') || 'none';
+    document.documentElement.dataset.row = row.join(',');
+    document.documentElement.dataset.page = String(Math.round(box.width));
+  </script>
+</body>
+</html>
