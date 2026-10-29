@@ -27,6 +27,7 @@ import {
   renderOverviewPdf,
   renderOverviewXlsx,
 } from '../services/adminOverview.js';
+import { createPromotion, grantPlan, listPlanGrants } from '../services/planGrants.js';
 
 const router = Router();
 
@@ -158,47 +159,50 @@ const ReactivateSchema = z.object({
   note: z.string().max(500),
 });
 
-router.post('/users/:id/reactivate', async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const body = ReactivateSchema.parse(req.body ?? {});
-    const noteError = validateRequiredNote(body.note);
-    if (noteError) return next(new ApiError(400, noteError, 'VALIDATION_ERROR'));
-    const note = body.note.trim();
-    const outcome = await withTransaction(async (sql) => {
-      const result = await applyAdminReactivation(sql, req.params.id);
-      if ('missing' in result) {
-        throw new ApiError(404, 'Usuário não encontrado', 'USER_NOT_FOUND');
-      }
-      const reactivated = 'user' in result ? result.user : undefined;
-      if (!reactivated) {
-        throw new ApiError(409, 'Esta conta não pode voltar.', 'NOT_REACTIVATABLE');
-      }
-      await insertAuditEntry(sql, {
-        adminId: req.user!.sub,
-        action: 'user.reactivate',
-        targetUserId: req.params.id,
-        reason: null,
-        note,
-        beforeState: { closed: true, legal_hold: result.beforeHold === true },
-        afterState: {
-          closed: false,
-          legal_hold: reactivated.legal_hold,
-          is_active: reactivated.is_active,
-        },
-        keepWhileOrderStands: reactivated.legal_hold,
+router.post(
+  '/users/:id/reactivate',
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const body = ReactivateSchema.parse(req.body ?? {});
+      const noteError = validateRequiredNote(body.note);
+      if (noteError) return next(new ApiError(400, noteError, 'VALIDATION_ERROR'));
+      const note = body.note.trim();
+      const outcome = await withTransaction(async (sql) => {
+        const result = await applyAdminReactivation(sql, req.params.id);
+        if ('missing' in result) {
+          throw new ApiError(404, 'Usuário não encontrado', 'USER_NOT_FOUND');
+        }
+        const reactivated = 'user' in result ? result.user : undefined;
+        if (!reactivated) {
+          throw new ApiError(409, 'Esta conta não pode voltar.', 'NOT_REACTIVATABLE');
+        }
+        await insertAuditEntry(sql, {
+          adminId: req.user!.sub,
+          action: 'user.reactivate',
+          targetUserId: req.params.id,
+          reason: null,
+          note,
+          beforeState: { closed: true, legal_hold: result.beforeHold === true },
+          afterState: {
+            closed: false,
+            legal_hold: reactivated.legal_hold,
+            is_active: reactivated.is_active,
+          },
+          keepWhileOrderStands: reactivated.legal_hold,
+        });
+        return reactivated;
       });
-      return reactivated;
-    });
-    const message = outcome.legal_hold
-      ? 'A conta saiu da fila de exclusão e continua bloqueada por ordem judicial.'
-      : 'Conta reativada.';
-    res.json({ success: true, user: outcome, message });
-  } catch (err) {
-    if (err instanceof z.ZodError)
-      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
-    next(err);
-  }
-});
+      const message = outcome.legal_hold
+        ? 'A conta saiu da fila de exclusão e continua bloqueada por ordem judicial.'
+        : 'Conta reativada.';
+      res.json({ success: true, user: outcome, message });
+    } catch (err) {
+      if (err instanceof z.ZodError)
+        return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+      next(err);
+    }
+  },
+);
 
 const UpdateUserSchema = z
   .object({
@@ -210,9 +214,13 @@ const UpdateUserSchema = z
     unblock_note: z.string().max(500).optional(),
   })
   .strict()
-  .refine((data) => data.full_name !== undefined || data.phone !== undefined || data.is_active !== undefined, {
-    message: 'Informe ao menos um campo para atualizar (full_name, phone ou is_active)',
-  });
+  .refine(
+    (data) =>
+      data.full_name !== undefined || data.phone !== undefined || data.is_active !== undefined,
+    {
+      message: 'Informe ao menos um campo para atualizar (full_name, phone ou is_active)',
+    },
+  );
 
 // PATCH /api/admin/users/:id — is_active, full_name, phone. Proibido mudar role por aqui.
 router.patch('/users/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -290,12 +298,22 @@ const AUDIT_ACTIONS = [
   'user.reactivate',
   'settings.update',
   'overview.export',
+  'grant.cortesia',
+  'grant.trial',
+  'grant.cupom',
+  'promotion.create',
 ] as const;
 
 const AuditQuerySchema = z.object({
   action: z.enum(AUDIT_ACTIONS).optional(),
-  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  to: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
@@ -387,7 +405,8 @@ async function sendOverviewExport(req: AuthRequest, res: Response, next: NextFun
         keepWhileOrderStands: false,
       });
     });
-    const file = format === 'pdf' ? await renderOverviewPdf(report) : await renderOverviewXlsx(report);
+    const file =
+      format === 'pdf' ? await renderOverviewPdf(report) : await renderOverviewXlsx(report);
     const filename = format === 'pdf' ? 'visao-geral.pdf' : 'visao-geral.xlsx';
     const contentType =
       format === 'pdf'
@@ -405,5 +424,75 @@ async function sendOverviewExport(req: AuthRequest, res: Response, next: NextFun
 
 router.get('/overview/export', sendOverviewExport);
 router.post('/overview/export', sendOverviewExport);
+
+const GrantBody = z.object({
+  userId: z.string().uuid('Informe o identificador da pessoa.'),
+  kind: z.enum(['cortesia', 'trial', 'cupom'], {
+    errorMap: () => ({ message: 'Informe cortesia, teste ou cupom.' }),
+  }),
+  plan: z.enum(['PRO', 'ENTERPRISE']).optional(),
+  expiresAt: z.union([z.string().max(80), z.null()]).optional(),
+  note: z
+    .string({
+      required_error:
+        'Escreva uma observação com pelo menos 8 caracteres. Não cole CPF, senha ou Pix.',
+    })
+    .max(500, 'A observação pode ter no máximo 500 caracteres.'),
+});
+
+const PromotionBody = z.object({
+  plan: z.enum(['PRO', 'ENTERPRISE'], {
+    errorMap: () => ({ message: 'Informe o plano Pro ou Enterprise.' }),
+  }),
+  expiresAt: z.string({
+    required_error: 'Informe um prazo futuro.',
+  }),
+  audience: z.enum(['all', 'selected'], {
+    errorMap: () => ({
+      message: 'Informe se a promoção vale para a base inteira ou para uma lista.',
+    }),
+  }),
+  userIds: z.array(z.string().uuid('Informe o identificador da pessoa.')).optional(),
+  note: z
+    .string({
+      required_error:
+        'Escreva uma observação com pelo menos 8 caracteres. Não cole CPF, senha ou Pix.',
+    })
+    .max(500, 'A observação pode ter no máximo 500 caracteres.'),
+  source: z.enum(['promocao', 'cupom']).optional(),
+});
+
+router.get('/grants', async (_req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await listPlanGrants();
+    res.json({ success: true, ...data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/grants', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const body = GrantBody.parse(req.body ?? {});
+    const grant = await grantPlan(req.user!.sub, body);
+    res.json({ success: true, grant });
+  } catch (err) {
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    next(err);
+  }
+});
+
+router.post('/promotions', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const body = PromotionBody.parse(req.body ?? {});
+    const promotion = await createPromotion(req.user!.sub, body);
+    res.json({ success: true, promotion });
+  } catch (err) {
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    next(err);
+  }
+});
 
 export default router;
