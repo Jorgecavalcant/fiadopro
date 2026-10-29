@@ -2,8 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   Users,
   BarChart3,
-  Settings as SettingsIcon,
-  FileBarChart,
   ClipboardList,
   Archive,
   Search,
@@ -16,14 +14,15 @@ import {
 } from 'lucide-react';
 import { adminFetch } from './adminApi';
 import { AdminAuditTab } from './AdminAuditTab';
-import { AdminClosedTab } from './AdminClosedTab';
 import { AdminBlockDialog } from './AdminBlockDialog';
+import { AdminClosedTab } from './AdminClosedTab';
+import { AdminOverviewTab } from './AdminOverviewTab';
 import { BLOCK_REASON_LABEL } from './adminLabels';
 
 /* ============================================================
  * Tipos (espelham o envelope { success, ... } do backend /api/admin/*)
  * ============================================================ */
-type AdminTab = 'users' | 'metrics' | 'settings' | 'reports' | 'audit' | 'closed';
+type AdminTab = 'users' | 'overview' | 'audit' | 'closed';
 
 interface AdminUser {
   id: string;
@@ -48,29 +47,6 @@ interface UsersMeta {
   totalPages: number;
 }
 
-interface MonthlyVolumeRow {
-  month: string;
-  volume: string;
-  count: number;
-}
-
-interface Metrics {
-  activeUsers: number;
-  customers: number;
-  transactions: number;
-  monthlyVolume: MonthlyVolumeRow[];
-}
-
-type SettingsKey = 'features' | 'limits' | 'geral';
-const SETTINGS_KEYS: SettingsKey[] = ['features', 'limits', 'geral'];
-
-interface ReportRow {
-  month: string;
-  type: string;
-  total: string;
-  count: number;
-}
-
 /* ============================================================
  * Cliente HTTP mínimo — sempre credentials:'include' (cookie httpOnly)
  * ============================================================ */
@@ -82,9 +58,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
 
   const tabs: { id: AdminTab; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'users', label: 'Usuários', icon: Users },
-    { id: 'metrics', label: 'Métricas', icon: BarChart3 },
-    { id: 'settings', label: 'Configurações', icon: SettingsIcon },
-    { id: 'reports', label: 'Relatórios', icon: FileBarChart },
+    { id: 'overview', label: 'Visão geral', icon: BarChart3 },
     { id: 'audit', label: 'Registro', icon: ClipboardList },
     { id: 'closed', label: 'Contas encerradas', icon: Archive },
   ];
@@ -94,7 +68,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
       <div>
         <h2 className="text-2xl font-black text-slate-900">Painel Administrativo</h2>
         <p className="text-slate-400 font-semibold text-sm">
-          Usuários, métricas, configurações, relatórios e registro de ações
+          Usuários, visão geral, registro e contas encerradas
         </p>
       </div>
 
@@ -116,9 +90,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
       </div>
 
       {tab === 'users' && <UsersTab currentUserId={currentUserId} />}
-      {tab === 'metrics' && <MetricsTab />}
-      {tab === 'settings' && <SettingsTab />}
-      {tab === 'reports' && <ReportsTab />}
+      {tab === 'overview' && <AdminOverviewTab />}
       {tab === 'audit' && <AdminAuditTab />}
       {tab === 'closed' && <AdminClosedTab />}
     </div>
@@ -454,290 +426,6 @@ const UsersTab: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
           </div>
         </div>
       )}
-    </div>
-  );
-};
-
-/* ============================================================
- * Aba: Métricas
- * ============================================================ */
-const MetricsTab: React.FC = () => {
-  const [metrics, setMetrics] = useState<Metrics | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const data = await adminFetch<{ metrics: Metrics }>('/metrics');
-        if (!cancelled) setMetrics(data.metrics);
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Erro ao carregar métricas');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (loading) return <LoadingBlock />;
-  if (error) return <ErrorBanner message={error} />;
-  if (!metrics) return null;
-
-  const maxVolume = Math.max(1, ...metrics.monthlyVolume.map((m) => Number(m.volume) || 0));
-
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Usuários ativos" value={metrics.activeUsers} />
-        <StatCard label="Clientes cadastrados" value={metrics.customers} />
-        <StatCard label="Transações" value={metrics.transactions} />
-      </div>
-
-      <div className="fp-card p-6">
-        <h3 className="fp-section-title">Volume mensal (últimos 12 meses)</h3>
-        <div className="space-y-2 mt-4">
-          {metrics.monthlyVolume.map((row) => {
-            const volume = Number(row.volume) || 0;
-            const pct = Math.max(2, Math.round((volume / maxVolume) * 100));
-            return (
-              <div key={row.month} className="flex items-center gap-3">
-                <span className="w-16 text-xs font-bold text-slate-400 shrink-0">{row.month}</span>
-                <div className="flex-1 fp-progress">
-                  <div
-                    className="fp-progress-fill"
-                    style={{ width: `${pct}%`, background: 'var(--fp-primary)' }}
-                  />
-                </div>
-                <span className="w-32 text-right text-xs font-bold text-slate-600 shrink-0">
-                  R$ {volume.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({row.count})
-                </span>
-              </div>
-            );
-          })}
-          {metrics.monthlyVolume.length === 0 && (
-            <p className="text-slate-400 text-sm py-4">Sem movimentação confirmada no período.</p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const StatCard: React.FC<{ label: string; value: number }> = ({ label, value }) => (
-  <div className="fp-stat-card primary">
-    <p className="fp-section-title mb-2">{label}</p>
-    <p className="text-3xl font-black text-slate-900">{value.toLocaleString('pt-BR')}</p>
-  </div>
-);
-
-/* ============================================================
- * Aba: Configurações (chave/valor, allowlist)
- * ============================================================ */
-const SettingsTab: React.FC = () => {
-  const [key, setKey] = useState<SettingsKey>('features');
-  const [rawValue, setRawValue] = useState('{}');
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [savedMessage, setSavedMessage] = useState('');
-
-  const load = useCallback(async (k: SettingsKey) => {
-    setLoading(true);
-    setError('');
-    setSavedMessage('');
-    try {
-      const data = await adminFetch<{ value: unknown; updated_at: string | null }>(
-        `/settings/${k}`,
-      );
-      setRawValue(JSON.stringify(data.value ?? {}, null, 2));
-      setUpdatedAt(data.updated_at);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar configuração');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load(key);
-  }, [key, load]);
-
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    setError('');
-    setSavedMessage('');
-    try {
-      const parsed = JSON.parse(rawValue);
-      const data = await adminFetch<{ value: unknown; updated_at: string }>(`/settings/${key}`, {
-        method: 'PUT',
-        body: JSON.stringify({ value: parsed }),
-      });
-      setRawValue(JSON.stringify(data.value ?? {}, null, 2));
-      setUpdatedAt(data.updated_at);
-      setSavedMessage('Configuração salva com sucesso.');
-    } catch (err) {
-      setError(
-        err instanceof SyntaxError
-          ? 'JSON inválido — corrija antes de salvar.'
-          : err instanceof Error
-            ? err.message
-            : 'Erro ao salvar configuração',
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fp-card p-6 max-w-2xl space-y-4">
-      <div className="flex gap-2">
-        {SETTINGS_KEYS.map((k) => (
-          <button
-            key={k}
-            onClick={() => setKey(k)}
-            className={`fp-badge ${key === k ? 'fp-badge-primary' : 'fp-badge-muted'}`}
-            style={{ cursor: 'pointer', border: 'none' }}
-          >
-            {k}
-          </button>
-        ))}
-      </div>
-
-      {error && <ErrorBanner message={error} />}
-      {savedMessage && <p className="text-sm font-semibold text-emerald-600">{savedMessage}</p>}
-
-      {loading ? (
-        <LoadingBlock />
-      ) : (
-        <form onSubmit={save} className="space-y-3">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            Valor (JSON) — chave &quot;{key}&quot;
-          </label>
-          <textarea
-            value={rawValue}
-            onChange={(e) => setRawValue(e.target.value)}
-            rows={10}
-            className="fp-input font-mono text-xs"
-            spellCheck={false}
-          />
-          {updatedAt && (
-            <p className="text-xs text-slate-400">
-              Última atualização: {new Date(updatedAt).toLocaleString('pt-BR')}
-            </p>
-          )}
-          <button
-            type="submit"
-            disabled={saving}
-            className="fp-btn fp-btn-primary disabled:opacity-60"
-          >
-            {saving ? 'Salvando...' : 'Salvar'}
-          </button>
-        </form>
-      )}
-    </div>
-  );
-};
-
-/* ============================================================
- * Aba: Relatórios
- * ============================================================ */
-const ReportsTab: React.FC = () => {
-  const [months, setMonths] = useState(12);
-  const [report, setReport] = useState<ReportRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  const load = useCallback(async (m: number) => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await adminFetch<{ months: number; report: ReportRow[] }>(
-        `/reports?months=${m}`,
-      );
-      setReport(data.report);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar relatório');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load(months);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    load(months);
-  };
-
-  return (
-    <div className="space-y-4">
-      <form onSubmit={handleSubmit} className="flex items-end gap-3">
-        <div className="space-y-1">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            Meses (máx. 60)
-          </label>
-          <input
-            type="number"
-            min={1}
-            max={60}
-            value={months}
-            onChange={(e) => setMonths(Math.min(60, Math.max(1, Number(e.target.value) || 1)))}
-            className="fp-input w-32"
-          />
-        </div>
-        <button type="submit" className="fp-btn fp-btn-primary">
-          Gerar
-        </button>
-      </form>
-
-      {error && <ErrorBanner message={error} />}
-
-      <div className="fp-card overflow-x-auto">
-        {loading ? (
-          <LoadingBlock />
-        ) : (
-          <table className="fp-table">
-            <thead>
-              <tr>
-                <th>Mês</th>
-                <th>Tipo</th>
-                <th>Total</th>
-                <th>Qtd.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.map((row, i) => (
-                <tr key={`${row.month}-${row.type}-${i}`}>
-                  <td className="font-bold text-slate-800">{row.month}</td>
-                  <td>{row.type}</td>
-                  <td>
-                    R${' '}
-                    {(Number(row.total) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </td>
-                  <td>{row.count}</td>
-                </tr>
-              ))}
-              {report.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="text-center text-slate-400 py-10">
-                    Sem dados no período selecionado.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
     </div>
   );
 };

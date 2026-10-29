@@ -22,3 +22,11 @@ export async function adminFetch<T>(path: string, init?: RequestInit): Promise<T
   }
   return data as T;
 }
+
+export async function adminDownload(path: string): Promise<Blob> {
+  const res = await fetch(`${API_URL}/admin${path}`, { credentials: 'include' });
+  if (!res.ok) {
+    throw new Error(`Falha na requisição (${res.status})`);
+  }
+  return res.blob();
+}

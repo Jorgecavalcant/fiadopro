@@ -291,6 +291,29 @@ button.fp-kpi-card {
   .fp-kpi-value { font-size: 1.625rem; }
 }
 
+/* Filtros da visão geral: uma linha que quebra no celular, sem cortar o botão. */
+.fp-overview-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.fp-overview-filters .fp-input,
+.fp-overview-filters select.fp-input {
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  flex: 1 1 9rem;
+}
+
+.fp-overview-filters .fp-btn {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
 /* ============================================================
    BUTTONS
    ============================================================ */

@@ -19,6 +19,14 @@ import {
   closedAccountStatus,
   maskPersonName,
 } from '../services/accountAccess.js';
+import {
+  loadAdminOverview,
+  overviewExportState,
+  parseOverviewExportQuery,
+  parseOverviewQuery,
+  renderOverviewPdf,
+  renderOverviewXlsx,
+} from '../services/adminOverview.js';
 
 const router = Router();
 
@@ -27,8 +35,6 @@ router.use(requireAuth, requireAdmin);
 
 const SAFE_USER_FIELDS = `id, email, full_name, phone, avatar_url, role, is_active, created_at, updated_at,
   block_reason, block_note, legal_hold, blocked_at`;
-
-const SETTINGS_ALLOWLIST = ['features', 'limits', 'geral'] as const;
 
 // ===================== USERS =====================
 
@@ -283,6 +289,7 @@ const AUDIT_ACTIONS = [
   'user.reset_password',
   'user.reactivate',
   'settings.update',
+  'overview.export',
 ] as const;
 
 const AuditQuerySchema = z.object({
@@ -349,32 +356,13 @@ router.get('/metrics', async (_req: AuthRequest, res: Response, next: NextFuncti
   }
 });
 
-// ===================== SETTINGS =====================
+// ===================== VISÃO GERAL =====================
 
-const SettingsKeyParamSchema = z.object({
-  key: z.enum(SETTINGS_ALLOWLIST, {
-    errorMap: () => ({ message: `Chave inválida. Permitidas: ${SETTINGS_ALLOWLIST.join(', ')}` }),
-  }),
-});
-
-const SettingsValueSchema = z
-  .object({ value: z.unknown() })
-  .refine((data) => data.value !== undefined, { message: 'Campo "value" é obrigatório' });
-
-// GET /api/admin/settings/:key
-router.get('/settings/:key', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/overview', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { key } = SettingsKeyParamSchema.parse({ key: req.params.key });
-    const result = await query('SELECT value, updated_at FROM app_settings WHERE key = $1', [key]);
-    if (!result.rows[0]) {
-      return res.json({ success: true, key, value: null, updated_at: null });
-    }
-    res.json({
-      success: true,
-      key,
-      value: result.rows[0].value,
-      updated_at: result.rows[0].updated_at,
-    });
+    const filters = parseOverviewQuery(req.query);
+    const report = await loadAdminOverview(filters);
+    res.json({ success: true, ...report });
   } catch (err) {
     if (err instanceof z.ZodError)
       return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
@@ -382,67 +370,40 @@ router.get('/settings/:key', async (req: AuthRequest, res: Response, next: NextF
   }
 });
 
-// PUT /api/admin/settings/:key
-router.put('/settings/:key', async (req: AuthRequest, res: Response, next: NextFunction) => {
+async function sendOverviewExport(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const { key } = SettingsKeyParamSchema.parse({ key: req.params.key });
-    const { value } = SettingsValueSchema.parse(req.body);
-
-    const result = await withTransaction(async (sql) => {
-      const saved = await sql(
-        `INSERT INTO app_settings (key, value, updated_at) VALUES ($1, $2, NOW())
-         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()
-         RETURNING key, value, updated_at`,
-        [key, JSON.stringify(value)],
-      );
+    const { format, ...filters } = parseOverviewExportQuery(req.query);
+    const report = await loadAdminOverview(filters);
+    const state = overviewExportState(report, format);
+    await withTransaction(async (sql) => {
       await insertAuditEntry(sql, {
         adminId: req.user!.sub,
-        action: 'settings.update',
+        action: 'overview.export',
         targetUserId: null,
         reason: null,
         note: null,
-        beforeState: { key },
-        afterState: { key },
+        beforeState: state,
+        afterState: state,
         keepWhileOrderStands: false,
       });
-      return saved.rows[0];
     });
-    res.json({ success: true, ...result });
+    const file = format === 'pdf' ? await renderOverviewPdf(report) : await renderOverviewXlsx(report);
+    const filename = format === 'pdf' ? 'visao-geral.pdf' : 'visao-geral.xlsx';
+    const contentType =
+      format === 'pdf'
+        ? 'application/pdf'
+        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(file);
   } catch (err) {
     if (err instanceof z.ZodError)
       return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     next(err);
   }
-});
+}
 
-// ===================== REPORTS =====================
-
-const ReportsQuerySchema = z.object({
-  months: z.coerce.number().int().min(1).max(60).default(12),
-});
-
-// GET /api/admin/reports?months=N (N<=60) — agregado de transações por mês/tipo
-router.get('/reports', async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const { months } = ReportsQuerySchema.parse(req.query);
-    const result = await query(
-      `SELECT
-         to_char(date_trunc('month', occurred_at), 'YYYY-MM') AS month,
-         type,
-         COALESCE(SUM(amount), 0)::numeric AS total,
-         COUNT(*)::int AS count
-       FROM transactions
-       WHERE occurred_at >= date_trunc('month', NOW()) - ($1::int - 1) * INTERVAL '1 month'
-       GROUP BY 1, type
-       ORDER BY 1, type`,
-      [months],
-    );
-    res.json({ success: true, months, report: result.rows });
-  } catch (err) {
-    if (err instanceof z.ZodError)
-      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
-    next(err);
-  }
-});
+router.get('/overview/export', sendOverviewExport);
+router.post('/overview/export', sendOverviewExport);
 
 export default router;
