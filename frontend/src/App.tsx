@@ -118,7 +118,7 @@ import {
   calculateScore,
   computeRawBalance,
   buildChargeMessage,
-  normalizeWhatsAppPhone,
+  buildWhatsAppUrl,
 } from './utils/credit';
 import {
   computeItemPrice,
@@ -4258,8 +4258,7 @@ const App: React.FC = () => {
       formatCurrency,
     });
 
-    const waPhone = normalizeWhatsAppPhone(selected.phone);
-    window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(text)}`, '_blank');
+    window.open(buildWhatsAppUrl(selected.phone, text), '_blank');
   };
 
   const handleGetAdvice = async () => {

@@ -78,6 +78,20 @@ export interface ChargeMessageParams {
   date?: string;
 }
 
+/** Emojis da cobrança — mesmos de sempre, via code point (UTF-8 seguro no fonte). */
+export const CHARGE_EMOJI = {
+  smile: '\u{1F60A}',
+  chart: '\u{1F4CA}',
+  moneyWings: '\u{1F4B8}',
+  check: '\u{2705}',
+  warning: '\u{26A0}\u{FE0F}',
+  clipboard: '\u{1F4CB}',
+  card: '\u{1F4B3}',
+  thanks: '\u{1F64F}',
+  moneyBag: '\u{1F4B0}',
+  handshake: '\u{1F91D}',
+} as const;
+
 /**
  * Monta a mensagem de cobrança amigável enviada via WhatsApp.
  * Tom acolhedor e sem pressão (DNA Tech42), de acordo com o saldo do cliente.
@@ -94,12 +108,12 @@ export const buildChargeMessage = (params: ChargeMessageParams): string => {
     formatCurrency,
   } = params;
   const date = params.date ?? new Date().toLocaleDateString('pt-BR');
-  const pixInfo = pixKey ? `\n💳 *Pix:* ${pixKey}` : '';
+  const pixInfo = pixKey ? `\n${CHARGE_EMOJI.card} *Pix:* ${pixKey}` : '';
 
   let recentList = '';
   if (recentDebts.length > 0) {
     recentList =
-      '\n\n📋 *Lançamentos recentes:*\n' +
+      `\n\n${CHARGE_EMOJI.clipboard} *Lançamentos recentes:*\n` +
       recentDebts
         .map(
           (t) =>
@@ -109,16 +123,26 @@ export const buildChargeMessage = (params: ChargeMessageParams): string => {
   }
 
   if (balance > 0) {
-    return `Olá ${customerName}! 😊\n\nPassando para lembrar do seu saldo em aberto com *${creditorName}*.\n\n📊 *Resumo da Conta — ${date}*\n💸 Total de débitos: ${formatCurrency(totalDebt)}\n✅ Total pago: ${formatCurrency(totalPaid)}\n⚠️ *Saldo devedor: ${formatCurrency(balance)}*${recentList}${pixInfo}\n\nQualquer dúvida, é só me chamar! 🙏\nObrigado(a)!`;
+    return `Olá ${customerName}! ${CHARGE_EMOJI.smile}\n\nPassando para lembrar do seu saldo em aberto com *${creditorName}*.\n\n${CHARGE_EMOJI.chart} *Resumo da Conta — ${date}*\n${CHARGE_EMOJI.moneyWings} Total de débitos: ${formatCurrency(totalDebt)}\n${CHARGE_EMOJI.check} Total pago: ${formatCurrency(totalPaid)}\n${CHARGE_EMOJI.warning} *Saldo devedor: ${formatCurrency(balance)}*${recentList}${pixInfo}\n\nQualquer dúvida, é só me chamar! ${CHARGE_EMOJI.thanks}\nObrigado(a)!`;
   }
   if (balance < 0) {
-    return `Olá ${customerName}! 😊\n\nBoa notícia! Você tem um crédito com *${creditorName}*.\n\n💰 *Crédito disponível: ${formatCurrency(Math.abs(balance))}*\n\nEntre em contato para acertarmos! 🤝`;
+    return `Olá ${customerName}! ${CHARGE_EMOJI.smile}\n\nBoa notícia! Você tem um crédito com *${creditorName}*.\n\n${CHARGE_EMOJI.moneyBag} *Crédito disponível: ${formatCurrency(Math.abs(balance))}*\n\nEntre em contato para acertarmos! ${CHARGE_EMOJI.handshake}`;
   }
-  return `Olá ${customerName}! 😊\n\nSua conta com *${creditorName}* está em dia! ✅\n\nObrigado pela confiança! 🙏`;
+  return `Olá ${customerName}! ${CHARGE_EMOJI.smile}\n\nSua conta com *${creditorName}* está em dia! ${CHARGE_EMOJI.check}\n\nObrigado pela confiança! ${CHARGE_EMOJI.thanks}`;
 };
 
-/** Normaliza um telefone brasileiro para o formato aceito pelo wa.me (com DDI 55). */
+/** Normaliza um telefone brasileiro para o formato aceito pelo WhatsApp (com DDI 55). */
 export const normalizeWhatsAppPhone = (phone: string): string => {
   const digits = phone.replace(/\D/g, '');
   return digits.startsWith('55') ? digits : `55${digits}`;
+};
+
+/**
+ * Monta o link de click-to-chat.
+ * Usa api.whatsapp.com/send — o atalho wa.me redireciona e troca emoji de 4 bytes por U+FFFD (�).
+ * O texto inteiro vai uma vez só em encodeURIComponent; sem cortar caracteres.
+ */
+export const buildWhatsAppUrl = (phone: string, text: string): string => {
+  const waPhone = normalizeWhatsAppPhone(phone);
+  return `https://api.whatsapp.com/send?phone=${waPhone}&text=${encodeURIComponent(text)}`;
 };
