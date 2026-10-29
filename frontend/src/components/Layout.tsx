@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { AppView, Language, User } from '../types';
 import { translations } from '../translations';
-import { isAndroidApp } from '../utils/androidStore';
+import { canShowCheckout } from '../utils/androidStore';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -300,7 +300,7 @@ const Layout: React.FC<LayoutProps> = ({
             gap: 4,
           }}
         >
-          {!isPro && !collapsed && !isAndroidApp() && (
+          {!isPro && !collapsed && canShowCheckout() && (
             <button
               onClick={onUpgrade}
               style={{

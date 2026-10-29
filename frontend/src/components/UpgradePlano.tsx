@@ -1,10 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Crown, CheckCircle2, Loader2, RefreshCcw } from 'lucide-react';
-import { isAndroidApp } from '../utils/androidStore';
+import { canShowCheckout } from '../utils/androidStore';
+import { planPricesFromStatus, type AdPolicy } from '../utils/planPrice';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://www.fiadopro.com.br/api';
 
-type PlanName = 'FREE' | 'PRO' | 'ADMIN';
+type PlanName = 'FREE' | 'PRO' | 'ENTERPRISE' | 'ADMIN';
+
+interface BillingPrices {
+  free?: number;
+  pro?: number;
+}
 
 interface BillingStatus {
   plan: PlanName;
@@ -13,6 +19,8 @@ interface BillingStatus {
   canceledAt: string | null;
   canCancel: boolean;
   maxReportMonths: number;
+  prices: BillingPrices | null;
+  adPolicy: AdPolicy | string | null;
 }
 
 const PRO_BENEFITS = [
@@ -33,10 +41,17 @@ const formatDate = (iso: string | null): string => {
 
 const onlyDigits = (v: string): string => v.replace(/\D/g, '');
 
+const planLabel = (plan: PlanName): string => {
+  if (plan === 'ADMIN') return 'Administrador';
+  if (plan === 'PRO') return 'PRO';
+  if (plan === 'ENTERPRISE') return 'Enterprise';
+  return 'Gratuito';
+};
+
 /**
- * Componente de assinatura do Plano PRO via Asaas.
- * Consulta /api/billing/status e permite assinar via /api/billing/subscribe,
- * abrindo o link de pagamento (invoiceUrl) em nova aba.
+ * Assinatura do Plano PRO no site.
+ * Lê /api/billing/status (preço e política de anúncio).
+ * O checkout só roda fora do Android. Enterprise não tem preço nem botão.
  */
 const UpgradePlano: React.FC = () => {
   const [statusData, setStatusData] = useState<BillingStatus | null>(null);
@@ -46,7 +61,7 @@ const UpgradePlano: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [needsCpf, setNeedsCpf] = useState(false);
   const [cpf, setCpf] = useState('');
-  const androidApp = isAndroidApp();
+  const checkout = canShowCheckout();
 
   const loadStatus = useCallback(async () => {
     setIsLoadingStatus(true);
@@ -64,19 +79,23 @@ const UpgradePlano: React.FC = () => {
         canceledAt: data.canceledAt,
         canCancel: Boolean(data.canCancel),
         maxReportMonths: data.maxReportMonths,
+        prices: checkout ? (data.prices ?? null) : null,
+        adPolicy: data.adPolicy ?? null,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível consultar o plano.');
     } finally {
       setIsLoadingStatus(false);
     }
-  }, []);
+  }, [checkout]);
 
   useEffect(() => {
     loadStatus();
   }, [loadStatus]);
 
   const handleSubscribe = async () => {
+    if (!canShowCheckout()) return;
+
     setIsSubscribing(true);
     setError(null);
     try {
@@ -111,7 +130,7 @@ const UpgradePlano: React.FC = () => {
         throw new Error(data.error?.message || 'Não foi possível iniciar a assinatura.');
       }
 
-      if (data.invoiceUrl) {
+      if (data.invoiceUrl && canShowCheckout()) {
         window.open(data.invoiceUrl, '_blank', 'noopener,noreferrer');
       }
       await loadStatus();
@@ -155,6 +174,9 @@ const UpgradePlano: React.FC = () => {
   };
 
   const isPro = statusData?.plan === 'PRO' || statusData?.plan === 'ADMIN';
+  const isEnterprise = statusData?.plan === 'ENTERPRISE';
+  const proPriceText =
+    checkout && !isEnterprise ? planPricesFromStatus(statusData).pro : null;
 
   return (
     <div className="bg-white p-8 rounded-t42lg border border-slate-200 shadow-sm space-y-6">
@@ -163,8 +185,13 @@ const UpgradePlano: React.FC = () => {
           <Crown className="w-6 h-6" />
         </div>
         <div>
-          <h3 className="text-lg font-black text-slate-800">Plano PRO</h3>
-          {!androidApp && <p className="text-sm text-slate-400 font-medium">Assinatura via Asaas</p>}
+          <h3 className="text-lg font-black text-slate-800">
+            {isEnterprise ? 'Enterprise' : 'Plano PRO'}
+          </h3>
+          {checkout && !isEnterprise && (
+            <p className="text-sm text-slate-400 font-medium">Assinatura no site</p>
+          )}
+          {proPriceText && <p className="text-sm font-black text-slate-800">{proPriceText}</p>}
         </div>
       </div>
 
@@ -180,13 +207,7 @@ const UpgradePlano: React.FC = () => {
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
               Plano atual
             </p>
-            <p className="text-xl font-black text-slate-800">
-              {statusData.plan === 'ADMIN'
-                ? 'Administrador'
-                : statusData.plan === 'PRO'
-                  ? 'PRO'
-                  : 'Gratuito'}
-            </p>
+            <p className="text-xl font-black text-slate-800">{planLabel(statusData.plan)}</p>
           </div>
           <div className="text-right">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -209,7 +230,7 @@ const UpgradePlano: React.FC = () => {
 
       {!isLoadingStatus && error && <p className="text-sm font-bold text-red-600">{error}</p>}
 
-      {!isPro && !androidApp && (
+      {!isPro && !isEnterprise && checkout && (
         <>
           <ul className="space-y-2">
             {PRO_BENEFITS.map((benefit) => (

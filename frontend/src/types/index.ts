@@ -12,7 +12,8 @@ export interface SubscriptionPlan {
   maxParticipantsPerEvent: number;
   hasAI: boolean;
   hasAds: boolean;
-  monthlyPrice: number;
+  /** null = sem preço (Enterprise e Android). O Pro no site recebe o número da API. */
+  monthlyPrice: number | null;
   expiresAt?: number;
 }
 

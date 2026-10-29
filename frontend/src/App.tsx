@@ -100,7 +100,8 @@ import { Keyboard } from '@capacitor/keyboard';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { hapticMedium, hapticSuccess } from './utils/haptics';
 import { showToast } from './utils/toast';
-import { isAndroidApp } from './utils/androidStore';
+import { canShowCheckout, isAndroidApp } from './utils/androidStore';
+import { planPricesFromStatus, showsFullscreenAd } from './utils/planPrice';
 import InboxAprovacoes from './components/InboxAprovacoes';
 import MinhasDividas from './components/MinhasDividas';
 import AccountClosedConfirm from './components/AccountClosedConfirm';
@@ -155,7 +156,7 @@ const PLANS: Record<PlanType, SubscriptionPlan> = {
     maxEvents: 15,
     maxParticipantsPerEvent: 20,
     hasAI: false,
-    hasAds: true,
+    hasAds: false,
     monthlyPrice: 0,
   },
   PRO: {
@@ -165,7 +166,7 @@ const PLANS: Record<PlanType, SubscriptionPlan> = {
     maxParticipantsPerEvent: 500,
     hasAI: true,
     hasAds: false,
-    monthlyPrice: 30,
+    monthlyPrice: null,
   },
   ENTERPRISE: {
     type: 'ENTERPRISE',
@@ -174,7 +175,7 @@ const PLANS: Record<PlanType, SubscriptionPlan> = {
     maxParticipantsPerEvent: 500,
     hasAI: true,
     hasAds: false,
-    monthlyPrice: 97,
+    monthlyPrice: null,
   },
 };
 
@@ -203,12 +204,14 @@ const AdBanner = ({ onUpgrade, t }: { onUpgrade: () => void; t: any }) => (
       Anúncio
     </span>
     <span className="hidden sm:inline">{t.adBannerText}</span>
-    <button
-      onClick={onUpgrade}
-      className="text-indigo-600 font-black hover:underline whitespace-nowrap"
-    >
-      {t.subscribePro}
-    </button>
+    {canShowCheckout() && (
+      <button
+        onClick={onUpgrade}
+        className="text-indigo-600 font-black hover:underline whitespace-nowrap"
+      >
+        {t.subscribePro}
+      </button>
+    )}
   </div>
 );
 
@@ -3138,7 +3141,7 @@ const CustomerDetailView = ({
                 <h3 className="text-xl font-black mb-4 flex items-center gap-3">
                   <Sparkles className="w-6 h-6 text-amber-400" /> {t.aiAnalysis}
                 </h3>
-                {!isPro && !isAndroidApp() && (
+                {!isPro && canShowCheckout() && (
                   <div className="mb-6 p-5 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-sm">
                     <p className="text-[10px] font-black text-amber-300 uppercase mb-3 tracking-widest flex items-center gap-2">
                       <Crown className="w-3 h-3" /> {t.proFeatureTitle}
@@ -3902,7 +3905,6 @@ const App: React.FC = () => {
   const [quickAddType, setQuickAddType] = useState<'DEBT' | 'PAYMENT'>('DEBT');
   const [pendingTransactionAfterCreate, setPendingTransactionAfterCreate] = useState(false);
   const [pendingNewCustomerName, setPendingNewCustomerName] = useState('');
-  const [activationCode, setActivationCode] = useState('');
   const [isOffline, setIsOffline] = useState(false);
   const [isInstallment, setIsInstallment] = useState(false);
   const [installmentCount, setInstallmentCount] = useState(2);
@@ -3917,6 +3919,10 @@ const App: React.FC = () => {
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [catalog, setCatalog] = useState<{
+    prices?: { free?: number; pro?: number } | null;
+    adPolicy?: string | null;
+  } | null>(null);
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [noteFilterDate, setNoteFilterDate] = useState('');
   const [transactionType, setTransactionType] = useState<TransactionType>('DEBT');
@@ -3958,6 +3964,42 @@ const App: React.FC = () => {
       void refreshInbox();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setCatalog(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`${API_URL}/billing/status`, { credentials: 'include' })
+      .then((response) => response.json())
+      .then((data) => {
+        if (cancelled || !data?.success) return;
+        const adPolicy = typeof data.adPolicy === 'string' ? data.adPolicy : null;
+        const prices =
+          canShowCheckout() && data.prices && typeof data.prices === 'object' ? data.prices : null;
+        setCatalog({ prices, adPolicy });
+        const serverPlan = typeof data.plan === 'string' ? data.plan : 'FREE';
+        const template =
+          serverPlan === 'ENTERPRISE'
+            ? PLANS.ENTERPRISE
+            : serverPlan === 'PRO' || serverPlan === 'ADMIN'
+              ? PLANS.PRO
+              : PLANS.FREE;
+        setPlan({
+          ...template,
+          monthlyPrice: template.type === 'FREE' ? 0 : null,
+          hasAds: showsFullscreenAd(adPolicy),
+        });
+        setIsPro(serverPlan === 'PRO' || serverPlan === 'ENTERPRISE' || serverPlan === 'ADMIN');
+      })
+      .catch(() => {
+        /* Sem o preço na resposta, o plano aparece sem número. */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   useEffect(() => {
@@ -4015,14 +4057,24 @@ const App: React.FC = () => {
         if (data.isPro !== undefined) setIsPro(data.isPro);
         if (data.debts) setDebts(data.debts);
         if (data.auditLog) setAuditLog(data.auditLog);
-        if (data.plan) setPlan(data.plan);
+        if (data.plan?.type === 'FREE' || data.plan?.type === 'PRO' || data.plan?.type === 'ENTERPRISE') {
+          const storedType = data.plan.type as PlanType;
+          const expired =
+            typeof data.plan.expiresAt === 'number' && data.plan.expiresAt < Date.now();
+          if (expired) {
+            setPlan(PLANS.FREE);
+            setIsPro(false);
+          } else {
+            setPlan({
+              ...PLANS[storedType],
+              expiresAt: data.plan.expiresAt,
+              monthlyPrice: storedType === 'FREE' ? 0 : null,
+              hasAds: false,
+            });
+          }
+        }
         if (data.ownerExpenses) setOwnerExpenses(data.ownerExpenses);
         if (data.credentials) setCredentials(data.credentials);
-        // Check plan expiry
-        if (data.plan?.expiresAt && data.plan.expiresAt < Date.now()) {
-          setPlan(PLANS.FREE);
-          setIsPro(false);
-        }
       } catch (e) {
         console.warn(
           '[Fiado PRO] Dados corrompidos no localStorage — iniciando com estado limpo.',
@@ -4716,23 +4768,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleActivatePlan = (code: string) => {
-    if (isAndroidApp()) return;
-    if (code === 'FIADO30') {
-      setPlan({ ...PLANS.PRO, expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 });
-      setIsPro(true);
-      setIsUpgradeModalOpen(false);
-      alert('Plano Pro ativado por 30 dias!');
-    } else if (code === 'FIADO97') {
-      setPlan({ ...PLANS.ENTERPRISE });
-      setIsPro(true);
-      setIsUpgradeModalOpen(false);
-      alert('Plano Enterprise ativado!');
-    } else {
-      alert('Código de ativação inválido. Verifique o código recebido e tente novamente.');
-    }
-  };
-
   // Inicializar Google Identity Services quando login estiver visivel
   useEffect(() => {
     if (user || isAuthLoading) return;
@@ -4996,7 +5031,14 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      {plan.hasAds && !isAndroidApp() && <AdBanner onUpgrade={() => setIsUpgradeModalOpen(true)} t={t} />}
+      {showsFullscreenAd(catalog?.adPolicy) && (
+        <AdBanner
+          onUpgrade={() => {
+            if (canShowCheckout()) setIsUpgradeModalOpen(true);
+          }}
+          t={t}
+        />
+      )}
       {isOffline && (
         <div
           style={{
@@ -5023,7 +5065,7 @@ const App: React.FC = () => {
           setLanguage={setLanguage}
           isPro={plan.hasAI}
           onUpgrade={() => {
-            if (!isAndroidApp()) setIsUpgradeModalOpen(true);
+            if (canShowCheckout()) setIsUpgradeModalOpen(true);
           }}
           user={user}
           onLogout={() => {
@@ -5128,7 +5170,7 @@ const App: React.FC = () => {
               aiAdvice={aiAdvice}
               isPro={isPro}
               setIsUpgradeModalOpen={() => {
-                if (!isAndroidApp()) setIsUpgradeModalOpen(true);
+                if (canShowCheckout()) setIsUpgradeModalOpen(true);
               }}
               handleShareWhatsApp={handleShareWhatsApp}
               deleteCustomer={(id: string) => {
@@ -6589,7 +6631,7 @@ const App: React.FC = () => {
           </FullScreenModal>
         )}
 
-        {isUpgradeModalOpen && !isAndroidApp() && (
+        {isUpgradeModalOpen && canShowCheckout() && (
           <FullScreenModal>
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4">
               <div className="bg-white w-full max-w-2xl rounded-t42xl shadow-2xl p-10 space-y-8 animate-in zoom-in overflow-y-auto max-h-[90vh]">
@@ -6604,13 +6646,11 @@ const App: React.FC = () => {
                   {[
                     {
                       planData: PLANS.FREE,
-                      code: '',
                       features: ['20 clientes', '15 eventos', 'Sem IA', 'Com anúncios'],
                       popular: false,
                     },
                     {
                       planData: PLANS.PRO,
-                      code: 'FIADO30',
                       features: [
                         '500 clientes',
                         'Eventos ilimitados',
@@ -6621,7 +6661,6 @@ const App: React.FC = () => {
                     },
                     {
                       planData: PLANS.ENTERPRISE,
-                      code: 'FIADO97',
                       features: [
                         'Clientes ilimitados',
                         'Eventos ilimitados',
@@ -6630,85 +6669,56 @@ const App: React.FC = () => {
                       ],
                       popular: false,
                     },
-                  ].map((item) => (
-                    <div
-                      key={item.planData.type}
-                      className={`p-6 rounded-3xl border-2 ${item.popular ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white'}`}
-                    >
-                      {item.popular && (
-                        <div className="text-[10px] font-black uppercase text-indigo-600 mb-2 tracking-widest">
-                          Mais Popular
-                        </div>
-                      )}
-                      <h4 className="text-lg font-black mb-1">
-                        {item.planData.type === 'FREE'
-                          ? 'Grátis'
-                          : item.planData.type === 'PRO'
-                            ? 'Pro'
-                            : 'Enterprise'}
-                      </h4>
-                      <p className="text-2xl font-black mb-4">
-                        {item.planData.monthlyPrice === 0
-                          ? 'R$ 0'
-                          : `R$ ${item.planData.monthlyPrice}/mês`}
-                      </p>
-                      <ul className="space-y-2 mb-6">
-                        {item.features.map((f) => (
-                          <li
-                            key={f}
-                            className="text-sm font-bold text-slate-600 flex items-center gap-2"
-                          >
-                            <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-                            {f}
-                          </li>
-                        ))}
-                      </ul>
-                      {item.planData.type !== 'FREE' && (
-                        <div className="space-y-2">
-                          <p className="text-[10px] font-black uppercase text-slate-400">
-                            Código: <span className="text-indigo-600">{item.code}</span>
-                          </p>
+                  ].map((item) => {
+                    const priceLabel =
+                      item.planData.type === 'FREE'
+                        ? 'R$ 0'
+                        : item.planData.type === 'PRO'
+                          ? planPricesFromStatus(catalog).pro
+                          : null;
+                    return (
+                      <div
+                        key={item.planData.type}
+                        className={`p-6 rounded-3xl border-2 ${item.popular ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white'}`}
+                      >
+                        {item.popular && (
+                          <div className="text-[10px] font-black uppercase text-indigo-600 mb-2 tracking-widest">
+                            Mais Popular
+                          </div>
+                        )}
+                        <h4 className="text-lg font-black mb-1">
+                          {item.planData.type === 'FREE'
+                            ? 'Grátis'
+                            : item.planData.type === 'PRO'
+                              ? 'Pro'
+                              : 'Enterprise'}
+                        </h4>
+                        {priceLabel && <p className="text-2xl font-black mb-4">{priceLabel}</p>}
+                        <ul className="space-y-2 mb-6">
+                          {item.features.map((f) => (
+                            <li
+                              key={f}
+                              className="text-sm font-bold text-slate-600 flex items-center gap-2"
+                            >
+                              <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                              {f}
+                            </li>
+                          ))}
+                        </ul>
+                        {item.planData.type === 'PRO' && (
                           <button
-                            onClick={() => handleActivatePlan(item.code)}
+                            onClick={() => {
+                              setIsUpgradeModalOpen(false);
+                              setActiveView(AppView.PROFILE);
+                            }}
                             className="w-full py-3 bg-indigo-600 text-white rounded-xl font-black text-sm hover:bg-indigo-700"
                           >
-                            Ativar
+                            Assinar PRO
                           </button>
-                        </div>
-                      )}
-                      {item.planData.type === 'FREE' && plan.type !== 'FREE' && (
-                        <button
-                          onClick={() => {
-                            setPlan(PLANS.FREE);
-                            setIsPro(false);
-                            setIsUpgradeModalOpen(false);
-                          }}
-                          className="w-full py-3 border-2 border-slate-200 rounded-xl font-black text-sm text-slate-500"
-                        >
-                          Usar Grátis
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <div className="space-y-3">
-                  <p className="text-center text-sm font-bold text-slate-400">
-                    Tem um código de ativação?
-                  </p>
-                  <div className="flex gap-3">
-                    <input
-                      placeholder="Digite o código..."
-                      value={activationCode}
-                      onChange={(e) => setActivationCode(e.target.value.toUpperCase())}
-                      className="flex-1 px-4 py-3 bg-slate-50 rounded-xl border-none font-bold"
-                    />
-                    <button
-                      onClick={() => handleActivatePlan(activationCode)}
-                      className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-black hover:bg-indigo-700"
-                    >
-                      Ativar
-                    </button>
-                  </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
                 <button
                   onClick={() => setIsUpgradeModalOpen(false)}
