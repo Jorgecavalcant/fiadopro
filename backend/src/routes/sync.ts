@@ -4,6 +4,7 @@ import { query } from '../config/database.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { linkCustomer } from '../services/linking.js';
+import { assertCanAddCustomers } from '../services/planLimits.js';
 
 const router = Router();
 // Importação carrega anexos em base64 — limite maior SÓ nesta rota
@@ -63,6 +64,18 @@ router.post('/import', async (req: AuthRequest, res: Response, next: NextFunctio
   try {
     const body = ImportSchema.parse(req.body);
     const userId = req.user!.sub;
+    const incomingIds = body.customers.map((c) => c.id);
+    let already = 0;
+    if (incomingIds.length > 0) {
+      const found = await query(
+        `SELECT COUNT(*)::int AS total
+           FROM customers
+          WHERE owner_user_id = $1 AND id = ANY($2::uuid[])`,
+        [userId, incomingIds],
+      );
+      already = Number(found.rows[0]?.total ?? 0);
+    }
+    await assertCanAddCustomers(userId, incomingIds.length - already);
     let customersImported = 0;
     let transactionsImported = 0;
 

@@ -4,6 +4,8 @@ import { query } from '../config/database.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { ACCOUNT_CLOSED_TX_MESSAGE } from '../services/accountAccess.js';
+import { getUserPlan, maxReportMonths } from '../services/plans.js';
+import { reportMonthsAllowed } from '../services/planLimits.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -69,6 +71,23 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
     if (req.query.customer_id) {
       params.push(String(req.query.customer_id));
       where += ` AND customer_id = $${params.length}`;
+    }
+    if (req.query.months !== undefined) {
+      const months = Number(req.query.months);
+      if (!Number.isInteger(months) || months < 1 || months > 120) {
+        return next(
+          new ApiError(400, 'Informe a janela do relatório em meses.', 'VALIDATION_ERROR'),
+        );
+      }
+      const plan = await getUserPlan(req.user!.sub);
+      if (!reportMonthsAllowed(plan, months)) {
+        const allowed = maxReportMonths(plan);
+        return next(
+          new ApiError(403, `Seu plano mostra relatórios de até ${allowed} meses.`, 'PLAN_LIMIT'),
+        );
+      }
+      params.push(months);
+      where += ` AND occurred_at >= NOW() - ($${params.length}::int * INTERVAL '1 month')`;
     }
     const result = await query(
       `SELECT ${TX_COLUMNS} FROM transactions WHERE ${where} ORDER BY occurred_at DESC LIMIT 2000`,
