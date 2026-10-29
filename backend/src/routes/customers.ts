@@ -40,6 +40,40 @@ const COUNTERPART_CLOSED = `EXISTS (
      AND u.purge_completed_at IS NULL
 ) AS counterpart_closed`;
 
+/**
+ * Outro cliente ativo da mesma loja com o mesmo celular.
+ * Sem índice único: um número já repetido na base não pode derrubar o deploy.
+ * A comparação usa normalizePhone (só dígitos, sem DDI 55 e sem zero à esquerda).
+ */
+export async function activeCustomerWithSamePhone(
+  ownerId: string,
+  phone: string | null | undefined,
+  excludeId?: string | null,
+): Promise<{ id: string; name: string } | null> {
+  const normalized = normalizePhone(phone);
+  if (normalized === '') return null;
+  const result = await query(
+    `SELECT id, name, phone
+       FROM customers
+      WHERE owner_user_id = $1
+        AND deleted_at IS NULL
+        AND ($2::uuid IS NULL OR id <> $2::uuid)`,
+    [ownerId, excludeId ?? null],
+  );
+  for (const row of result.rows) {
+    if (normalizePhone(String(row.phone ?? '')) === normalized) {
+      return { id: String(row.id), name: String(row.name ?? '') };
+    }
+  }
+  return null;
+}
+
+export function duplicatePhoneError(found: { id: string; name: string }): ApiError {
+  return new ApiError(409, `Já existe ${found.name} com esse número`, 'DUPLICATE_PHONE', {
+    existingCustomerId: found.id,
+  });
+}
+
 async function ownContactError(
   userId: string,
   phone?: string | null,
@@ -89,6 +123,8 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
     const body = CustomerSchema.parse(req.body);
     const own = await ownContactError(req.user!.sub, body.phone, body.email);
     if (own) return next(new ApiError(400, own, 'OWN_CONTACT'));
+    const duplicate = await activeCustomerWithSamePhone(req.user!.sub, body.phone, body.id ?? null);
+    if (duplicate) return next(duplicatePhoneError(duplicate));
     const userId = req.user!.sub;
     let adding = 1;
     if (body.id) {
@@ -156,6 +192,14 @@ router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction)
       body.email === undefined ? undefined : body.email,
     );
     if (own) return next(new ApiError(400, own, 'OWN_CONTACT'));
+    if (body.phone !== undefined) {
+      const duplicate = await activeCustomerWithSamePhone(
+        req.user!.sub,
+        body.phone,
+        req.params.id,
+      );
+      if (duplicate) return next(duplicatePhoneError(duplicate));
+    }
 
     const setClause = fields
       .map(([k], i) => (k === 'notes' ? `${k} = $${i + 3}::jsonb` : `${k} = $${i + 3}`))

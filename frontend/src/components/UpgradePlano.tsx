@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Crown, CheckCircle2, Loader2, RefreshCcw } from 'lucide-react';
 import { canShowCheckout } from '../utils/androidStore';
+import { formatBrDate } from '../utils/formatBr';
 import { planPricesFromStatus, type AdPolicy } from '../utils/planPrice';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://www.fiadopro.com.br/api';
@@ -33,7 +34,7 @@ const PRO_BENEFITS = [
 const formatDate = (iso: string | null): string => {
   if (!iso) return '';
   try {
-    return new Date(iso).toLocaleDateString('pt-BR');
+    return formatBrDate(iso);
   } catch {
     return '';
   }
@@ -175,8 +176,7 @@ const UpgradePlano: React.FC = () => {
 
   const isPro = statusData?.plan === 'PRO' || statusData?.plan === 'ADMIN';
   const isEnterprise = statusData?.plan === 'ENTERPRISE';
-  const proPriceText =
-    checkout && !isEnterprise ? planPricesFromStatus(statusData).pro : null;
+  const proPriceText = checkout && !isEnterprise ? planPricesFromStatus(statusData).pro : null;
 
   return (
     <div className="bg-white p-8 rounded-t42lg border border-slate-200 shadow-sm space-y-6">

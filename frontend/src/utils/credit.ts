@@ -1,6 +1,10 @@
 // Lógica de crédito pura (sem React, sem DOM) — extraída do App.tsx para ser testável.
-// Estas funções são a fonte única de verdade do cálculo de score, saldo e mensagem de cobrança.
+// O saldo vem de uma função só, a mesma do servidor.
 import type { Transaction } from '../types';
+import { formatBrDate } from './formatBr';
+import { balanceSign, computeRawBalance as ledgerBalance } from '../../../backend/src/domain/balance.ts';
+
+export { balanceSign };
 
 /**
  * Score de crédito (0–1000) de um cliente, com base no histórico de transações CONFIRMADAS.
@@ -37,10 +41,7 @@ export const calculateScore = (
       else score -= 80; // Atrasou mais de 30 dias
     }
   });
-  const currentBalance = cTx.reduce(
-    (acc, t) => (t.type === 'DEBT' ? acc + t.amount : acc - t.amount),
-    0,
-  );
+  const currentBalance = ledgerBalance(cTx);
   if (currentBalance > 5000) score -= 100;
   else if (currentBalance > 1000) score -= 50;
   const totalDebtAmt = debts.reduce((a, b) => a + b.amount, 0);
@@ -54,14 +55,11 @@ export const calculateScore = (
 
 /**
  * Saldo bruto de um cliente a partir das transações CONFIRMADAS já filtradas para ele.
- * DEBT aumenta o saldo (cliente deve mais); PAYMENT/ABATIMENTO/REFUND reduzem.
+ * DEBT e REFUND aumentam. PAYMENT e ABATIMENTO diminuem.
  * Saldo negativo significa crédito a favor do cliente.
  */
 export const computeRawBalance = (customerConfirmedTransactions: Transaction[]): number =>
-  customerConfirmedTransactions.reduce(
-    (acc, curr) => (curr.type === 'DEBT' ? acc + curr.amount : acc - curr.amount),
-    0,
-  );
+  ledgerBalance(customerConfirmedTransactions);
 
 export interface ChargeMessageParams {
   customerName: string;
@@ -107,7 +105,7 @@ export const buildChargeMessage = (params: ChargeMessageParams): string => {
     pixKey,
     formatCurrency,
   } = params;
-  const date = params.date ?? new Date().toLocaleDateString('pt-BR');
+  const date = params.date ?? formatBrDate(new Date());
   const pixInfo = pixKey ? `\n${CHARGE_EMOJI.card} *Pix:* ${pixKey}` : '';
 
   let recentList = '';
@@ -116,8 +114,7 @@ export const buildChargeMessage = (params: ChargeMessageParams): string => {
       `\n\n${CHARGE_EMOJI.clipboard} *Lançamentos recentes:*\n` +
       recentDebts
         .map(
-          (t) =>
-            `• ${new Date(t.timestamp).toLocaleDateString('pt-BR')} — ${t.description}: ${formatCurrency(t.amount)}`,
+          (t) => `• ${formatBrDate(t.timestamp)} — ${t.description}: ${formatCurrency(t.amount)}`,
         )
         .join('\n');
   }

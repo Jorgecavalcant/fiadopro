@@ -1,5 +1,6 @@
 import { Router, Response, NextFunction } from 'express';
 import { query } from '../config/database.js';
+import { confirmedBalanceExpr } from '../domain/balance.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 
@@ -53,9 +54,7 @@ router.get('/counterpart', async (req: AuthRequest, res: Response, next: NextFun
               o.phone AS owner_phone,
               o.pix_key AS owner_pix_key,
               c.id AS customer_id,
-              COALESCE(SUM(t.amount) FILTER (WHERE t.status = 'CONFIRMED' AND t.type = 'DEBT'), 0)
-            - COALESCE(SUM(t.amount) FILTER (WHERE t.status = 'CONFIRMED' AND t.type IN ('PAYMENT','ABATIMENTO')), 0)
-            + COALESCE(SUM(t.amount) FILTER (WHERE t.status = 'CONFIRMED' AND t.type = 'REFUND'), 0) AS balance,
+              ${confirmedBalanceExpr('t.')} AS balance,
               COUNT(*) FILTER (WHERE t.status = 'PENDING')  AS pending_count,
               COUNT(*) FILTER (WHERE t.status = 'CONFIRMED') AS confirmed_count,
               MAX(t.occurred_at) AS last_activity,

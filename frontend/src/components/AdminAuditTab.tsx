@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { formatBrDateTime } from '../utils/formatBr';
 import { adminFetch } from './adminApi';
 import { BLOCK_REASON_LABEL } from './adminLabels';
 
@@ -59,7 +60,7 @@ interface AuditEntry {
 function formatWhen(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  return formatBrDateTime(date);
 }
 
 function describeState(state: AuditState | null) {

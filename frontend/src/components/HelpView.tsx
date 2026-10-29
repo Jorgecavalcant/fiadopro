@@ -6,79 +6,84 @@ const HelpView = () => {
 
   const manualItems = [
     {
-      title: 'Cadastro de Clientes',
+      title: 'Menu',
       content:
-        'Como adicionar e gerenciar clientes no FiadoPro. Vá em "Clientes" → clique em "Adicionar Cliente" → preencha nome, telefone e outras informações. O cadastro é salvo automaticamente.',
+        'O menu mostra Painel, Clientes, Dividir Conta, Aprovações, Minhas Dívidas, Notificações, A Pagar (Devoluções), Minhas Despesas, Gestão de Clientes, Insights IA e Ajuda & Suporte.',
     },
     {
-      title: 'Registrar Dívida (Fiado)',
+      title: 'Novo Cliente',
       content:
-        'Para registrar que você passou mercadoria fiado para um cliente: vá no perfil do cliente → clique em "Nova Compra" → informe o valor e descrição → confirme. O saldo devedor do cliente é atualizado automaticamente.',
+        'Abra Clientes e toque em Novo Cliente. Preencha nome e telefone. O cadastro fica salvo neste aparelho.',
+    },
+    {
+      title: 'Nova Despesa',
+      content:
+        'No perfil do cliente, toque em Nova Despesa. Informe o valor e a descrição. A dívida desse cliente aumenta.',
     },
     {
       title: 'Registrar Pagamento',
       content:
-        'Quando o cliente pagar: perfil do cliente → "Registrar Pagamento" → informe o valor e método (Pix, Dinheiro, Cartão) → confirme.',
-    },
-    {
-      title: 'Devoluções (A Pagar)',
-      content:
-        'Se um cliente devolveu mercadoria ou pagou a mais: perfil do cliente → "Devolução" → informe o valor. O cliente aparecerá automaticamente na aba "A Pagar". Lá você pode "Devolver" (registrar pagamento ao cliente) ou "Abater" (incorporar como lucro).',
-    },
-    {
-      title: 'Pontualidade do cliente',
-      content:
-        'A pontualidade do cliente, nesta loja, sai do histórico de pagamento. Quem paga em dia aparece melhor.',
-    },
-    {
-      title: 'Parcelamento',
-      content:
-        'Ao registrar uma nova compra/dívida, marque "Compra parcelada", escolha o número de parcelas (2-24x) e opcionalmente adicione juros compostos mensais.',
-    },
-    {
-      title: 'Eventos (Racha/Divisão)',
-      content:
-        'Para dividir contas entre grupos: vá em "Eventos" → "Novo Evento" → adicione participantes e os itens consumidos → o sistema calcula quanto cada um deve.',
+        'Quando a pessoa pagar, abra o perfil e toque em Registrar Pagamento. Informe o valor e a forma: Pix, cartão de crédito, cartão de débito ou compensação.',
     },
     {
       title: 'Abatimento',
       content:
-        'Registre quando o cliente pagar com serviço, troca ou produto: perfil do cliente → "Abatimento" → descreva a forma de pagamento.',
+        'Toque em Abatimento quando o pagamento for serviço, troca ou produto. Descreva o que entrou. O valor sai da dívida.',
     },
     {
-      title: 'Notificações',
+      title: 'Devolução',
       content:
-        'Quando um cliente registra pagamento pendente pelo sistema (funcionalidade futura), aparece em "Notificações" aguardando sua aprovação ou rejeição.',
+        'No perfil, toque em Devolução e informe o valor. Se sobrar saldo a favor, o cliente aparece em A Pagar (Devoluções). Lá os botões são Devolver e Abater. No perfil, os botões desse saldo são Acerto de Lucro e Devolver p/ Cliente.',
     },
     {
-      title: 'Insights IA (PRO)',
+      title: 'Pontualidade do cliente',
       content:
-        'No perfil do cliente, clique em "Análise IA" para obter um relatório inteligente sobre o comportamento de pagamento deste cliente. Disponível apenas no Plano PRO.',
+        'A pontualidade desta loja sai do histórico de pagamento. Quem paga em dia aparece melhor.',
+    },
+    {
+      title: 'Compra parcelada',
+      content:
+        'Em Nova Despesa, marque Compra parcelada. Escolha de 2 a 24 parcelas. Se quiser, marque Cobrar juros compostos.',
+    },
+    {
+      title: 'Dividir Conta',
+      content:
+        'Abra Dividir Conta e toque em Novo Evento. Use Adicionar Item e Adicionar Pessoa. Toque no nome do item, embaixo de cada pessoa, para marcar o que ela consumiu. Dividir igualmente entre todos marca todos os itens para todas as pessoas. O vencimento é opcional. Se ficar em branco, a dívida fica sem vencimento. Toque em Confirmar Divisão para lançar.',
     },
     {
       title: 'Minhas Despesas',
       content:
-        'Registre suas despesas operacionais (aluguel, fornecedores, etc.) para controle financeiro pessoal.',
+        'No menu Minhas Despesas ficam os gastos da loja, como aluguel e fornecedor. A sua parte num rateio também pode aparecer aqui.',
     },
     {
       title: 'Extrato',
       content:
-        'No perfil do cliente, clique no ícone de impressora para gerar um extrato completo em formato imprimível com todos os lançamentos.',
+        'No perfil, em Extrato de Transações, toque no ícone de impressora. O extrato abre para imprimir, com data e hora no formato brasileiro.',
     },
     {
-      title: 'Botão de Atalho (FAB)',
+      title: 'Acesso Rápido',
       content:
-        'O botão flutuante (ícone de +) no canto inferior direito abre o menu de acesso rápido para lançar dívidas ou registrar pagamentos sem precisar entrar no perfil do cliente.',
+        'O botão com + abre o Acesso Rápido. Lá estão Lançar Dívida e Receber Pagamento, sem abrir o perfil antes.',
     },
     {
-      title: 'Exportar via WhatsApp',
+      title: 'Enviar via WhatsApp',
       content:
-        'No perfil do cliente, clique no ícone do WhatsApp para enviar um resumo do saldo e transações diretamente pelo WhatsApp.',
+        'No perfil do cliente, toque em Enviar via WhatsApp. A mensagem leva o resumo do saldo.',
     },
     {
-      title: 'Backup dos Dados',
+      title: 'Análise IA',
       content:
-        'Os dados são salvos localmente no seu dispositivo. Nas configurações do perfil, você pode exportar todos os dados em formato JSON para fazer backup.',
+        'No perfil, toque em Análise IA para ver um resumo do histórico de pagamento. Esse recurso faz parte do Plano Pro. Em Insights IA, o botão é Gerar Novas Dicas.',
+    },
+    {
+      title: 'Notificações e Aprovações',
+      content:
+        'Notificações mostra o que ainda precisa da sua decisão. Os botões são Aprovar e Recusar. Aprovações mostra o que outra pessoa lançou e espera confirmação.',
+    },
+    {
+      title: 'Meu Perfil',
+      content:
+        'Toque no seu nome, no fim do menu, para abrir Meu Perfil. Lá estão Exportar Dados, Importar Dados e Histórico de Alterações.',
     },
   ];
 
@@ -93,7 +98,9 @@ const HelpView = () => {
     },
     {
       q: 'O que é o Plano PRO?',
-      a: isAndroidApp() ? 'Se a sua conta já é PRO, você usa até 500 clientes, eventos ilimitados, Insights de IA e sem anúncios.' : 'O Plano PRO desbloqueia: até 500 clientes (vs. 20 no gratuito), eventos ilimitados, Insights de IA por cliente, e sem propagandas. Consulte os planos disponíveis em "Upgrade para PRO" na barra lateral.',
+      a: isAndroidApp()
+        ? 'Se a sua conta já é PRO, você usa até 500 clientes, eventos ilimitados, Insights de IA e sem anúncios.'
+        : 'O Plano Pro libera até 500 clientes, eventos ilimitados, Análise IA e a tela sem anúncio. No menu, o botão é Upgrade para PRO.',
     },
     {
       q: 'Como funciona a pontualidade do cliente?',
@@ -105,7 +112,7 @@ const HelpView = () => {
     },
     {
       q: 'Como registrar uma devolução de mercadoria?',
-      a: 'No perfil do cliente, clique no botão azul "Devolução", informe o valor da mercadoria devolvida. Se o cliente não tiver saldo devedor, ele aparecerá na aba "A Pagar" indicando que você deve devolver dinheiro a ele.',
+      a: 'No perfil do cliente, toque em Devolução e informe o valor. Se ficar saldo a favor, a pessoa aparece em A Pagar (Devoluções). Lá os botões são Devolver e Abater.',
     },
     {
       q: 'Consigo imprimir o extrato do cliente?',
@@ -113,7 +120,7 @@ const HelpView = () => {
     },
     {
       q: 'Como funciona o parcelamento?',
-      a: 'Ao registrar uma nova compra, ative "Compra parcelada", escolha de 2 a 24 parcelas e opcionalmente adicione juros compostos. O sistema cria automaticamente as parcelas individuais e rastreia os pagamentos.',
+      a: 'Em Nova Despesa, marque Compra parcelada. Escolha de 2 a 24 parcelas. Se quiser, marque Cobrar juros compostos. Cada parcela aparece no extrato do cliente.',
     },
   ];
 

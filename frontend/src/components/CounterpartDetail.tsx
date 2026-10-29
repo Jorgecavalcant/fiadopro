@@ -7,6 +7,7 @@ import {
   createCounterpartPayment,
   cancelTransaction,
 } from '../services/syncService';
+import { formatBrDate } from '../utils/formatBr';
 import FullScreenModal from './FullScreenModal';
 
 interface CounterpartDetailProps {
@@ -133,7 +134,7 @@ export default function CounterpartDetail({
                     {t.description || TYPE_LABEL[t.type]}
                   </p>
                   <p className="text-xs text-slate-400 mt-1">
-                    {TYPE_LABEL[t.type]} · {new Date(t.occurred_at).toLocaleDateString('pt-BR')}
+                    {TYPE_LABEL[t.type]} · {formatBrDate(t.occurred_at)}
                   </p>
                 </div>
                 <div className="text-right">
@@ -339,8 +340,7 @@ function PaymentModal({ openDebts, onClose, onSubmit }: PaymentModalProps) {
                   <option value="">Pagamento avulso (contra o saldo total)</option>
                   {openDebts.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.description || 'Dívida'} —{' '}
-                      {new Date(d.occurred_at).toLocaleDateString('pt-BR')}
+                      {d.description || 'Dívida'} — {formatBrDate(d.occurred_at)}
                     </option>
                   ))}
                 </select>

@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { OAuth2Client } from 'google-auth-library';
@@ -41,6 +42,102 @@ const LoginSchema = z.object({
   reactivate: z.boolean().optional(),
 });
 
+const EMAIL_CONFIRMATION_SENT =
+  'Enviamos um link de confirmação para o seu e-mail. Abra a mensagem para entrar.';
+const EMAIL_CONFIRMATION_FAILED = 'Sua conta foi criada, mas a confirmação não pôde ser enviada.';
+const EMAIL_NOT_CONFIRMED_MESSAGE =
+  'Confirme seu e-mail antes de entrar. O link foi enviado para o seu e-mail.';
+const EMAIL_CONFIRMED_MESSAGE = 'E-mail confirmado. Agora você pode entrar.';
+const EMAIL_CONFIRM_LINK_INVALID = 'Link inválido ou vencido.';
+
+function emailConfirmationEnabled(): boolean {
+  return process.env.REQUIRE_EMAIL_CONFIRMATION === 'true';
+}
+
+function hashEmailToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+async function passwordLoginNeedsConfirmation(userId: string): Promise<boolean> {
+  if (!emailConfirmationEnabled()) return false;
+  const result = await query(
+    `SELECT email_confirmation_required, email_confirmed_at
+       FROM users
+      WHERE id = $1`,
+    [userId],
+  );
+  const row = result.rows[0] as
+    | { email_confirmation_required?: boolean | null; email_confirmed_at?: Date | string | null }
+    | undefined;
+  if (!row) return false;
+  return row.email_confirmation_required === true && row.email_confirmed_at == null;
+}
+
+async function sendRegistrationConfirmation(
+  userId: string,
+  email: string,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashEmailToken(rawToken);
+    await query(
+      `INSERT INTO email_confirmation_tokens (user_id, token_hash, expires_at)
+       VALUES ($1, $2, NOW() + INTERVAL '24 hours')`,
+      [userId, tokenHash],
+    );
+    try {
+      const { sendEmailConfirmation } = await import('../services/email.js');
+      await sendEmailConfirmation(email, rawToken);
+    } catch {
+      return res.status(201).json({ success: false, message: EMAIL_CONFIRMATION_FAILED });
+    }
+    return res.status(201).json({ success: true, message: EMAIL_CONFIRMATION_SENT });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+function confirmationToken(req: Request): string | null {
+  const value = req.query.token;
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 128) return null;
+  return trimmed;
+}
+
+async function confirmEmail(req: Request, res: Response, next: NextFunction) {
+  try {
+    const token = confirmationToken(req);
+    if (!token) {
+      return next(new ApiError(400, EMAIL_CONFIRM_LINK_INVALID, 'INVALID_TOKEN'));
+    }
+    const result = await query(
+      `WITH consumed AS (
+         UPDATE email_confirmation_tokens
+            SET used_at = NOW()
+          WHERE token_hash = $1
+            AND used_at IS NULL
+            AND expires_at > NOW()
+        RETURNING user_id
+       )
+       UPDATE users AS u
+          SET email_confirmed_at = COALESCE(u.email_confirmed_at, NOW())
+         FROM consumed AS c
+        WHERE u.id = c.user_id
+       RETURNING u.id`,
+      [hashEmailToken(token)],
+    );
+    if (result.rows.length === 0) {
+      return next(new ApiError(400, EMAIL_CONFIRM_LINK_INVALID, 'INVALID_TOKEN'));
+    }
+    return res.json({ success: true, message: EMAIL_CONFIRMED_MESSAGE });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 function publicUser(user: {
   id: string;
   email: string;
@@ -70,7 +167,10 @@ async function finishReactivation(
   }
   const token = signToken({ sub: user.id, email: user.email });
   setAuthCookie(res, token);
-  res.json({ success: true, user: publicUser({ ...user, has_password: user.has_password === true }) });
+  res.json({
+    success: true,
+    user: publicUser({ ...user, has_password: user.has_password === true }),
+  });
 }
 
 // POST /api/auth/register
@@ -99,8 +199,13 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     const hash = await bcrypt.hash(body.password, 12);
     const consentIp =
       (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || null;
+    const requireConfirmation = emailConfirmationEnabled();
     const result = await query(
-      'INSERT INTO users (full_name, email, password_hash, consent_at, consent_ip) VALUES ($1, $2, $3, NOW(), $4) RETURNING id, email, full_name, created_at',
+      requireConfirmation
+        ? `INSERT INTO users (full_name, email, password_hash, consent_at, consent_ip, email_confirmation_required)
+           VALUES ($1, $2, $3, NOW(), $4, TRUE)
+           RETURNING id, email, full_name, created_at`
+        : 'INSERT INTO users (full_name, email, password_hash, consent_at, consent_ip) VALUES ($1, $2, $3, NOW(), $4) RETURNING id, email, full_name, created_at',
       [body.full_name, email, hash, consentIp],
     );
     const user = result.rows[0];
@@ -108,6 +213,9 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     const { relinkCustomersForUser, ensureAdminRole } = await import('../services/linking.js');
     await ensureAdminRole();
     await relinkCustomersForUser(user.id);
+    if (requireConfirmation) {
+      return sendRegistrationConfirmation(user.id, email, res, next);
+    }
     const roleResult = await query('SELECT role FROM users WHERE id = $1', [user.id]);
     const token = signToken({ sub: user.id, email: user.email });
     setAuthCookie(res, token);
@@ -151,6 +259,9 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
     }
     if (!user.is_active) {
       return next(new ApiError(403, 'Conta desativada', 'ACCOUNT_DISABLED'));
+    }
+    if (await passwordLoginNeedsConfirmation(user.id)) {
+      return next(new ApiError(403, EMAIL_NOT_CONFIRMED_MESSAGE, 'EMAIL_NOT_CONFIRMED'));
     }
     const token = signToken({ sub: user.id, email: user.email });
     setAuthCookie(res, token);
@@ -266,6 +377,9 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
     next(err);
   }
 });
+
+router.get('/confirm-email', confirmEmail);
+router.post('/confirm-email', confirmEmail);
 
 // POST /api/auth/verify
 router.post('/verify', (req: Request, res: Response) => {
