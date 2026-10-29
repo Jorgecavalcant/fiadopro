@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { query } from '../config/database.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
+import { ACCOUNT_CLOSED_TX_MESSAGE } from '../services/accountAccess.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -88,8 +89,21 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
   try {
     const body = TransactionSchema.parse(req.body);
     const customer = await query(
-      `SELECT id, owner_user_id, linked_user_id FROM customers
-        WHERE id = $1 AND deleted_at IS NULL`,
+      `SELECT c.id, c.owner_user_id, c.linked_user_id,
+              EXISTS (
+                SELECT 1 FROM users u
+                 WHERE u.id = c.owner_user_id
+                   AND u.deleted_at IS NOT NULL
+                   AND u.purge_completed_at IS NULL
+              ) AS owner_closed,
+              EXISTS (
+                SELECT 1 FROM users u
+                 WHERE u.id = c.linked_user_id
+                   AND u.deleted_at IS NOT NULL
+                   AND u.purge_completed_at IS NULL
+              ) AS linked_closed
+         FROM customers c
+        WHERE c.id = $1 AND c.deleted_at IS NULL`,
       [body.customer_id],
     );
     if (!customer.rows[0])
@@ -100,6 +114,9 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
     const isLinkedCounterpart = c.linked_user_id === req.user!.sub;
     if (!isOwner && !isLinkedCounterpart) {
       return next(new ApiError(404, 'Cliente não encontrado', 'CUSTOMER_NOT_FOUND'));
+    }
+    if (c.owner_closed === true || c.linked_closed === true) {
+      return next(new ApiError(409, ACCOUNT_CLOSED_TX_MESSAGE, 'ACCOUNT_CLOSED'));
     }
     if (isLinkedCounterpart && body.type === 'DEBT') {
       return next(
@@ -261,6 +278,66 @@ router.post('/:id/resend', async (req: AuthRequest, res: Response, next: NextFun
     }
     await logEvent(req.params.id, req.user!.sub, 'RESENT');
     res.json({ success: true, status: 'PENDING' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/transactions/:id/cancel — só PENDING preso porque uma ponta encerrou.
+// Quem criou cancela se a outra conta está encerrada. Se quem criou encerrou,
+// a outra ponta que ainda entra cancela. Não aprova e não apaga a linha.
+router.post('/:id/cancel', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const found = await query(
+      `SELECT t.id, t.status, t.created_by_user_id, t.owner_user_id, c.linked_user_id,
+              (
+                creator.deleted_at IS NOT NULL AND creator.purge_completed_at IS NULL
+              ) AS creator_closed,
+              (
+                other_user.deleted_at IS NOT NULL AND other_user.purge_completed_at IS NULL
+              ) AS other_closed
+         FROM transactions t
+         JOIN customers c ON c.id = t.customer_id
+         JOIN users creator ON creator.id = t.created_by_user_id
+         LEFT JOIN users other_user ON other_user.id = CASE
+           WHEN t.created_by_user_id = t.owner_user_id THEN c.linked_user_id
+           ELSE t.owner_user_id
+         END
+        WHERE t.id = $1
+          AND t.status = 'PENDING'
+          AND (
+                t.created_by_user_id = $2
+             OR t.owner_user_id = $2
+             OR c.linked_user_id = $2
+          )`,
+      [req.params.id, req.user!.sub],
+    );
+    const row = found.rows[0];
+    if (!row) {
+      return next(new ApiError(404, 'Lançamento pendente não encontrado', 'NOT_FOUND'));
+    }
+    const callerIsCreator = row.created_by_user_id === req.user!.sub;
+    const allowed = callerIsCreator ? row.other_closed === true : row.creator_closed === true;
+    if (!allowed) {
+      return next(
+        new ApiError(
+          403,
+          'Este lançamento pendente só pode ser cancelado quando a outra conta está encerrada.',
+          'CANCEL_NOT_ALLOWED',
+        ),
+      );
+    }
+    const updated = await query(
+      `UPDATE transactions SET status = 'CANCELLED'
+        WHERE id = $1 AND status = 'PENDING'
+        RETURNING id`,
+      [req.params.id],
+    );
+    if (!updated.rows[0]) {
+      return next(new ApiError(404, 'Lançamento pendente não encontrado', 'NOT_FOUND'));
+    }
+    await logEvent(req.params.id, req.user!.sub, 'CANCELLED');
+    res.json({ success: true, status: 'CANCELLED' });
   } catch (err) {
     next(err);
   }

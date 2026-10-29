@@ -42,7 +42,7 @@ const ImportTransactionSchema = z.object({
     })
     .optional()
     .nullable(),
-  status: z.enum(['CONFIRMED', 'PENDING', 'REJECTED']).optional(),
+  status: z.enum(['CONFIRMED', 'PENDING', 'REJECTED', 'CANCELLED']).optional(),
   installmentNumber: z.number().int().positive().optional().nullable(),
   totalInstallments: z.number().int().positive().optional().nullable(),
   installmentGroupId: z.string().uuid().optional().nullable(),

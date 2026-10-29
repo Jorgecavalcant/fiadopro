@@ -7,6 +7,13 @@ import { signToken, verifyToken, setAuthCookie, clearAuthCookie } from '../utils
 import { normalizeEmail } from '../utils/normalizeEmail.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
+import {
+  ACCOUNT_CLOSED_CONFIRM_MESSAGE,
+  findUserByEmail,
+  isReactivatableAccount,
+  LEGAL_HOLD_REACTIVATE_MESSAGE,
+  reactivateAccount,
+} from '../services/accountAccess.js';
 
 const router = Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -25,12 +32,46 @@ const RegisterSchema = z.object({
         'Voce precisa aceitar a Politica de Privacidade e os Termos de Uso para se cadastrar',
     }),
   }),
+  reactivate: z.boolean().optional(),
 });
 
 const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+  reactivate: z.boolean().optional(),
 });
+
+function publicUser(user: {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role?: string | null;
+  has_password?: boolean;
+}) {
+  return {
+    id: user.id,
+    email: user.email,
+    full_name: user.full_name,
+    role: user.role ?? 'user',
+    has_password: user.has_password === true,
+  };
+}
+
+async function finishReactivation(
+  userId: string,
+  googleId: string | null,
+  res: Response,
+  next: NextFunction,
+) {
+  const user = await reactivateAccount(userId, googleId);
+  if (!user) return next(new ApiError(403, 'Conta desativada', 'ACCOUNT_DISABLED'));
+  if (user.legal_hold === true || user.is_active !== true) {
+    return next(new ApiError(409, LEGAL_HOLD_REACTIVATE_MESSAGE, 'LEGAL_HOLD'));
+  }
+  const token = signToken({ sub: user.id, email: user.email });
+  setAuthCookie(res, token);
+  res.json({ success: true, user: publicUser({ ...user, has_password: user.has_password === true }) });
+}
 
 // POST /api/auth/register
 router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
@@ -39,8 +80,20 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
       typeof req.body?.email === 'string' ? normalizeEmail(req.body.email) : req.body?.email;
     const body = RegisterSchema.parse({ ...req.body, email: rawEmail });
     const email = body.email;
-    const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
-    if (existing.rows.length > 0) {
+    const existing = await findUserByEmail(email);
+    if (existing && isReactivatableAccount(existing)) {
+      if (body.reactivate !== true) {
+        return next(new ApiError(409, ACCOUNT_CLOSED_CONFIRM_MESSAGE, 'ACCOUNT_CLOSED'));
+      }
+      if (
+        !existing.password_hash ||
+        !(await bcrypt.compare(body.password, existing.password_hash))
+      ) {
+        return next(new ApiError(401, 'E-mail ou senha incorretos', 'INVALID_CREDENTIALS'));
+      }
+      return finishReactivation(existing.id, null, res, next);
+    }
+    if (existing) {
       return next(new ApiError(409, 'E-mail ja cadastrado', 'EMAIL_EXISTS'));
     }
     const hash = await bcrypt.hash(body.password, 12);
@@ -82,17 +135,19 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
       typeof req.body?.email === 'string' ? normalizeEmail(req.body.email) : req.body?.email;
     const body = LoginSchema.parse({ ...req.body, email: rawEmail });
     const email = body.email;
-    const result = await query(
-      'SELECT id, email, full_name, password_hash, is_active, role FROM users WHERE email = $1',
-      [email],
-    );
-    const user = result.rows[0];
+    const user = await findUserByEmail(email);
     if (
       !user ||
       !user.password_hash ||
       !(await bcrypt.compare(body.password, user.password_hash))
     ) {
       return next(new ApiError(401, 'E-mail ou senha incorretos', 'INVALID_CREDENTIALS'));
+    }
+    if (isReactivatableAccount(user)) {
+      if (body.reactivate !== true) {
+        return next(new ApiError(409, ACCOUNT_CLOSED_CONFIRM_MESSAGE, 'ACCOUNT_CLOSED'));
+      }
+      return finishReactivation(user.id, null, res, next);
     }
     if (!user.is_active) {
       return next(new ApiError(403, 'Conta desativada', 'ACCOUNT_DISABLED'));
@@ -117,9 +172,25 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
 });
 
 // POST /api/auth/google
+type GoogleLoginRow = {
+  id: string;
+  email: string;
+  full_name: string | null;
+  is_active: boolean;
+  role: string;
+  has_password: boolean;
+  google_id: string | null;
+  deleted_at: Date | string | null;
+  purge_completed_at: Date | string | null;
+  purge_after: Date | string | null;
+  login_retained: boolean;
+  legal_hold: boolean;
+};
+
 router.post('/google', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id_token } = req.body;
+    const reactivate = req.body?.reactivate === true;
     if (!id_token) return next(new ApiError(400, 'Token do Google nao informado', 'MISSING_TOKEN'));
     const ticket = await googleClient.verifyIdToken({
       idToken: id_token,
@@ -132,21 +203,38 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
     const { sub: google_id, name: full_name, picture: avatar_url } = payload;
     const email = normalizeEmail(payload.email);
     const result = await query(
-      'SELECT id, email, full_name, is_active, role, (password_hash IS NOT NULL) AS has_password FROM users WHERE google_id = $1 OR email = $2',
+      `SELECT id, email, full_name, is_active, role, (password_hash IS NOT NULL) AS has_password,
+              google_id, deleted_at, purge_completed_at, purge_after, login_retained, legal_hold
+         FROM users WHERE google_id = $1 OR email = $2`,
       [google_id, email],
     );
-    let user = result.rows[0];
+    const rows = result.rows as GoogleLoginRow[];
+    const byEmail = rows.find((row) => normalizeEmail(row.email) === email);
+    const byGoogle = rows.find((row) => row.google_id === google_id);
+    let user = byEmail ?? byGoogle;
     if (!user) {
       const insert = await query(
         'INSERT INTO users (email, full_name, avatar_url, google_id) VALUES ($1, $2, $3, $4) RETURNING id, email, full_name',
         [email, full_name || email, avatar_url || null, google_id],
       );
-      user = insert.rows[0];
+      const created = insert.rows[0] as GoogleLoginRow | undefined;
+      if (!created) {
+        return next(new ApiError(500, 'Falha ao criar a conta', 'USER_NOT_FOUND'));
+      }
+      user = created;
       const { relinkCustomersForUser, ensureAdminRole } = await import('../services/linking.js');
       await ensureAdminRole();
       await relinkCustomersForUser(user.id);
       user.role =
         (await query('SELECT role FROM users WHERE id = $1', [user.id])).rows[0]?.role ?? 'user';
+    } else if (isReactivatableAccount(user)) {
+      if (normalizeEmail(user.email) !== email) {
+        return next(new ApiError(403, 'Conta desativada', 'ACCOUNT_DISABLED'));
+      }
+      if (!reactivate) {
+        return next(new ApiError(409, ACCOUNT_CLOSED_CONFIRM_MESSAGE, 'ACCOUNT_CLOSED'));
+      }
+      return finishReactivation(user.id, google_id, res, next);
     } else {
       await query(
         'UPDATE users SET google_id = $1, avatar_url = COALESCE(avatar_url, $2) WHERE id = $3',

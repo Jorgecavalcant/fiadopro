@@ -103,12 +103,15 @@ import { showToast } from './utils/toast';
 import { isAndroidApp } from './utils/androidStore';
 import InboxAprovacoes from './components/InboxAprovacoes';
 import MinhasDividas from './components/MinhasDividas';
+import AccountClosedConfirm from './components/AccountClosedConfirm';
 import {
   bootstrapSync,
   schedulePush,
   resetSyncState,
   fetchInbox,
   resendTransaction,
+  cancelTransaction,
+  saveCustomerToServer,
   updateProfile,
 } from './services/syncService';
 import {
@@ -2858,6 +2861,9 @@ const CustomerDetailView = ({
           </div>
         </div>
 
+        {selectedCustomer.counterpartClosed ? (
+          <p className="mb-12 text-sm font-bold text-amber-700">conta encerrada</p>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-12 relative z-10">
           <button
             onClick={() => {
@@ -2904,8 +2910,9 @@ const CustomerDetailView = ({
             <ArrowDownCircle className="w-5 h-5" /> Devolução
           </button>
         </div>
+        )}
 
-        {selectedCustomer.rawBalance < 0 && (
+        {selectedCustomer.rawBalance < 0 && !selectedCustomer.counterpartClosed && (
           <div className="bg-indigo-50 border border-indigo-100 rounded-t42lg p-8 mb-12 animate-in slide-in-from-top-4 duration-300 relative z-10">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="flex items-center gap-4">
@@ -3030,8 +3037,27 @@ const CustomerDetailView = ({
                             <span
                               className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${tx.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}
                             >
-                              {tx.status === 'PENDING' ? 'Pendente' : 'Rejeitado'}
+                              {tx.status === 'PENDING' ? 'Pendente' : tx.status === 'CANCELLED' ? 'Cancelado' : 'Rejeitado'}
                             </span>
+                          )}
+                          {selectedCustomer.counterpartClosed && tx.status === 'PENDING' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void cancelTransaction(tx.id).then((ok: boolean) => {
+                                  if (ok)
+                                    setTransactions((prev: Transaction[]) =>
+                                      prev.map((p: Transaction) =>
+                                        p.id === tx.id ? { ...p, status: 'CANCELLED' } : p,
+                                      ),
+                                    );
+                                });
+                              }}
+                              className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase bg-slate-200 text-slate-700"
+                            >
+                              Cancelar
+                            </button>
                           )}
                           {tx.status === 'REJECTED' && (
                             <button
@@ -3858,6 +3884,11 @@ const App: React.FC = () => {
   const [loginPassword, setLoginPassword] = useState('');
   const [loginName, setLoginName] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [recoverAccount, setRecoverAccount] = useState<null | {
+    channel: 'login' | 'google' | 'register';
+    idToken?: string;
+  }>(null);
+  const [customerFormWarning, setCustomerFormWarning] = useState('');
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
   const [resetToken, setResetToken] = useState('');
@@ -4307,7 +4338,7 @@ const App: React.FC = () => {
       try {
         const data = JSON.parse(ev.target?.result as string);
         const validTypes = new Set(['DEBT', 'PAYMENT', 'REFUND', 'ABATIMENTO']);
-        const validStatus = new Set(['CONFIRMED', 'PENDING', 'REJECTED']);
+        const validStatus = new Set(['CONFIRMED', 'PENDING', 'REJECTED', 'CANCELLED']);
 
         // Validate customers
         if (data.customers && Array.isArray(data.customers)) {
@@ -4499,18 +4530,28 @@ const App: React.FC = () => {
     setInstallmentPreFill(null);
   };
 
-  const handleGoogleCallback = async (idToken: string) => {
+  const handleGoogleCallback = async (idToken: string, reactivate = false) => {
     setLoginError('');
     try {
       const res = await fetch(`${API_URL}/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ id_token: idToken }),
+        body: JSON.stringify({ id_token: idToken, ...(reactivate ? { reactivate: true } : {}) }),
       });
       const data = await res.json();
+      if (data?.error?.code === 'ACCOUNT_CLOSED') {
+        setRecoverAccount({ channel: 'google', idToken });
+        return;
+      }
+      if (data?.error?.code === 'LEGAL_HOLD') {
+        setRecoverAccount(null);
+        setLoginError(data.error.message);
+        return;
+      }
       if (!res.ok || !data.success)
         throw new Error(data.error?.message || data.message || 'Falha no login com Google');
+      setRecoverAccount(null);
       setUser({
         id: data.user.id,
         name: data.user.full_name || data.user.email,
@@ -4524,7 +4565,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleEmailLogin = async (email: string, password: string) => {
+  const handleEmailLogin = async (email: string, password: string, reactivate = false) => {
     if (!email || !password) {
       setLoginError('Preencha e-mail e senha.');
       return;
@@ -4535,11 +4576,21 @@ const App: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, ...(reactivate ? { reactivate: true } : {}) }),
       });
       const data = await res.json();
+      if (data?.error?.code === 'ACCOUNT_CLOSED') {
+        setRecoverAccount({ channel: 'login' });
+        return;
+      }
+      if (data?.error?.code === 'LEGAL_HOLD') {
+        setRecoverAccount(null);
+        setLoginError(data.error.message);
+        return;
+      }
       if (!res.ok || !data.success)
         throw new Error(data.error?.message || data.message || 'E-mail ou senha incorretos');
+      setRecoverAccount(null);
       setUser({
         id: data.user.id,
         name: data.user.full_name || data.user.email,
@@ -4553,7 +4604,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleRegister = async (name: string, email: string, password: string) => {
+  const handleRegister = async (name: string, email: string, password: string, reactivate = false) => {
     if (!name || !email || !password) {
       setLoginError('Preencha todos os campos.');
       return;
@@ -4568,11 +4619,27 @@ const App: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ full_name: name.trim(), email, password, consent: true }),
+        body: JSON.stringify({
+          full_name: name.trim(),
+          email,
+          password,
+          consent: true,
+          ...(reactivate ? { reactivate: true } : {}),
+        }),
       });
       const data = await res.json();
+      if (data?.error?.code === 'ACCOUNT_CLOSED') {
+        setRecoverAccount({ channel: 'register' });
+        return;
+      }
+      if (data?.error?.code === 'LEGAL_HOLD') {
+        setRecoverAccount(null);
+        setLoginError(data.error.message);
+        return;
+      }
       if (!res.ok || !data.success)
         throw new Error(data.error?.message || data.message || 'Erro ao criar conta');
+      setRecoverAccount(null);
       setUser({
         id: data.user.id,
         name: data.user.full_name || data.user.email,
@@ -4717,6 +4784,21 @@ const App: React.FC = () => {
               {loginMode === 'login' ? 'Acesse sua conta' : 'Crie sua conta'}
             </p>
           </div>
+
+          {recoverAccount && (
+            <AccountClosedConfirm
+              onConfirm={() => {
+                if (recoverAccount.channel === 'login') {
+                  void handleEmailLogin(loginEmail, loginPassword, true);
+                } else if (recoverAccount.channel === 'google' && recoverAccount.idToken) {
+                  void handleGoogleCallback(recoverAccount.idToken, true);
+                } else {
+                  void handleRegister(loginName, loginEmail, loginPassword, true);
+                }
+              }}
+              onCancel={() => setRecoverAccount(null)}
+            />
+          )}
 
           {loginMode === 'login' && (
             <div className="space-y-4">
@@ -5007,6 +5089,9 @@ const App: React.FC = () => {
                             {c.name}
                           </h3>
                           <p className="text-xs text-slate-400 font-bold">{c.phone}</p>
+                          {c.counterpartClosed && (
+                            <p className="text-xs font-bold text-amber-700">conta encerrada</p>
+                          )}
                         </div>
                       </div>
                       <div className="pt-6 border-t border-slate-50 flex justify-between items-end">
@@ -5423,6 +5508,7 @@ const App: React.FC = () => {
                                 setQuickAddSearch('');
                                 setQuickAddStep(1);
                                 navigateToCustomer(c.id);
+                                if (c.counterpartClosed) return;
                                 setTransactionType(quickAddType);
                                 setEditTransactionData(null);
                                 setInstallmentInterestRate(user?.defaultInterestRate || 2.5);
@@ -5481,7 +5567,7 @@ const App: React.FC = () => {
                                   {c.name}
                                 </p>
                                 <p style={{ fontSize: 12, color: '#94A3B8', margin: '2px 0 0' }}>
-                                  {c.phone || 'Sem telefone'}
+                                  {c.counterpartClosed ? 'conta encerrada' : c.phone || 'Sem telefone'}
                                 </p>
                               </div>
                               <ChevronRight
@@ -5909,8 +5995,9 @@ const App: React.FC = () => {
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 <div style={{ maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
                   <form
-                    onSubmit={(e) => {
+                    onSubmit={async (e) => {
                       e.preventDefault();
+                      setCustomerFormWarning('');
                       const fd = new FormData(e.currentTarget);
                       const cData = {
                         name: fd.get('name') as string,
@@ -5940,6 +6027,25 @@ const App: React.FC = () => {
                           return;
                         }
                       }
+                      const editing = isEditCustomerModalOpen;
+                      const existing = editing ? customers.find((c) => c.id === selectedCustomerId) : undefined;
+                      const draftId = editing ? selectedCustomerId || '' : generateId();
+                      const draft = {
+                        ...(existing ?? { notes: [], createdAt: Date.now(), overpaymentStrategy: 'PROFIT' as const }),
+                        ...cData,
+                        id: draftId,
+                      };
+                      if (user && draftId) {
+                        const message = await saveCustomerToServer(draft, editing && Boolean(existing));
+                        if (message === 'Esse telefone é o seu.' || message === 'Esse e-mail é o seu.') {
+                          setCustomerFormWarning(message);
+                          return;
+                        }
+                        if (message && message !== 'offline') {
+                          showToast(message);
+                          return;
+                        }
+                      }
                       if (isEditCustomerModalOpen) {
                         setCustomers((prev) =>
                           prev.map((c) => (c.id === selectedCustomerId ? { ...c, ...cData } : c)),
@@ -5951,14 +6057,14 @@ const App: React.FC = () => {
                           `${user?.name} editou cliente: ${cData.name}`,
                         );
                       } else {
-                        const newId = generateId();
+                        const newId = draftId;
                         setCustomers((prev) => [
                           ...prev,
                           {
                             id: newId,
                             ...cData,
                             notes: [],
-                            createdAt: Date.now(),
+                            createdAt: draft.createdAt,
                             overpaymentStrategy: 'PROFIT',
                           },
                         ]);
@@ -6066,6 +6172,11 @@ const App: React.FC = () => {
                         />
                       </div>
                     ))}
+                    {customerFormWarning && (
+                      <p role="alert" style={{ color: '#b45309', fontWeight: 700, marginBottom: 12 }}>
+                        {customerFormWarning}
+                      </p>
+                    )}
                     <button
                       type="submit"
                       style={{

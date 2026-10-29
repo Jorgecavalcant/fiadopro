@@ -44,6 +44,11 @@ interface FakeUser {
   avatar_url: string | null;
   created_at: string;
   role: string;
+  deleted_at?: string | null;
+  purge_completed_at?: string | null;
+  purge_after?: string | null;
+  login_retained?: boolean;
+  legal_hold?: boolean;
 }
 
 function createFakeDb() {
@@ -53,15 +58,10 @@ function createFakeDb() {
   const query = async (sqlRaw: string, params: unknown[] = []) => {
     const sql = sqlRaw.replace(/\s+/g, ' ').trim();
 
-    if (sql.startsWith('SELECT id FROM users WHERE email = $1')) {
-      const [email] = params as [string];
-      return { rows: users.filter((u) => u.email === email).map((u) => ({ id: u.id })) };
-    }
-
     if (
-      sql.startsWith(
-        'SELECT id, email, full_name, password_hash, is_active, role FROM users WHERE email = $1',
-      )
+      sql.startsWith('SELECT id, email, full_name, password_hash, is_active, role') &&
+      sql.includes('WHERE email = $1') &&
+      !sql.includes('google_id')
     ) {
       const [email] = params as [string];
       return { rows: users.filter((u) => u.email === email) };
@@ -97,8 +97,9 @@ function createFakeDb() {
 
     if (
       sql.startsWith(
-        'SELECT id, email, full_name, is_active, role, (password_hash IS NOT NULL) AS has_password FROM users WHERE google_id = $1 OR email = $2',
-      )
+        'SELECT id, email, full_name, is_active, role, (password_hash IS NOT NULL) AS has_password',
+      ) &&
+      sql.includes('WHERE google_id = $1 OR email = $2')
     ) {
       const [google_id, email] = params as [string, string];
       return { rows: users.filter((u) => u.google_id === google_id || u.email === email) };
@@ -280,6 +281,47 @@ describe('normalizacao de e-mail em auth.ts (dedup auth)', () => {
     expect(fakeDb.users).toHaveLength(1);
     // Deve ter vinculado o google_id ao usuario existente
     expect(fakeDb.users[0].google_id).toBe('google-sub-123');
+  });
+
+  it('não reativa conta encerrada quando o e-mail do Google é de outra pessoa', async () => {
+    fakeDb.users.push({
+      id: 'conta-fechada',
+      email: 'vitima@example.test',
+      full_name: 'Vitima',
+      password_hash: null,
+      is_active: false,
+      google_id: 'sub-do-google',
+      avatar_url: null,
+      created_at: new Date().toISOString(),
+      role: 'user',
+      deleted_at: new Date().toISOString(),
+      purge_completed_at: null,
+      purge_after: new Date(Date.now() + 10 * 86400000).toISOString(),
+      login_retained: true,
+      legal_hold: false,
+    });
+
+    mockVerifyIdToken.mockResolvedValue({
+      getPayload: () => ({
+        sub: 'sub-do-google',
+        email: 'outra-pessoa@example.test',
+        name: 'Outra',
+      }),
+    });
+
+    const googleHandler = getRouteHandler('post', '/google');
+    const req = createReq({ id_token: 'fake-id-token', reactivate: true });
+    const res = createRes();
+    const next = vi.fn();
+
+    await googleHandler(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(next.mock.calls[0][0].code).toBe('ACCOUNT_DISABLED');
+    expect(res.cookies.fiado_token).toBeUndefined();
+    expect(fakeDb.users).toHaveLength(1);
+    expect(fakeDb.users[0].deleted_at).toBeTruthy();
+    expect(fakeDb.users[0].email).toBe('vitima@example.test');
   });
 
   it('forgot-password com e-mail nao-string retorna 400 controlado em vez de vazar erro interno 500', async () => {

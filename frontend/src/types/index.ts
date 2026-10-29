@@ -1,5 +1,5 @@
 export type TransactionType = 'DEBT' | 'PAYMENT' | 'REFUND' | 'ABATIMENTO';
-export type TransactionStatus = 'CONFIRMED' | 'PENDING' | 'REJECTED';
+export type TransactionStatus = 'CONFIRMED' | 'PENDING' | 'REJECTED' | 'CANCELLED';
 export type Language = 'en' | 'pt-BR';
 export type OverpaymentStrategy = 'PROFIT' | 'RETURN';
 export type PaymentMethod = 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'COMPENSATION';
@@ -100,6 +100,8 @@ export interface Customer {
   score?: number;
   trusted?: boolean;
   donations?: Donation[];
+  /** Vínculo com conta encerrada: consulta segue, lançamento novo não. */
+  counterpartClosed?: boolean;
 }
 
 export interface CustomerWithBalance extends Customer {

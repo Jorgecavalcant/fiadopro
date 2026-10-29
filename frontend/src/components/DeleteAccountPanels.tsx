@@ -54,7 +54,7 @@ export default function DeleteAccountPanels({ googleOnly, onDelete }: Props) {
           Zona de Perigo
         </h3>
         <p className="text-sm text-red-600 font-medium">
-          A conta é desativada na hora. Clientes, fiados e pagamentos desta loja são apagados em até 30 dias.
+          A conta fica desativada. CPF e Pix saem agora. Dá para voltar em até 30 dias com o mesmo e-mail. Clientes, fiados e pagamentos desta loja são apagados depois desse prazo.
         </p>
         <button
           type="button"
@@ -74,7 +74,7 @@ export default function DeleteAccountPanels({ googleOnly, onDelete }: Props) {
                   <div className="text-center">
                     <h3 className="text-xl font-black text-slate-900">Cancelar sua conta?</h3>
                     <p className="text-slate-500 mt-2 font-medium leading-relaxed">
-                      A conta é desativada na hora. Clientes, fiados e pagamentos desta loja são apagados em até 30 dias.
+                      A conta fica desativada. CPF e Pix saem agora. Dá para voltar em até 30 dias com o mesmo e-mail. Clientes, fiados e pagamentos desta loja são apagados depois desse prazo.
                     </p>
                   </div>
                   <div className="flex gap-3">
@@ -132,7 +132,7 @@ export default function DeleteAccountPanels({ googleOnly, onDelete }: Props) {
                   <div className="text-center">
                     <h3 className="text-xl font-black text-red-700">Última confirmação</h3>
                     <p className="text-slate-500 mt-2 font-medium leading-relaxed">
-                      A conta é desativada agora. Clientes, fiados e pagamentos desta loja são apagados em até 30 dias.{' '}
+                      A conta fica desativada. CPF e Pix saem agora. Dá para voltar em até 30 dias com o mesmo e-mail. Clientes, fiados e pagamentos desta loja são apagados depois desse prazo.{' '}
                       {googleOnly
                         ? 'O próximo passo pede que você digite CANCELAR uma vez.'
                         : 'O próximo passo pede a sua senha.'}
@@ -173,8 +173,8 @@ export default function DeleteAccountPanels({ googleOnly, onDelete }: Props) {
               <h3 style={{ color: '#dc2626', marginBottom: 8 }}>Excluir minha conta</h3>
               <p style={{ color: '#374151', marginBottom: 16, fontSize: 14 }}>
                 {googleOnly
-                  ? 'A conta é desativada agora. Clientes, fiados e pagamentos desta loja são apagados em até 30 dias. Digite CANCELAR para confirmar.'
-                  : 'A conta é desativada agora. Clientes, fiados e pagamentos desta loja são apagados em até 30 dias. Digite sua senha para confirmar.'}
+                  ? 'A conta fica desativada. CPF e Pix saem agora. Dá para voltar em até 30 dias com o mesmo e-mail. Digite CANCELAR para confirmar.'
+                  : 'A conta fica desativada. CPF e Pix saem agora. Dá para voltar em até 30 dias com o mesmo e-mail. Digite sua senha para confirmar.'}
               </p>
               <input
                 type={googleOnly ? 'text' : 'password'}

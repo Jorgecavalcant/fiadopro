@@ -1,7 +1,7 @@
 ﻿# STATE — Fiado Pro
 **Produto:** Fiado Pro — Smart Credit Tracker para pequenos comerciantes
 **Ultima atualizacao:** 2026-10-29
-**Atualizado por:** agent-manager (bloqueio com motivo e registro do admin, sem merge)
+**Atualizado por:** agent-manager (conta guardada por 30 dias, reativação na mesma conta, commit local sem push)
 
 ---
 
@@ -162,6 +162,7 @@
 | 29/10/2026 | Implement | Correção da PR #40. O GitHub recusou o envio porque a senha falsa do teste estava fixa no arquivo e o `pnpm-lock.yaml` não listava o banco de teste. A senha e o JWT de teste passam a ser gerados na hora. A trava e os testes continuam. | PR #40 atualizada, sem merge. | Jorge: revisar quando as verificações ficarem verdes |
 | 29/10/2026 | Implement | Cards do Dashboard: o título e o valor em R$ passam a caber no card no celular, no tablet e no computador. O card PRO fica do mesmo tamanho dos outros. Só o visual. Sem migration e sem mudar dados. | PR aberta, sem merge. | Jorge: revisar a PR |
 | 29/10/2026 | Implement | Bloqueio com motivo e registro das ações do admin. Só o bloqueio judicial segura a conta fora da exclusão de 30 dias. A migration foi testada no banco local. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. A migration em produção só depois do merge, com backup e um "pode". |
+| 29/10/2026 | Implement | Encerrar a conta guarda e-mail, nome, telefone e senha por 30 dias, apaga CPF e Pix na hora, e a mesma pessoa ou o admin pode voltar na mesma conta. Ordem judicial não é cancelada. Migration 012 só no banco local. | PR aberta, sem merge. A reativação pelo Google só aceita a conta cujo e-mail é o mesmo do token. | Jorge: revisar e decidir o merge. A migration em produção só depois disso, com backup e um "pode". |
 
 ---
 
