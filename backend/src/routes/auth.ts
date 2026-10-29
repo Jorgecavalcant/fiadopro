@@ -172,6 +172,21 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
 });
 
 // POST /api/auth/google
+type GoogleLoginRow = {
+  id: string;
+  email: string;
+  full_name: string | null;
+  is_active: boolean;
+  role: string;
+  has_password: boolean;
+  google_id: string | null;
+  deleted_at: Date | string | null;
+  purge_completed_at: Date | string | null;
+  purge_after: Date | string | null;
+  login_retained: boolean;
+  legal_hold: boolean;
+};
+
 router.post('/google', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id_token } = req.body;
@@ -193,7 +208,7 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
          FROM users WHERE google_id = $1 OR email = $2`,
       [google_id, email],
     );
-    const rows = result.rows as any[];
+    const rows = result.rows as GoogleLoginRow[];
     const byEmail = rows.find((row) => normalizeEmail(row.email) === email);
     const byGoogle = rows.find((row) => row.google_id === google_id);
     let user = byEmail ?? byGoogle;
@@ -202,7 +217,11 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
         'INSERT INTO users (email, full_name, avatar_url, google_id) VALUES ($1, $2, $3, $4) RETURNING id, email, full_name',
         [email, full_name || email, avatar_url || null, google_id],
       );
-      user = insert.rows[0];
+      const created = insert.rows[0] as GoogleLoginRow | undefined;
+      if (!created) {
+        return next(new ApiError(500, 'Falha ao criar a conta', 'USER_NOT_FOUND'));
+      }
+      user = created;
       const { relinkCustomersForUser, ensureAdminRole } = await import('../services/linking.js');
       await ensureAdminRole();
       await relinkCustomersForUser(user.id);
