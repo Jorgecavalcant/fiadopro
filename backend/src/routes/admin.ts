@@ -6,13 +6,21 @@ import { requireAdmin } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { sendPasswordResetEmail } from '../services/email.js';
 import { isLastActiveAdmin, LAST_ADMIN_BLOCK_MESSAGE } from '../services/lastAdmin.js';
+import {
+  BLOCK_REASONS,
+  insertAuditEntry,
+  listAdminAudit,
+  updateAdminUser,
+  withTransaction,
+} from '../services/adminAudit.js';
 
 const router = Router();
 
 // Todas as rotas de admin exigem sessão válida + role='admin'
 router.use(requireAuth, requireAdmin);
 
-const SAFE_USER_FIELDS = `id, email, full_name, phone, avatar_url, role, is_active, created_at, updated_at`;
+const SAFE_USER_FIELDS = `id, email, full_name, phone, avatar_url, role, is_active, created_at, updated_at,
+  block_reason, block_note, legal_hold, blocked_at`;
 
 const SETTINGS_ALLOWLIST = ['features', 'limits', 'geral'] as const;
 
@@ -31,7 +39,7 @@ router.get('/users', async (req: AuthRequest, res: Response, next: NextFunction)
     const offset = (page - 1) * limit;
 
     const params: unknown[] = [];
-    let whereClause = 'WHERE deleted_at IS NULL';
+    let whereClause = 'WHERE (deleted_at IS NULL OR legal_hold IS TRUE)';
     if (search) {
       params.push(`%${search}%`);
       whereClause += ` AND (full_name ILIKE $${params.length} OR email ILIKE $${params.length})`;
@@ -68,9 +76,12 @@ const UpdateUserSchema = z
     full_name: z.string().min(2).max(100).optional(),
     phone: z.string().max(20).nullable().optional(),
     is_active: z.boolean().optional(),
+    block_reason: z.enum(BLOCK_REASONS).optional(),
+    block_note: z.string().max(500).optional(),
+    unblock_note: z.string().max(500).optional(),
   })
   .strict()
-  .refine((data) => Object.keys(data).length > 0, {
+  .refine((data) => data.full_name !== undefined || data.phone !== undefined || data.is_active !== undefined, {
     message: 'Informe ao menos um campo para atualizar (full_name, phone ou is_active)',
   });
 
@@ -84,24 +95,13 @@ router.patch('/users/:id', async (req: AuthRequest, res: Response, next: NextFun
     }
     const body = UpdateUserSchema.parse(req.body);
 
-    const own = await query('SELECT id FROM users WHERE id = $1 AND deleted_at IS NULL', [
-      req.params.id,
-    ]);
-    if (!own.rows[0]) return next(new ApiError(404, 'Usuário não encontrado', 'USER_NOT_FOUND'));
-
     if (body.is_active === false && (await isLastActiveAdmin(req.params.id))) {
       return next(new ApiError(409, LAST_ADMIN_BLOCK_MESSAGE, 'LAST_ADMIN'));
     }
 
-    const fields = Object.entries(body).filter(([, v]) => v !== undefined);
-    const setClause = fields.map(([k], i) => `${k} = $${i + 2}`).join(', ');
-    const values = fields.map(([, v]) => v);
-
-    const result = await query(
-      `UPDATE users SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING ${SAFE_USER_FIELDS}`,
-      [req.params.id, ...values],
-    );
-    res.json({ success: true, user: result.rows[0] });
+    const result = await updateAdminUser(req.user!.sub, req.params.id, body);
+    if (result.error) return next(result.error);
+    res.json({ success: true, user: result.user });
   } catch (err) {
     if (err instanceof z.ZodError)
       return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
@@ -122,16 +122,28 @@ router.post(
       if (!user)
         return next(new ApiError(404, 'Usuário não encontrado ou inativo', 'USER_NOT_FOUND'));
 
-      await query(
-        'UPDATE password_reset_tokens SET used = true WHERE user_id = $1 AND used = false',
-        [user.id],
-      );
       const { v4: uuidv4 } = await import('uuid');
       const token = uuidv4().replace(/-/g, '');
-      await query('INSERT INTO password_reset_tokens (user_id, token) VALUES ($1, $2)', [
-        user.id,
-        token,
-      ]);
+      await withTransaction(async (sql) => {
+        await sql(
+          'UPDATE password_reset_tokens SET used = true WHERE user_id = $1 AND used = false',
+          [user.id],
+        );
+        await sql('INSERT INTO password_reset_tokens (user_id, token) VALUES ($1, $2)', [
+          user.id,
+          token,
+        ]);
+        await insertAuditEntry(sql, {
+          adminId: req.user!.sub,
+          action: 'user.reset_password',
+          targetUserId: user.id,
+          reason: null,
+          note: null,
+          beforeState: { reset: false },
+          afterState: { reset: true },
+          keepWhileOrderStands: false,
+        });
+      });
       await sendPasswordResetEmail(user.email, token);
 
       res.json({ success: true, message: 'E-mail de redefinição de senha enviado.' });
@@ -140,6 +152,40 @@ router.post(
     }
   },
 );
+
+const AUDIT_ACTIONS = [
+  'user.block',
+  'user.unblock',
+  'user.update',
+  'user.reset_password',
+  'settings.update',
+] as const;
+
+const AuditQuerySchema = z.object({
+  action: z.enum(AUDIT_ACTIONS).optional(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+router.get('/audit', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const filters = AuditQuerySchema.parse({
+      action: req.query.action || undefined,
+      from: req.query.from || undefined,
+      to: req.query.to || undefined,
+      page: req.query.page,
+      limit: req.query.limit,
+    });
+    const data = await listAdminAudit(filters);
+    res.json({ success: true, ...data });
+  } catch (err) {
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, 'Filtro inválido.', 'VALIDATION_ERROR'));
+    next(err);
+  }
+});
 
 // ===================== METRICS =====================
 
@@ -218,13 +264,26 @@ router.put('/settings/:key', async (req: AuthRequest, res: Response, next: NextF
     const { key } = SettingsKeyParamSchema.parse({ key: req.params.key });
     const { value } = SettingsValueSchema.parse(req.body);
 
-    const result = await query(
-      `INSERT INTO app_settings (key, value, updated_at) VALUES ($1, $2, NOW())
-       ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()
-       RETURNING key, value, updated_at`,
-      [key, JSON.stringify(value)],
-    );
-    res.json({ success: true, ...result.rows[0] });
+    const result = await withTransaction(async (sql) => {
+      const saved = await sql(
+        `INSERT INTO app_settings (key, value, updated_at) VALUES ($1, $2, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()
+         RETURNING key, value, updated_at`,
+        [key, JSON.stringify(value)],
+      );
+      await insertAuditEntry(sql, {
+        adminId: req.user!.sub,
+        action: 'settings.update',
+        targetUserId: null,
+        reason: null,
+        note: null,
+        beforeState: { key },
+        afterState: { key },
+        keepWhileOrderStands: false,
+      });
+      return saved.rows[0];
+    });
+    res.json({ success: true, ...result });
   } catch (err) {
     if (err instanceof z.ZodError)
       return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));

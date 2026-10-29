@@ -1,7 +1,7 @@
 ﻿# STATE — Fiado Pro
 **Produto:** Fiado Pro — Smart Credit Tracker para pequenos comerciantes
 **Ultima atualizacao:** 2026-10-29
-**Atualizado por:** agent-manager (layout dos cards do Dashboard, sem merge)
+**Atualizado por:** agent-manager (bloqueio com motivo e registro do admin, sem merge)
 
 ---
 
@@ -137,6 +137,7 @@
 | 9 | Login nativo do Google no app Android. O botão web não funciona no WebView do Capacitor (origem `https://localhost`). | Jorge + agentes | MEDIO | 28/10/2026 |
 | 10 | Revisar o CORS da API para o app Android. Hoje a API aceita `https://www.fiadopro.com.br` e `http://localhost:3000`. O app usa `https://localhost`. | agentes | MEDIO | 28/10/2026 |
 | 11 | ~~Último administrador podia se bloquear ou encerrar a própria conta~~ **RESOLVIDO (29/10/2026):** a API recusa encerrar ou bloquear quando isso deixaria a plataforma sem administrador ativo. A tela desabilita o bloqueio na própria linha. | jc-agent-manager | RESOLVIDO | 29/10/2026 |
+| 12 | Bloqueio com motivo e registro das ações do admin. A migration 011 ainda não rodou em produção. Só entra depois do merge, com backup do Postgres e um "pode" do Jorge. | Jorge | ALTO | 29/10/2026 |
 
 ---
 
@@ -160,6 +161,7 @@
 | 29/10/2026 | Implement | Trava do último administrador: encerrar a própria conta e bloquear no painel são recusados quando sobraria zero administrador ativo. Teste de integração em banco local. VPS e banco de produção não foram alterados. | PR aberta, sem merge. | Jorge: revisar a PR |
 | 29/10/2026 | Implement | Correção da PR #40. O GitHub recusou o envio porque a senha falsa do teste estava fixa no arquivo e o `pnpm-lock.yaml` não listava o banco de teste. A senha e o JWT de teste passam a ser gerados na hora. A trava e os testes continuam. | PR #40 atualizada, sem merge. | Jorge: revisar quando as verificações ficarem verdes |
 | 29/10/2026 | Implement | Cards do Dashboard: o título e o valor em R$ passam a caber no card no celular, no tablet e no computador. O card PRO fica do mesmo tamanho dos outros. Só o visual. Sem migration e sem mudar dados. | PR aberta, sem merge. | Jorge: revisar a PR |
+| 29/10/2026 | Implement | Bloqueio com motivo e registro das ações do admin. Só o bloqueio judicial segura a conta fora da exclusão de 30 dias. A migration foi testada no banco local. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. A migration em produção só depois do merge, com backup e um "pode". |
 
 ---
 

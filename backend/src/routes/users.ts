@@ -84,6 +84,15 @@ router.delete('/me', requireAuth, async (req: AuthRequest, res: Response, next: 
       return next(new ApiError(409, LAST_ADMIN_DELETE_MESSAGE, 'LAST_ADMIN'));
     }
 
+    const hold = await query('SELECT legal_hold FROM users WHERE id = $1', [userId]);
+    if (hold.rows[0]?.legal_hold === true) {
+      return next(new ApiError(
+        409,
+        'Esta conta está sob bloqueio judicial e não pode ser encerrada até um administrador liberar.',
+        'LEGAL_HOLD',
+      ));
+    }
+
     const anonEmail = `deleted_${userId}@removed.invalid`;
     await query(
       `UPDATE users SET

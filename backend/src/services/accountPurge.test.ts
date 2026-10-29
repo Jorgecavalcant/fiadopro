@@ -37,6 +37,7 @@ describe('account purge', () => {
     const selectSql = String(query.mock.calls[0][0]);
     expect(selectSql).toContain('purge_after <= NOW()');
     expect(selectSql).toContain('deleted_at IS NOT NULL');
+    expect(selectSql).toContain('legal_hold IS NOT TRUE');
 
     const cleanupSql = query.mock.calls.slice(1).map(([sql]) => String(sql)).join('\n');
     expect(cleanupSql).toContain('owner_user_id = $1');
