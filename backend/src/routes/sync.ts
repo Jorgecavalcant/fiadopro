@@ -5,6 +5,7 @@ import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { linkCustomer } from '../services/linking.js';
 import { assertCanAddCustomers } from '../services/planLimits.js';
+import { activeCustomerWithSamePhone, duplicatePhoneError } from './customers.js';
 import { confirmedBalanceExpr, paymentLeavesCredit } from '../domain/balance.js';
 
 const router = Router();
@@ -81,9 +82,22 @@ router.post('/import', async (req: AuthRequest, res: Response, next: NextFunctio
     await assertCanAddCustomers(userId, incomingIds.length - already);
     let customersImported = 0;
     let transactionsImported = 0;
+    const rejected: { id: string; code: string; message: string; existingCustomerId: string }[] =
+      [];
     const creditConfirmationRequired: string[] = [];
 
     for (const c of body.customers) {
+      const duplicate = await activeCustomerWithSamePhone(userId, c.phone, c.id);
+      if (duplicate) {
+        const error = duplicatePhoneError(duplicate);
+        rejected.push({
+          id: c.id,
+          code: 'DUPLICATE_PHONE',
+          message: error.message,
+          existingCustomerId: duplicate.id,
+        });
+        continue;
+      }
       const r = await query(
         `INSERT INTO customers (id, owner_user_id, name, phone, email, pix_key, trusted, overpayment_strategy, notes, score, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, FALSE), COALESCE($8, 'RETURN'), COALESCE($9::jsonb, '[]'::jsonb), $10, COALESCE($11, NOW()))
@@ -162,7 +176,13 @@ router.post('/import', async (req: AuthRequest, res: Response, next: NextFunctio
       }
     }
 
-    res.json({ success: true, customersImported, transactionsImported, creditConfirmationRequired });
+    res.json({
+      success: true,
+      customersImported,
+      transactionsImported,
+      rejected,
+      creditConfirmationRequired,
+    });
   } catch (err) {
     if (err instanceof z.ZodError)
       return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));

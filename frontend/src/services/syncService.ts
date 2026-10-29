@@ -162,6 +162,7 @@ const toServerCustomerBody = (c: Customer) => ({
 /** Estado da última sincronização — base do diff do push. */
 let shadowCustomers = new Map<string, string>();
 let shadowTransactions = new Map<string, string>();
+let blockedPhone = new Map<string, string>();
 let waitingCredit = new Map<string, string>();
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -289,11 +290,18 @@ export function schedulePush(
   transactions: Transaction[],
   onStatusFromServer: (patches: StatusPatch[]) => void,
   onCreditNeeded?: (transactionId: string) => void,
+  onDuplicatePhone?: (notice: { id: string; message: string }) => void,
 ): void {
   if (!loggedIn) return;
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
-    void pushLocalChanges(customers, transactions, onStatusFromServer, onCreditNeeded);
+    void pushLocalChanges(
+      customers,
+      transactions,
+      onStatusFromServer,
+      onCreditNeeded,
+      onDuplicatePhone,
+    );
   }, PUSH_DEBOUNCE_MS);
 }
 
@@ -319,12 +327,47 @@ async function readApi(path: string, init?: RequestInit): Promise<ApiResult> {
   }
 }
 
-/** Envia o que mudou. Um 409 de crédito marca o item e segue para o próximo. */
+async function sendCustomer(
+  method: 'POST' | 'PATCH',
+  path: string,
+  body: Record<string, unknown>,
+): Promise<
+  | { kind: 'ok' }
+  | { kind: 'fail' }
+  | { kind: 'duplicate'; message: string; existingCustomerId?: string }
+> {
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      method,
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = (await res.json()) as {
+      success?: boolean;
+      error?: { code?: string; message?: string; existingCustomerId?: string };
+    };
+    if (res.status === 409 && data.error?.code === 'DUPLICATE_PHONE') {
+      return {
+        kind: 'duplicate',
+        message: data.error.message ?? 'Já existe um cliente com esse número',
+        existingCustomerId: data.error.existingCustomerId,
+      };
+    }
+    if (!res.ok || data.success === false) return { kind: 'fail' };
+    return { kind: 'ok' };
+  } catch {
+    return { kind: 'fail' };
+  }
+}
+
+/** Envia o que mudou. Crédito e celular repetido marcam o item e a fila segue. */
 export async function pushLocalChanges(
   customers: Customer[],
   transactions: Transaction[],
   onStatusFromServer: (patches: StatusPatch[]) => void,
   onCreditNeeded?: (transactionId: string) => void,
+  onDuplicatePhone?: (notice: { id: string; message: string }) => void,
 ): Promise<void> {
 
   const patches: StatusPatch[] = [];
@@ -334,17 +377,26 @@ export async function pushLocalChanges(
     // enviar; o cliente fica só local até o telefone ser preenchido.
     if (!c.phone || !c.phone.trim()) continue;
     const fp = fingerprintCustomer(c);
+    if (blockedPhone.get(c.id) === fp) continue;
     const known = shadowCustomers.get(c.id);
     if (known === fp) continue;
     const body = toServerCustomerBody(c);
-    const result =
-      known === undefined
-        ? await jsonFetch('/customers', { method: 'POST', body: JSON.stringify(body) })
-        : await jsonFetch(`/customers/${c.id}`, {
-            method: 'PATCH',
-            body: JSON.stringify({ ...body, id: undefined }),
-          });
-    if (result) shadowCustomers.set(c.id, fp);
+    const sent = await sendCustomer(
+      known === undefined ? 'POST' : 'PATCH',
+      known === undefined ? '/customers' : `/customers/${c.id}`,
+      known === undefined ? body : { ...body, id: undefined },
+    );
+    if (sent.kind === 'duplicate') {
+      blockedPhone.set(c.id, fp);
+      if (sent.existingCustomerId) {
+        onDuplicatePhone?.({ id: sent.existingCustomerId, message: sent.message });
+      }
+      continue;
+    }
+    if (sent.kind === 'ok') {
+      blockedPhone.delete(c.id);
+      shadowCustomers.set(c.id, fp);
+    }
   }
 
   // Clientes apagados localmente → soft delete no servidor
@@ -412,6 +464,7 @@ export async function pushLocalChanges(
 export function resetSyncState(): void {
   shadowCustomers = new Map();
   shadowTransactions = new Map();
+  blockedPhone = new Map();
   waitingCredit = new Map();
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = null;
@@ -509,7 +562,16 @@ export async function cancelTransaction(id: string): Promise<boolean> {
   return Boolean(data?.success);
 }
 
-export async function saveCustomerToServer(customer: Customer, editing: boolean): Promise<string | 'offline' | null> {
+export interface CustomerSaveError {
+  message: string;
+  code?: string;
+  existingCustomerId?: string;
+}
+
+export async function saveCustomerToServer(
+  customer: Customer,
+  editing: boolean,
+): Promise<CustomerSaveError | 'offline' | null> {
   const body = toServerCustomerBody(customer);
   const send = async (method: 'POST' | 'PATCH', path: string) => {
     const res = await fetch(`${API_URL}${path}`, {
@@ -518,9 +580,15 @@ export async function saveCustomerToServer(customer: Customer, editing: boolean)
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    let data: { success?: boolean; error?: { message?: string } } | null = null;
+    let data: {
+      success?: boolean;
+      error?: { message?: string; code?: string; existingCustomerId?: string };
+    } | null = null;
     try {
-      data = (await res.json()) as { success?: boolean; error?: { message?: string } };
+      data = (await res.json()) as {
+        success?: boolean;
+        error?: { message?: string; code?: string; existingCustomerId?: string };
+      };
     } catch {
       data = null;
     }
@@ -532,7 +600,11 @@ export async function saveCustomerToServer(customer: Customer, editing: boolean)
       ({ res, data } = await send('POST', '/customers'));
     }
     if (!res.ok || data?.success === false) {
-      return data?.error?.message || 'Não foi possível salvar o cliente.';
+      return {
+        message: data?.error?.message || 'Não foi possível salvar o cliente.',
+        code: data?.error?.code,
+        existingCustomerId: data?.error?.existingCustomerId,
+      };
     }
     shadowCustomers.set(customer.id, fingerprintCustomer(customer));
     return null;

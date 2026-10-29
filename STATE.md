@@ -176,6 +176,8 @@
 | 29/10/2026 | Implement | O cadastro pode pedir confirmação de e-mail por link, mas a opção nasce desligada. Conta antiga e login com Google continuam iguais. A migration 015 só adiciona coluna e tabela. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. A migration em produção só depois do merge, com backup. |
 | 29/10/2026 | Implement | O pagamento mostra se o cliente deve ou se a loja deve. Quitar preenche a dívida. Valor a maior só entra com confirmação, no site e no servidor. Atraso conta só dívida com vencimento passado. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 29/10/2026 | Implement | A devolução aumenta o saldo e aproxima o crédito de zero. Abatimento diminui, como o pagamento. O acerto de lucro grava uma dívida no valor do crédito, ou só esconde o negativo na tela quando a estratégia é lucro. A sincronização pede a confirmação e segue para o próximo item. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
+| 29/10/2026 | Implement | O mesmo celular não entra duas vezes na mesma loja. O servidor responde 409 e a tela abre o cadastro que já existe. Nome repetido só avisa. Não há índice único, para o deploy não quebrar se a produção já tiver número repetido. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
+| 29/10/2026 | Implement | O log do celular repetido guarda só o código DUPLICATE_PHONE. A importação offline também recusa o número repetido. A resposta para o lojista continua mostrando o nome. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 
 ---
 

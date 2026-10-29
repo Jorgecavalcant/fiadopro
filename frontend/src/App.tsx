@@ -100,7 +100,11 @@ import { Keyboard } from '@capacitor/keyboard';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { hapticMedium, hapticSuccess } from './utils/haptics';
 import { showToast } from './utils/toast';
-import { canShowCheckout, isAndroidApp } from './utils/androidStore';
+import { canShowCheckout } from './utils/androidStore';
+import {
+  DuplicateCustomerNotice,
+  normalizeCustomerPhone,
+} from './components/DuplicateCustomerNotice';
 import { planPricesFromStatus, showsFullscreenAd } from './utils/planPrice';
 import InboxAprovacoes from './components/InboxAprovacoes';
 import MinhasDividas from './components/MinhasDividas';
@@ -1526,6 +1530,8 @@ const EventDetailView = ({
   t,
   user,
   addAuditEntry,
+  maxParticipantsPerEvent,
+  onParticipantsLimit,
 }: any) => {
   const [isScanning, setIsScanning] = useState(false);
   const [participantDropdown, setParticipantDropdown] = useState<string | null>(null);
@@ -2094,6 +2100,17 @@ const EventDetailView = ({
                     checked={event.ownerParticipating}
                     onChange={(e) => {
                       const isChecked = e.target.checked;
+                      const participantCeiling = Number(maxParticipantsPerEvent);
+                      if (
+                        isChecked &&
+                        !event.participants.some((p: { isOwner?: boolean }) => p.isOwner) &&
+                        Number.isFinite(participantCeiling) &&
+                        event.participants.length >= participantCeiling &&
+                        onParticipantsLimit
+                      ) {
+                        onParticipantsLimit();
+                        return;
+                      }
                       updateEventContent((ev: BillEvent) => {
                         let newParticipants = [...ev.participants];
                         if (isChecked && !newParticipants.some((p) => p.isOwner)) {
@@ -2124,6 +2141,15 @@ const EventDetailView = ({
                 </label>
                 <button
                   onClick={() => {
+                    const participantCeiling = Number(maxParticipantsPerEvent);
+                    if (
+                      Number.isFinite(participantCeiling) &&
+                      event.participants.length >= participantCeiling &&
+                      onParticipantsLimit
+                    ) {
+                      onParticipantsLimit();
+                      return;
+                    }
                     const newParticipantId = generateId();
                     updateEventContent((ev: BillEvent) => ({
                       ...ev,
@@ -3931,6 +3957,16 @@ const App: React.FC = () => {
     idToken?: string;
   }>(null);
   const [customerFormWarning, setCustomerFormWarning] = useState('');
+  const [duplicateCustomer, setDuplicateCustomer] = useState<{ id: string; message: string } | null>(
+    null,
+  );
+  const [planLimitReason, setPlanLimitReason] = useState<string | null>(null);
+  const [savingCustomer, setSavingCustomer] = useState(false);
+  const [savingTransaction, setSavingTransaction] = useState(false);
+  const [savingEvent, setSavingEvent] = useState(false);
+  const savingCustomerRef = useRef(false);
+  const savingTransactionRef = useRef(false);
+  const savingEventRef = useRef(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
   const [resetToken, setResetToken] = useState('');
@@ -4078,6 +4114,7 @@ const App: React.FC = () => {
           prev.map((item) => (item.id === txId ? { ...item, creditConfirmed: true } : item)),
         );
       },
+      (notice) => setDuplicateCustomer(notice),
     );
   }, [user, customers, transactions]);
 
@@ -4291,6 +4328,35 @@ const App: React.FC = () => {
 
   const canAddCustomer = () => customers.length < plan.maxCustomers;
 
+  const showPlanLimit = (kind: 'clientes' | 'eventos' | 'participantes', max: number) => {
+    if (!Number.isFinite(max)) return;
+    const planName = plan.type === 'FREE' ? 'Grátis' : plan.type === 'PRO' ? 'Pro' : 'Enterprise';
+    const message = `Você atingiu o limite de ${max} ${kind} do plano ${planName}`;
+    if (!canShowCheckout()) {
+      showToast(message);
+      return;
+    }
+    setPlanLimitReason(message);
+    setIsUpgradeModalOpen(true);
+  };
+
+  const limitCountFromServer = (message: string, fallback: number) => {
+    const found = message.match(/\d+/);
+    if (!found) return fallback;
+    const value = Number(found[0]);
+    return Number.isFinite(value) ? value : fallback;
+  };
+
+  const openExistingCustomer = (id: string) => {
+    setDuplicateCustomer(null);
+    setCustomerFormWarning('');
+    setIsCustomerModalOpen(false);
+    setIsEditCustomerModalOpen(false);
+    setPendingTransactionAfterCreate(false);
+    setPendingNewCustomerName('');
+    navigateToCustomer(id);
+  };
+
   const stats = useMemo(() => {
     const totalReceivable = customersWithBalance.reduce(
       (acc, c) => acc + (c.balance > 0 ? c.balance : 0),
@@ -4501,6 +4567,10 @@ const App: React.FC = () => {
 
   const addTransaction = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (savingTransactionRef.current) return;
+    savingTransactionRef.current = true;
+    setSavingTransaction(true);
+    try {
     if (!selectedCustomerId) return;
     const formData = new FormData(e.currentTarget);
     const amount = parseFloat(formData.get('amount') as string);
@@ -4662,6 +4732,10 @@ const App: React.FC = () => {
     setIsTransactionModalOpen(false);
     setCurrentAmountValue(0);
     setInstallmentPreFill(null);
+    } finally {
+      savingTransactionRef.current = false;
+      setSavingTransaction(false);
+    }
   };
 
   const handleGoogleCallback = async (idToken: string, reactivate = false) => {
@@ -5117,7 +5191,10 @@ const App: React.FC = () => {
       {showsFullscreenAd(catalog?.adPolicy) && (
         <AdBanner
           onUpgrade={() => {
-            if (canShowCheckout()) setIsUpgradeModalOpen(true);
+            if (canShowCheckout()) {
+              setPlanLimitReason(null);
+              setIsUpgradeModalOpen(true);
+            }
           }}
           t={t}
         />
@@ -5148,7 +5225,10 @@ const App: React.FC = () => {
           setLanguage={setLanguage}
           isPro={plan.hasAI}
           onUpgrade={() => {
-            if (canShowCheckout()) setIsUpgradeModalOpen(true);
+            if (canShowCheckout()) {
+              setPlanLimitReason(null);
+              setIsUpgradeModalOpen(true);
+            }
           }}
           user={user}
           onLogout={() => {
@@ -5252,7 +5332,10 @@ const App: React.FC = () => {
               aiAdvice={aiAdvice}
               isPro={isPro}
               setIsUpgradeModalOpen={() => {
-                if (canShowCheckout()) setIsUpgradeModalOpen(true);
+                if (canShowCheckout()) {
+                  setPlanLimitReason(null);
+                  setIsUpgradeModalOpen(true);
+                }
               }}
               handleShareWhatsApp={handleShareWhatsApp}
               deleteCustomer={(id: string) => {
@@ -5290,7 +5373,17 @@ const App: React.FC = () => {
             <SplitBillView
               events={events}
               setEvents={setEvents}
-              setIsEventModalOpen={setIsEventModalOpen}
+              setIsEventModalOpen={(open: boolean) => {
+                if (
+                  open &&
+                  Number.isFinite(plan.maxEvents) &&
+                  events.length >= plan.maxEvents
+                ) {
+                  showPlanLimit('eventos', plan.maxEvents);
+                  return;
+                }
+                setIsEventModalOpen(open);
+              }}
               setSelectedEventId={setSelectedEventId}
               setActiveView={setActiveView}
               formatCurrency={formatCurrency}
@@ -5316,6 +5409,10 @@ const App: React.FC = () => {
               t={t}
               user={user}
               addAuditEntry={addAuditEntry}
+              maxParticipantsPerEvent={plan.maxParticipantsPerEvent}
+              onParticipantsLimit={() =>
+                showPlanLimit('participantes', plan.maxParticipantsPerEvent)
+              }
             />
           )}
           {activeView === AppView.RECEIVABLES_LIST && (
@@ -6090,6 +6187,8 @@ const App: React.FC = () => {
               >
                 <button
                   onClick={() => {
+                    setDuplicateCustomer(null);
+                    setCustomerFormWarning('');
                     setIsCustomerModalOpen(false);
                     setIsEditCustomerModalOpen(false);
                     setPendingTransactionAfterCreate(false);
@@ -6120,6 +6219,10 @@ const App: React.FC = () => {
                   <form
                     onSubmit={async (e) => {
                       e.preventDefault();
+                      if (savingCustomerRef.current) return;
+                      savingCustomerRef.current = true;
+                      setSavingCustomer(true);
+                      try {
                       setCustomerFormWarning('');
                       const fd = new FormData(e.currentTarget);
                       const cData = {
@@ -6132,23 +6235,34 @@ const App: React.FC = () => {
                         showToast(t.phoneRequired);
                         return;
                       }
-                      if (!isEditCustomerModalOpen) {
-                        if (!canAddCustomer()) {
-                          if (isAndroidApp()) {
-                            showToast('Limite de clientes do plano gratuito atingido.');
-                          } else {
-                            showToast(t.maxCustomersReached);
-                            setIsUpgradeModalOpen(true);
-                          }
-                          return;
-                        }
-                        const duplicate = customers.find(
-                          (c) => c.phone.replace(/\D/g, '') === cData.phone.replace(/\D/g, ''),
-                        );
-                        if (duplicate) {
-                          showToast(t.phoneDuplicate);
-                          return;
-                        }
+                      const ignoreId = isEditCustomerModalOpen ? selectedCustomerId : null;
+                      const normalizedPhone = normalizeCustomerPhone(cData.phone);
+                      const phoneOwner = normalizedPhone
+                        ? customers.find(
+                            (c) =>
+                              c.id !== ignoreId &&
+                              normalizeCustomerPhone(c.phone) === normalizedPhone,
+                          )
+                        : undefined;
+                      if (!isEditCustomerModalOpen && !canAddCustomer() && !phoneOwner) {
+                        showPlanLimit('clientes', plan.maxCustomers);
+                        return;
+                      }
+                      if (phoneOwner) {
+                        setDuplicateCustomer({
+                          id: phoneOwner.id,
+                          message: `Já existe ${phoneOwner.name} com esse número`,
+                        });
+                        return;
+                      }
+                      setDuplicateCustomer(null);
+                      const sameName = customers.find(
+                        (c) =>
+                          c.id !== ignoreId &&
+                          c.name.trim().toLowerCase() === cData.name.trim().toLowerCase(),
+                      );
+                      if (sameName) {
+                        showToast(`Já existe ${sameName.name} com esse nome. O cadastro segue.`);
                       }
                       const editing = isEditCustomerModalOpen;
                       const existing = editing ? customers.find((c) => c.id === selectedCustomerId) : undefined;
@@ -6159,13 +6273,27 @@ const App: React.FC = () => {
                         id: draftId,
                       };
                       if (user && draftId) {
-                        const message = await saveCustomerToServer(draft, editing && Boolean(existing));
-                        if (message === 'Esse telefone é o seu.' || message === 'Esse e-mail é o seu.') {
-                          setCustomerFormWarning(message);
-                          return;
-                        }
-                        if (message && message !== 'offline') {
-                          showToast(message);
+                        const saved = await saveCustomerToServer(draft, editing && Boolean(existing));
+                        if (saved && saved !== 'offline') {
+                          if (saved.message === 'Esse telefone é o seu.' || saved.message === 'Esse e-mail é o seu.') {
+                            setCustomerFormWarning(saved.message);
+                            return;
+                          }
+                          if (saved.code === 'PLAN_LIMIT') {
+                            showPlanLimit(
+                              'clientes',
+                              limitCountFromServer(saved.message, plan.maxCustomers),
+                            );
+                            return;
+                          }
+                          if (saved.code === 'DUPLICATE_PHONE' && saved.existingCustomerId) {
+                            setDuplicateCustomer({
+                              id: saved.existingCustomerId,
+                              message: saved.message,
+                            });
+                            return;
+                          }
+                          showToast(saved.message);
                           return;
                         }
                       }
@@ -6210,6 +6338,10 @@ const App: React.FC = () => {
                       }
                       setIsCustomerModalOpen(false);
                       setIsEditCustomerModalOpen(false);
+                      } finally {
+                        savingCustomerRef.current = false;
+                        setSavingCustomer(false);
+                      }
                     }}
                     className="space-y-6"
                   >
@@ -6300,22 +6432,36 @@ const App: React.FC = () => {
                         {customerFormWarning}
                       </p>
                     )}
+                    {duplicateCustomer && (
+                      <DuplicateCustomerNotice
+                        message={duplicateCustomer.message}
+                        onOpen={() => openExistingCustomer(duplicateCustomer.id)}
+                      />
+                    )}
                     <button
                       type="submit"
+                      disabled={savingCustomer}
+                      aria-busy={savingCustomer}
                       style={{
                         width: '100%',
                         padding: '16px',
                         borderRadius: 16,
                         border: 'none',
-                        cursor: 'pointer',
+                        cursor: savingCustomer ? 'not-allowed' : 'pointer',
                         fontWeight: 900,
                         fontSize: 16,
                         color: 'white',
                         background: 'linear-gradient(135deg,#6366F1,#8B5CF6)',
                         boxShadow: '0 4px 20px rgba(99,102,241,0.3)',
                         marginTop: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        opacity: savingCustomer ? 0.7 : 1,
                       }}
                     >
+                      {savingCustomer && <Loader2 className="w-5 h-5 animate-spin" />}
                       {isEditCustomerModalOpen ? 'Salvar Alterações' : 'Cadastrar Cliente'}
                     </button>
                   </form>
@@ -6744,12 +6890,14 @@ const App: React.FC = () => {
                     )}
                     <button
                       type="submit"
+                      disabled={savingTransaction}
+                      aria-busy={savingTransaction}
                       style={{
                         width: '100%',
                         padding: '16px',
                         borderRadius: 14,
                         border: 'none',
-                        cursor: 'pointer',
+                        cursor: savingTransaction ? 'not-allowed' : 'pointer',
                         fontWeight: 800,
                         fontSize: 16,
                         color: 'white',
@@ -6763,8 +6911,14 @@ const App: React.FC = () => {
                                 : 'linear-gradient(135deg,#2E9D6F,#25835D)',
                         boxShadow: '0 8px 24px rgba(16,22,47,0.18)',
                         marginTop: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        opacity: savingTransaction ? 0.7 : 1,
                       }}
                     >
+                      {savingTransaction && <Loader2 className="w-5 h-5 animate-spin" />}
                       {editTransactionData ? 'Salvar Alterações' : t.confirmTransaction}
                     </button>
                   </form>
@@ -6778,6 +6932,14 @@ const App: React.FC = () => {
           <FullScreenModal>
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4">
               <div className="bg-white w-full max-w-2xl rounded-t42xl shadow-2xl p-10 space-y-8 animate-in zoom-in overflow-y-auto max-h-[90vh]">
+                {planLimitReason && (
+                  <p
+                    role="status"
+                    className="text-center text-base font-black text-amber-900 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3"
+                  >
+                    {planLimitReason}
+                  </p>
+                )}
                 <div className="text-center">
                   <div className="bg-indigo-600 w-20 h-20 rounded-full flex items-center justify-center mx-auto text-amber-300 shadow-xl mb-4">
                     <Crown className="w-10 h-10" />
@@ -6864,7 +7026,10 @@ const App: React.FC = () => {
                   })}
                 </div>
                 <button
-                  onClick={() => setIsUpgradeModalOpen(false)}
+                  onClick={() => {
+                    setPlanLimitReason(null);
+                    setIsUpgradeModalOpen(false);
+                  }}
                   className="w-full text-slate-400 text-sm font-bold uppercase tracking-widest"
                 >
                   Fechar
@@ -6928,28 +7093,40 @@ const App: React.FC = () => {
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      const fd = new FormData(e.currentTarget);
-                      const event: BillEvent = {
-                        id: generateId(),
-                        name: fd.get('name') as string,
-                        date: Date.now(),
-                        items: [],
-                        participants: [
-                          {
-                            id: generateId(),
-                            name: user?.name || 'Eu',
-                            itemIds: [],
-                            isOwner: true,
-                          },
-                        ],
-                        isCompleted: false,
-                        ownerParticipating: true,
-                        splitDirty: false,
-                      };
-                      setEvents((prev) => [...prev, event]);
-                      setSelectedEventId(event.id);
-                      setIsEventModalOpen(false);
-                      setActiveView(AppView.EVENT_DETAIL);
+                      if (savingEventRef.current) return;
+                      savingEventRef.current = true;
+                      setSavingEvent(true);
+                      try {
+                        if (Number.isFinite(plan.maxEvents) && events.length >= plan.maxEvents) {
+                          showPlanLimit('eventos', plan.maxEvents);
+                          return;
+                        }
+                        const fd = new FormData(e.currentTarget);
+                        const event: BillEvent = {
+                          id: generateId(),
+                          name: fd.get('name') as string,
+                          date: Date.now(),
+                          items: [],
+                          participants: [
+                            {
+                              id: generateId(),
+                              name: user?.name || 'Eu',
+                              itemIds: [],
+                              isOwner: true,
+                            },
+                          ],
+                          isCompleted: false,
+                          ownerParticipating: true,
+                          splitDirty: false,
+                        };
+                        setEvents((prev) => [...prev, event]);
+                        setSelectedEventId(event.id);
+                        setIsEventModalOpen(false);
+                        setActiveView(AppView.EVENT_DETAIL);
+                      } finally {
+                        savingEventRef.current = false;
+                        setSavingEvent(false);
+                      }
                     }}
                   >
                     <label
@@ -6987,19 +7164,27 @@ const App: React.FC = () => {
                     />
                     <button
                       type="submit"
+                      disabled={savingEvent}
+                      aria-busy={savingEvent}
                       style={{
                         width: '100%',
                         padding: '16px',
                         borderRadius: 16,
                         border: 'none',
-                        cursor: 'pointer',
+                        cursor: savingEvent ? 'not-allowed' : 'pointer',
                         fontWeight: 900,
                         fontSize: 16,
                         color: 'white',
                         background: 'linear-gradient(135deg,#0EA5E9,#6366F1)',
                         boxShadow: '0 4px 20px rgba(14,165,233,0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        opacity: savingEvent ? 0.7 : 1,
                       }}
                     >
+                      {savingEvent && <Loader2 className="w-5 h-5 animate-spin" />}
                       Criar Evento e Adicionar Participantes
                     </button>
                   </form>
