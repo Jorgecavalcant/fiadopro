@@ -74,14 +74,26 @@ describe('calculateScore', () => {
 });
 
 describe('computeRawBalance', () => {
-  it('soma DEBT e subtrai PAYMENT/ABATIMENTO/REFUND', () => {
+  it('soma DEBT e REFUND e subtrai PAYMENT e ABATIMENTO', () => {
     const list = [
       tx({ amount: 100, type: 'DEBT' }),
       tx({ amount: 30, type: 'PAYMENT' }),
       tx({ amount: 20, type: 'ABATIMENTO' }),
       tx({ amount: 10, type: 'REFUND' }),
     ];
-    expect(computeRawBalance(list)).toBe(40);
+    expect(computeRawBalance(list)).toBe(60);
+  });
+
+  it('devolução de 425 zera o crédito de 425 e o pagamento seguinte não vira crédito', () => {
+    const ateOCredito = [
+      tx({ amount: 75, type: 'DEBT' }),
+      tx({ amount: 500, type: 'PAYMENT' }),
+    ];
+    expect(computeRawBalance(ateOCredito)).toBe(-425);
+    const quitado = [...ateOCredito, tx({ amount: 425, type: 'REFUND' })];
+    expect(computeRawBalance(quitado)).toBe(0);
+    const deNovo = [...quitado, tx({ amount: 100, type: 'DEBT' }), tx({ amount: 100, type: 'PAYMENT' })];
+    expect(computeRawBalance(deNovo)).toBe(0);
   });
 
   it('retorna saldo negativo (crédito) quando pago a mais', () => {

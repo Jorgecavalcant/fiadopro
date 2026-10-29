@@ -6,6 +6,9 @@ import { ApiError } from '../middleware/errorHandler.js';
 import { ACCOUNT_CLOSED_TX_MESSAGE } from '../services/accountAccess.js';
 import { getUserPlan, maxReportMonths } from '../services/plans.js';
 import { reportMonthsAllowed } from '../services/planLimits.js';
+import { confirmedBalanceExpr, paymentLeavesCredit } from '../domain/balance.js';
+
+export { paymentLeavesCredit };
 
 const router = Router();
 router.use(requireAuth);
@@ -24,10 +27,6 @@ const AttachmentSchema = z.object({
 
 export const CREDIT_CONFIRM_MESSAGE =
   'Esse pagamento é maior que a dívida e vira crédito. Confirme para continuar.';
-
-export function paymentLeavesCredit(balance: number, amount: number): boolean {
-  return Math.round(balance * 100) - Math.round(amount * 100) < 0;
-}
 
 export const TransactionSchema = z.object({
   id: z.string().uuid().optional(),
@@ -166,9 +165,9 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
 
     if (body.type === 'PAYMENT') {
       const bal = await query(
-        `SELECT COALESCE(SUM(CASE WHEN type = 'DEBT' THEN amount ELSE -amount END), 0) AS balance
+        `SELECT ${confirmedBalanceExpr()} AS balance
            FROM transactions
-          WHERE customer_id = $1 AND status = 'CONFIRMED'`,
+          WHERE customer_id = $1`,
         [body.customer_id],
       );
       const rawBalance = bal.rows[0]?.balance ?? 0;
@@ -222,20 +221,40 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
 // PATCH /api/transactions/:id — edição pelo dono; cliente vinculado → volta a PENDING
 router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const body = TransactionSchema.partial()
-      .omit({ id: true, customer_id: true, confirmCredit: true })
+    const parsed = TransactionSchema.partial()
+      .omit({ id: true, customer_id: true })
       .parse(req.body);
+    const confirmCredit = parsed.confirmCredit === true;
+    const body = { ...parsed };
+    delete body.confirmCredit;
     const fields = Object.entries(body).filter(([, v]) => v !== undefined);
     if (fields.length === 0)
       return next(new ApiError(400, 'Nenhum campo para atualizar', 'EMPTY_UPDATE'));
 
     const own = await query(
-      `SELECT t.id, c.linked_user_id FROM transactions t
+      `SELECT t.id, t.type, t.amount, t.customer_id, t.status, c.linked_user_id
+         FROM transactions t
         JOIN customers c ON c.id = t.customer_id
        WHERE t.id = $1 AND t.owner_user_id = $2`,
       [req.params.id, req.user!.sub],
     );
     if (!own.rows[0]) return next(new ApiError(404, 'Lançamento não encontrado', 'NOT_FOUND'));
+
+    const nextType = body.type ?? own.rows[0].type;
+    const nextAmount = body.amount ?? Number(own.rows[0].amount);
+    if (nextType === 'PAYMENT' && body.amount !== undefined) {
+      const bal = await query(
+        `SELECT ${confirmedBalanceExpr()} AS balance
+           FROM transactions
+          WHERE customer_id = $1 AND id <> $2`,
+        [own.rows[0].customer_id, req.params.id],
+      );
+      const rawBalance = bal.rows[0]?.balance ?? 0;
+      const balance = typeof rawBalance === 'number' ? rawBalance : Number(rawBalance);
+      if (paymentLeavesCredit(balance, Number(nextAmount)) && !confirmCredit) {
+        return next(new ApiError(409, CREDIT_CONFIRM_MESSAGE, 'CREDIT_CONFIRMATION_REQUIRED'));
+      }
+    }
 
     const setParts: string[] = [];
     const values: unknown[] = [];

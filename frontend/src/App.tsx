@@ -117,6 +117,7 @@ import {
 } from './services/syncService';
 import {
   calculateScore,
+  balanceSign,
   computeRawBalance,
   buildChargeMessage,
   buildWhatsAppUrl,
@@ -147,7 +148,7 @@ function balanceBeforeEdit(rawBalance: number, edited: Transaction | null): numb
   if (!edited || edited.status !== 'CONFIRMED') return rawBalance;
   const cents = Math.round(rawBalance * 100);
   const amount = Math.round(edited.amount * 100);
-  return (edited.type === 'DEBT' ? cents - amount : cents + amount) / 100;
+  return (cents - balanceSign(edited.type) * amount) / 100;
 }
 
 const STORAGE_KEY = 'fiado_pro_data_v14';
@@ -2680,7 +2681,7 @@ const CustomerDetailView = ({
       if (type === 'DEBT') return { label: 'Débito', color: '#DC2626', sign: '+' };
       if (type === 'PAYMENT') return { label: 'Pagamento', color: '#059669', sign: '-' };
       if (type === 'ABATIMENTO') return { label: 'Abatimento', color: '#7C3AED', sign: '-' };
-      if (type === 'REFUND') return { label: 'Devolução', color: '#2563EB', sign: '-' };
+      if (type === 'REFUND') return { label: 'Devolução', color: '#2563EB', sign: '+' };
       return { label: type, color: '#334155', sign: '' };
     };
     const items = filteredTransactions
@@ -3143,7 +3144,7 @@ const CustomerDetailView = ({
                       <p
                         className={`text-lg font-black whitespace-nowrap ${tx.type === 'DEBT' ? 'text-slate-900' : tx.type === 'PAYMENT' ? 'text-emerald-600' : tx.type === 'ABATIMENTO' ? 'text-purple-600' : 'text-indigo-600'}`}
                       >
-                        {tx.type === 'DEBT' ? '+' : tx.type === 'ABATIMENTO' ? '⊖' : '-'}
+                        {balanceSign(tx.type) < 0 ? '−' : '+'}
                         {formatCurrency(tx.amount)}
                       </p>
                       <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
@@ -4043,14 +4044,41 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
-    schedulePush(true, customers, transactions, (patches) => {
-      setTransactions((prev) =>
-        prev.map((tx) => {
-          const patch = patches.find((p) => p.id === tx.id);
-          return patch ? { ...tx, status: patch.status } : tx;
-        }),
-      );
-    });
+    schedulePush(
+      true,
+      customers,
+      transactions,
+      (patches) => {
+        setTransactions((prev) =>
+          prev.map((tx) => {
+            const patch = patches.find((p) => p.id === tx.id);
+            return patch ? { ...tx, status: patch.status } : tx;
+          }),
+        );
+      },
+      (txId) => {
+        const tx = transactions.find((item) => item.id === txId);
+        if (!tx || tx.creditConfirmed) return;
+        const customer = customers.find((item) => item.id === tx.customerId);
+        const others = transactions.filter(
+          (item) =>
+            item.customerId === tx.customerId && item.status === 'CONFIRMED' && item.id !== tx.id,
+        );
+        const balance = computeRawBalance(others);
+        const owed = Math.max(0, balance);
+        const extra = Math.max(0, Math.round((tx.amount - owed) * 100) / 100);
+        const confirmed = window.confirm(
+          `${customer?.name ?? 'O cliente'} devia ${formatCurrency(owed)}. Os ${formatCurrency(extra)} a mais vão ficar como crédito dele (você vai dever a ele). Confirmar?`,
+        );
+        if (!confirmed) {
+          showToast('O pagamento continua neste aparelho até você confirmar o crédito.');
+          return;
+        }
+        setTransactions((prev) =>
+          prev.map((item) => (item.id === txId ? { ...item, creditConfirmed: true } : item)),
+        );
+      },
+    );
   }, [user, customers, transactions]);
 
   const handleUpdateNote = (noteId: string) => {
@@ -4240,7 +4268,7 @@ const App: React.FC = () => {
       const customerTransactions = transactions.filter(
         (tData) => tData.customerId === c.id && tData.status === 'CONFIRMED',
       );
-      // DEBT aumenta saldo; PAYMENT/ABATIMENTO/REFUND reduzem (REFUND pode gerar saldo negativo → TO_PAY)
+      // DEBT e REFUND aumentam. PAYMENT e ABATIMENTO diminuem.
       const rawBalance = computeRawBalance(customerTransactions);
 
       const lastActivity =
@@ -4480,6 +4508,7 @@ const App: React.FC = () => {
       showToast('Informe um valor maior que zero');
       return;
     }
+    let creditConfirmed = false;
     if (transactionType === 'PAYMENT') {
       const customer = customersWithBalance.find((c) => c.id === selectedCustomerId);
       if (customer) {
@@ -4493,6 +4522,7 @@ const App: React.FC = () => {
             `${customer.name} devia ${formatCurrency(owed)}. Os ${formatCurrency(extra)} a mais vão ficar como crédito dele (você vai dever a ele). Confirmar?`,
           );
           if (!confirmed) return;
+          creditConfirmed = true;
         }
       }
     }
@@ -4543,6 +4573,7 @@ const App: React.FC = () => {
                 dueDate: dueDate ? new Date(dueDate).getTime() : undefined,
                 eventId: eventId || undefined,
                 ...(attachment ? { attachment } : {}),
+                ...(creditConfirmed ? { creditConfirmed: true } : {}),
               }
             : tx,
         ),
@@ -4606,6 +4637,7 @@ const App: React.FC = () => {
             dueDate: dueDate ? new Date(dueDate).getTime() : undefined,
             status: 'CONFIRMED',
             eventId: eventId || undefined,
+            ...(creditConfirmed ? { creditConfirmed: true } : {}),
             ...(attachment ? { attachment } : {}),
             ...(installmentPreFill
               ? {

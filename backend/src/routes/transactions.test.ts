@@ -174,6 +174,9 @@ describe('transactions — POST / (criação por dono e por contraparte vinculad
     expect(err.message).not.toMatch(/@|cpf|pix/i);
     const sqls = queryMock.mock.calls.map((call) => String(call[0]));
     expect(sqls.some((sql) => sql.includes('INSERT INTO transactions'))).toBe(false);
+    const balanceSql = sqls.find((sql) => sql.includes('AS balance'));
+    expect(balanceSql).toContain("WHEN type = 'REFUND' THEN amount");
+    expect(balanceSql).not.toContain('ELSE -amount');
   });
 
   it('pagamento que vira crédito passa quando confirmCredit é true', async () => {
