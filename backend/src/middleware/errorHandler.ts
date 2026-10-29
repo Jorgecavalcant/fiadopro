@@ -5,6 +5,7 @@ export class ApiError extends Error {
     public statusCode: number,
     message: string,
     public code?: string,
+    public extra?: { existingCustomerId?: string },
   ) {
     super(message);
     this.name = 'ApiError';
@@ -23,10 +24,13 @@ export const errorHandler = (
 
   console.error(`[ERROR] ${code}: ${message}`, err);
 
+  const extra = err instanceof ApiError ? err.extra : undefined;
+
   res.status(statusCode).json({
     error: {
       code,
       message,
+      ...(extra?.existingCustomerId ? { existingCustomerId: extra.existingCustomerId } : {}),
       timestamp: new Date().toISOString(),
     },
   });

@@ -439,7 +439,16 @@ export async function cancelTransaction(id: string): Promise<boolean> {
   return Boolean(data?.success);
 }
 
-export async function saveCustomerToServer(customer: Customer, editing: boolean): Promise<string | 'offline' | null> {
+export interface CustomerSaveError {
+  message: string;
+  code?: string;
+  existingCustomerId?: string;
+}
+
+export async function saveCustomerToServer(
+  customer: Customer,
+  editing: boolean,
+): Promise<CustomerSaveError | 'offline' | null> {
   const body = toServerCustomerBody(customer);
   const send = async (method: 'POST' | 'PATCH', path: string) => {
     const res = await fetch(`${API_URL}${path}`, {
@@ -448,9 +457,15 @@ export async function saveCustomerToServer(customer: Customer, editing: boolean)
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    let data: { success?: boolean; error?: { message?: string } } | null = null;
+    let data: {
+      success?: boolean;
+      error?: { message?: string; code?: string; existingCustomerId?: string };
+    } | null = null;
     try {
-      data = (await res.json()) as { success?: boolean; error?: { message?: string } };
+      data = (await res.json()) as {
+        success?: boolean;
+        error?: { message?: string; code?: string; existingCustomerId?: string };
+      };
     } catch {
       data = null;
     }
@@ -462,7 +477,11 @@ export async function saveCustomerToServer(customer: Customer, editing: boolean)
       ({ res, data } = await send('POST', '/customers'));
     }
     if (!res.ok || data?.success === false) {
-      return data?.error?.message || 'Não foi possível salvar o cliente.';
+      return {
+        message: data?.error?.message || 'Não foi possível salvar o cliente.',
+        code: data?.error?.code,
+        existingCustomerId: data?.error?.existingCustomerId,
+      };
     }
     shadowCustomers.set(customer.id, fingerprintCustomer(customer));
     return null;

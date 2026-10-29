@@ -173,6 +173,7 @@
 | 29/10/2026 | Implement | O pagamento passa por uma interface única. Hoje só o Asaas implementa. A regra de plano não chama o Asaas direto. Nenhum outro provedor foi ligado. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 29/10/2026 | Implement | O site mostra o preço do Pro que vem do servidor. Enterprise aparece sem preço e sem checkout. O aplicativo Android não leva preço, botão nem link de assinatura. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 29/10/2026 | Implement | O admin concede cortesia, teste de 14 dias (uma vez), cupom e promoção com prazo. Vencida, a pessoa volta ao plano pago ou ao Free. O registro guarda plano e validade, sem CPF, e-mail ou Pix. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
+| 29/10/2026 | Implement | O mesmo celular não entra duas vezes na mesma loja. O servidor responde 409 e a tela abre o cadastro que já existe. Nome repetido só avisa. Não há índice único, para o deploy não quebrar se a produção já tiver número repetido. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 
 ---
 
