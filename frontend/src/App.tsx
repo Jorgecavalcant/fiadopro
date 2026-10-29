@@ -28,7 +28,6 @@ import {
   Loader2,
   ArrowDownCircle,
   RefreshCcw,
-  ArrowLeftCircle,
   MapPin,
   Mail,
   Filter,
@@ -94,6 +93,12 @@ import HelpView from './components/HelpView';
 import CurrencyInput from './components/CurrencyInput';
 import BrDateField from './components/BrDateField';
 import SaveButton from './components/SaveButton';
+import {
+  balanceDirection,
+  CreditBalanceNotice,
+  CurrentBalanceBanner,
+  WholeBalanceButton,
+} from './components/BalancePanels';
 import ReceivablesListView from './components/ReceivablesListView';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -144,19 +149,7 @@ import {
   formatBrDateTime,
   timestampToIsoDate,
 } from './utils/formatBr';
-
-function balanceDirection(
-  rawBalance: number,
-  formatCurrency: (value: number) => string,
-): { text: string; color: string } {
-  if (rawBalance > 0) {
-    return { text: `Te deve ${formatCurrency(rawBalance)}`, color: '#DC2626' };
-  }
-  if (rawBalance < 0) {
-    return { text: `Você deve ${formatCurrency(Math.abs(rawBalance))}`, color: '#059669' };
-  }
-  return { text: 'Em dia', color: '#94A3B8' };
-}
+import { pastZeroPrompt } from './utils/launchBalance';
 
 function balanceBeforeEdit(rawBalance: number, edited: Transaction | null): number {
   if (!edited || edited.status !== 'CONFIRMED') return rawBalance;
@@ -2832,44 +2825,6 @@ const CustomerDetailView = ({
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
 
-  const handleExecuteRefund = () => {
-    if (selectedCustomer.rawBalance >= 0) return;
-    const refundAmount = Math.abs(selectedCustomer.rawBalance);
-    if (window.confirm(`${t.recordRefund}: ${formatCurrency(refundAmount)}?`)) {
-      setTransactions((prev: Transaction[]) => [
-        ...prev,
-        {
-          id: generateId(),
-          customerId: selectedCustomer.id,
-          amount: refundAmount,
-          type: 'DEBT',
-          description: t.recordRefund,
-          timestamp: Date.now(),
-          status: 'CONFIRMED',
-        },
-      ]);
-    }
-  };
-
-  const handleSettleAsProfit = () => {
-    if (selectedCustomer.rawBalance >= 0) return;
-    const settleAmount = Math.abs(selectedCustomer.rawBalance);
-    if (window.confirm(`${t.incorporateProfit}: ${formatCurrency(settleAmount)}?`)) {
-      setTransactions((prev: Transaction[]) => [
-        ...prev,
-        {
-          id: generateId(),
-          customerId: selectedCustomer.id,
-          amount: settleAmount,
-          type: 'DEBT',
-          description: t.incorporateProfit,
-          timestamp: Date.now(),
-          status: 'CONFIRMED',
-        },
-      ]);
-    }
-  };
-
   const handleDeleteTransaction = (id: string) => {
     if (window.confirm(t.confirmDelete)) {
       setTransactions((prev: Transaction[]) => prev.filter((tx) => tx.id !== id));
@@ -3034,36 +2989,11 @@ const CustomerDetailView = ({
           </div>
         )}
 
-        {selectedCustomer.rawBalance < 0 && !selectedCustomer.counterpartClosed && (
-          <div className="bg-indigo-50 border border-indigo-100 rounded-t42lg p-8 mb-12 animate-in slide-in-from-top-4 duration-300 relative z-10">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
-                  <ArrowDownCircle className="w-8 h-8" />
-                </div>
-                <div>
-                  <h4 className="text-xl font-black text-indigo-900">{t.moneyToReturn}</h4>
-                  <p className="text-sm text-indigo-700 font-medium">
-                    Este cliente possui saldo credor. Como deseja proceder?
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-3 w-full md:w-auto">
-                <button
-                  onClick={handleSettleAsProfit}
-                  className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-black text-sm transition-all shadow-md bg-indigo-600 text-white shadow-indigo-100"
-                >
-                  <RefreshCcw className="w-4 h-4" /> {t.incorporateProfit}
-                </button>
-                <button
-                  onClick={handleExecuteRefund}
-                  className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-black text-sm transition-all shadow-md bg-indigo-600 text-white shadow-indigo-100"
-                >
-                  <ArrowLeftCircle className="w-4 h-4" /> {t.returnToCustomer}
-                </button>
-              </div>
-            </div>
-          </div>
+        {selectedCustomer && !selectedCustomer.counterpartClosed && (
+          <CreditBalanceNotice
+            rawBalance={selectedCustomer.rawBalance}
+            formatCurrency={formatCurrency}
+          />
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
@@ -3756,31 +3686,6 @@ const ToPayView: React.FC<{
                 className="flex-1 px-3 py-2 bg-green-600 text-white rounded-xl font-black text-xs hover:bg-green-700 transition-all active:scale-95"
               >
                 Devolver
-              </button>
-              <button
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      `Absorver crédito de ${formatCurrency(Math.abs(c.rawBalance))} de ${c.name} como lucro?`,
-                    )
-                  ) {
-                    setTransactions((prev) => [
-                      ...prev,
-                      {
-                        id: generateId(),
-                        customerId: c.id,
-                        amount: Math.abs(c.rawBalance),
-                        type: 'DEBT' as TransactionType,
-                        description: 'Crédito absorvido como lucro',
-                        timestamp: Date.now(),
-                        status: 'CONFIRMED' as const,
-                      },
-                    ]);
-                  }
-                }}
-                className="flex-1 px-3 py-2 bg-purple-600 text-white rounded-xl font-black text-xs hover:bg-purple-700 transition-all active:scale-95"
-              >
-                Abater
               </button>
               <button
                 onClick={() => navigateToCustomer(c.id)}
@@ -4677,6 +4582,20 @@ const App: React.FC = () => {
     setAmountError(nextAmountError);
     setDescriptionError(nextDescriptionError);
     if (nextAmountError || nextDescriptionError) return;
+    if ((transactionType === 'REFUND' || transactionType === 'ABATIMENTO') && selectedCustomerId) {
+      const customer = customersWithBalance.find((c) => c.id === selectedCustomerId);
+      if (customer) {
+        const base = balanceBeforeEdit(customer.rawBalance, editTransactionData);
+        const prompt = pastZeroPrompt({
+          type: transactionType,
+          name: customer.name,
+          balance: base,
+          amount,
+          formatCurrency,
+        });
+        if (prompt && !window.confirm(prompt)) return;
+      }
+    }
     savingTransactionRef.current = true;
     setSavingTransaction(true);
     try {
@@ -6691,61 +6610,12 @@ const App: React.FC = () => {
               </div>
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 <div style={{ maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
-                  {(transactionType === 'DEBT' || transactionType === 'PAYMENT') &&
-                    selectedCustomer && (
-                      <div
-                        role="status"
-                        style={{
-                          marginBottom: 20,
-                          padding: '18px 20px',
-                          borderRadius: 18,
-                          background:
-                            selectedCustomer.rawBalance > 0
-                              ? '#FEF2F2'
-                              : selectedCustomer.rawBalance < 0
-                                ? '#ECFDF5'
-                                : '#F8FAFC',
-                          border: '1px solid #E2E8F0',
-                        }}
-                      >
-                        <p
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 800,
-                            letterSpacing: '0.08em',
-                            textTransform: 'uppercase',
-                            color: '#64748B',
-                            margin: 0,
-                          }}
-                        >
-                          Saldo atual
-                        </p>
-                        <p
-                          style={{
-                            fontSize: 28,
-                            fontWeight: 900,
-                            margin: '6px 0 0',
-                            color: balanceDirection(selectedCustomer.rawBalance, formatCurrency)
-                              .color,
-                          }}
-                        >
-                          {balanceDirection(selectedCustomer.rawBalance, formatCurrency).text}
-                        </p>
-                      </div>
-                    )}
-                  {(transactionType === 'ABATIMENTO' || transactionType === 'REFUND') &&
-                    selectedCustomer && (
-                      <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          Saldo do cliente
-                        </span>
-                        <span
-                          className={`text-lg font-black ${selectedCustomer.balance > 0 ? 'text-orange-600' : selectedCustomer.balance < 0 ? 'text-emerald-600' : 'text-slate-500'}`}
-                        >
-                          Saldo: {formatCurrency(selectedCustomer.balance)}
-                        </span>
-                      </div>
-                    )}
+                  {selectedCustomer && (
+                    <CurrentBalanceBanner
+                      rawBalance={selectedCustomer.rawBalance}
+                      formatCurrency={formatCurrency}
+                    />
+                  )}
                   <form noValidate onSubmit={addTransaction} className="space-y-6">
                     {installmentPreFill && (
                       <div className="flex items-center gap-3 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
@@ -6805,6 +6675,19 @@ const App: React.FC = () => {
                             Quitar
                           </button>
                         )}
+                      {selectedCustomer && (
+                        <WholeBalanceButton
+                          type={transactionType}
+                          rawBalance={balanceBeforeEdit(
+                            selectedCustomer.rawBalance,
+                            editTransactionData,
+                          )}
+                          onFill={(valor) => {
+                            setCurrentAmountValue(valor);
+                            setAmountError('');
+                          }}
+                        />
+                      )}
                     </div>
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">

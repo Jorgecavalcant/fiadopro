@@ -33,7 +33,7 @@ const HelpView = () => {
     {
       title: 'Devolução',
       content:
-        'No perfil, toque em Devolução e informe o valor. Se sobrar saldo a favor, o cliente aparece em A Pagar (Devoluções). Lá os botões são Devolver e Abater. No perfil, os botões desse saldo são Acerto de Lucro e Devolver p/ Cliente.',
+        'No perfil, toque em Devolução e informe o valor. Se a loja deve ao cliente, o aviso pede para usar Devolução ou Abatimento. Devolver tudo e Abater tudo preenchem o valor que zera o saldo. Esse cliente aparece em A Pagar (Devoluções).',
     },
     {
       title: 'Pontualidade do cliente',
