@@ -5,6 +5,10 @@ const queryMock = vi.fn();
 
 vi.mock('../config/database.js', () => ({
   query: (...args: unknown[]) => queryMock(...args),
+  getClient: async () => ({
+    query: (...args: unknown[]) => queryMock(...args),
+    release() {},
+  }),
 }));
 
 vi.mock('../services/asaas.js', async (importOriginal) => {
@@ -104,20 +108,23 @@ describe('billing — webhookHandler', () => {
   });
 
   it('PAYMENT_CONFIRMED com token correto ativa PRO com validade de 32 dias', async () => {
-    queryMock.mockResolvedValueOnce({ rows: [] }); // UPDATE nao retorna rows relevantes
+    queryMock
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ event_id: 'evt_1' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
     const req: any = {
       headers: { 'asaas-access-token': 'webhook-secret-token' },
-      body: { event: 'PAYMENT_CONFIRMED', payment: { subscription: 'sub_1' } },
+      body: { id: 'evt_1', event: 'PAYMENT_CONFIRMED', payment: { subscription: 'sub_1' } },
     };
     const res = fakeRes();
 
     await webhookHandler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(queryMock).toHaveBeenCalledTimes(1);
-    const [sql, params] = queryMock.mock.calls[0];
-    expect(sql).toContain("plan = 'PRO'");
-    expect(sql).toContain("status = 'active'");
+    const update = queryMock.mock.calls.find(([sql]) => String(sql).includes("plan = 'PRO'"));
+    expect(update).toBeTruthy();
+    const params = update![1] as unknown[];
     expect(params[1]).toBe('sub_1');
     const periodEnd = params[0] as Date;
     const diffDays = (periodEnd.getTime() - Date.now()) / (24 * 60 * 60 * 1000);
@@ -125,51 +132,79 @@ describe('billing — webhookHandler', () => {
     expect(diffDays).toBeLessThan(33);
   });
 
-  it('PAYMENT_OVERDUE volta o plano para FREE', async () => {
-    queryMock.mockResolvedValueOnce({ rows: [] });
+  it('PAYMENT_OVERDUE só corta quando o período pago já acabou', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ event_id: 'evt_2' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
     const req: any = {
       headers: { 'asaas-access-token': 'webhook-secret-token' },
-      body: { event: 'PAYMENT_OVERDUE', payment: { subscription: 'sub_2' } },
+      body: { id: 'evt_2', event: 'PAYMENT_OVERDUE', payment: { subscription: 'sub_2' } },
     };
     const res = fakeRes();
 
     await webhookHandler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    const [sql, params] = queryMock.mock.calls[0];
-    expect(sql).toContain("plan = 'FREE'");
-    expect(params[0]).toBe('overdue');
-    expect(params[1]).toBe('sub_2');
+    const update = queryMock.mock.calls.find(([sql]) => String(sql).includes('current_period_end'));
+    expect(String(update?.[0])).toContain('current_period_end <= NOW()');
+    expect(update?.[1]).toEqual(['sub_2']);
   });
 
-  it('SUBSCRIPTION_DELETED volta o plano para FREE com status canceled', async () => {
-    queryMock.mockResolvedValueOnce({ rows: [] });
+  it('SUBSCRIPTION_DELETED volta o plano pago para FREE com status canceled', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ event_id: 'evt_3' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
     const req: any = {
       headers: { 'asaas-access-token': 'webhook-secret-token' },
-      body: { event: 'SUBSCRIPTION_DELETED', payment: { subscription: 'sub_3' } },
+      body: { id: 'evt_3', event: 'SUBSCRIPTION_DELETED', payment: { subscription: 'sub_3' } },
     };
     const res = fakeRes();
 
     await webhookHandler(req, res);
 
-    const [, params] = queryMock.mock.calls[0];
-    expect(params[0]).toBe('canceled');
+    const update = queryMock.mock.calls.find(([sql]) => String(sql).includes("plan = 'FREE'"));
+    expect(update?.[1]).toEqual(['canceled', 'sub_3']);
   });
 
-  it('e idempotente: aplicar o mesmo evento duas vezes gera o mesmo UPDATE, sem duplicar efeitos', async () => {
-    queryMock.mockResolvedValue({ rows: [] });
+  it('o mesmo evento na segunda vez não altera o plano de novo', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ event_id: 'evt_4' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
     const req: any = {
       headers: { 'asaas-access-token': 'webhook-secret-token' },
-      body: { event: 'PAYMENT_CONFIRMED', payment: { subscription: 'sub_4' } },
+      body: { id: 'evt_4', event: 'PAYMENT_CONFIRMED', payment: { subscription: 'sub_4' } },
     };
 
     await webhookHandler(req, fakeRes());
     await webhookHandler(req, fakeRes());
 
-    expect(queryMock).toHaveBeenCalledTimes(2);
-    const [sql1] = queryMock.mock.calls[0];
-    const [sql2] = queryMock.mock.calls[1];
-    expect(sql1).toBe(sql2); // mesmo UPDATE idempotente, so muda o timestamp de execucao
+    const updates = queryMock.mock.calls.filter(([sql]) => String(sql).includes("plan = 'PRO'"));
+    expect(updates).toHaveLength(1);
+  });
+
+  it('erro ao gravar o evento não responde sucesso', async () => {
+    queryMock.mockResolvedValue({ rows: [] });
+    queryMock
+      .mockResolvedValueOnce({ rows: [] })
+      .mockRejectedValueOnce(new Error('banco indisponivel'));
+    const req: any = {
+      headers: { 'asaas-access-token': 'webhook-secret-token' },
+      body: { id: 'evt_err', event: 'PAYMENT_CONFIRMED', payment: { subscription: 'sub_err' } },
+    };
+    const res = fakeRes();
+
+    await webhookHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
   });
 
   it('evento sem assinatura vinculada ou desconhecido responde 200 rapido sem tocar o banco', async () => {

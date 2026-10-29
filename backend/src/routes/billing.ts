@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { z } from 'zod';
-import { query } from '../config/database.js';
+import { query, getClient } from '../config/database.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import {
@@ -202,59 +202,109 @@ export async function cancelHandler(req: AuthRequest, res: Response, next: NextF
   }
 }
 
-// POST /api/billing/webhook/asaas — sem auth (validado por token proprio do Asaas)
-export async function webhookHandler(req: Request, res: Response) {
+type SqlRunner = (text: string, params?: unknown[]) => Promise<{ rows: unknown[] }>;
+
+/** Aplica a mudança do plano. Não mexe em concessão (cortesia, teste, cupom). */
+async function applyBillingTransition(
+  sql: SqlRunner,
+  event: string,
+  transition: 'ACTIVATE' | 'DEACTIVATE',
+  subscriptionId: string,
+) {
+  if (transition === 'ACTIVATE') {
+    const periodEnd = new Date(Date.now() + PRO_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+    await sql(
+      `UPDATE subscriptions
+          SET plan = 'PRO', status = 'active', current_period_end = $1, updated_at = NOW()
+        WHERE asaas_subscription_id = $2`,
+      [periodEnd, subscriptionId],
+    );
+    return;
+  }
+  if (event === 'PAYMENT_OVERDUE') {
+    await sql(
+      `UPDATE subscriptions
+          SET plan = 'FREE', status = 'overdue', updated_at = NOW()
+        WHERE asaas_subscription_id = $1
+          AND (current_period_end IS NULL OR current_period_end <= NOW())`,
+      [subscriptionId],
+    );
+    return;
+  }
+  const status = event === 'SUBSCRIPTION_DELETED' ? 'canceled' : 'refunded';
+  await sql(
+    `UPDATE subscriptions
+        SET plan = 'FREE', status = $1, updated_at = NOW()
+      WHERE asaas_subscription_id = $2`,
+    [status, subscriptionId],
+  );
+}
+
+// POST /api/billing/webhook/asaas — sem auth de usuário (token do provedor).
+async function recordWebhook(
+  eventId: string,
+  event: string,
+  transition: 'ACTIVATE' | 'DEACTIVATE',
+  subscriptionId: string,
+): Promise<'duplicate' | 'applied'> {
+  const client = await getClient();
   try {
-    const expected = process.env.ASAAS_WEBHOOK_TOKEN;
-    if (!expected) {
-      console.error('[Billing] ASAAS_WEBHOOK_TOKEN nao configurado — webhook recusado');
-      return res.status(503).json({ success: false, message: 'Webhook nao configurado' });
+    await client.query('BEGIN');
+    const inserted = await client.query(
+      `INSERT INTO billing_webhook_events (provider, event_id, event_name)
+       VALUES ('asaas', $1, $2)
+       ON CONFLICT (provider, event_id) DO NOTHING
+       RETURNING event_id`,
+      [eventId, event],
+    );
+    if (inserted.rows.length === 0) {
+      await client.query('COMMIT');
+      return 'duplicate';
     }
-
-    const headerValue = req.headers['asaas-access-token'];
-    const provided = Array.isArray(headerValue) ? headerValue[0] : headerValue;
-
-    if (!timingSafeEqualString(provided, expected)) {
-      return res.status(401).json({ success: false, message: 'Token invalido' });
-    }
-
-    const event = req.body?.event as string | undefined;
-    const subscriptionId: string | undefined = req.body?.payment?.subscription;
-    const transition = event ? classifyBillingEvent(event) : null;
-
-    if (!transition || !subscriptionId) {
-      // Evento que nao afeta plano (ou sem assinatura vinculada) — 200 rapido, sem processar.
-      return res.status(200).json({ success: true });
-    }
-
-    if (transition === 'ACTIVATE') {
-      const periodEnd = new Date(Date.now() + PRO_PERIOD_DAYS * 24 * 60 * 60 * 1000);
-      await query(
-        `UPDATE subscriptions
-            SET plan = 'PRO', status = 'active', current_period_end = $1, updated_at = NOW()
-          WHERE asaas_subscription_id = $2`,
-        [periodEnd, subscriptionId],
-      );
-    } else {
-      const status =
-        event === 'PAYMENT_OVERDUE'
-          ? 'overdue'
-          : event === 'SUBSCRIPTION_DELETED'
-            ? 'canceled'
-            : 'refunded';
-      await query(
-        `UPDATE subscriptions
-            SET plan = 'FREE', status = $1, updated_at = NOW()
-          WHERE asaas_subscription_id = $2`,
-        [status, subscriptionId],
-      );
-    }
-
-    res.status(200).json({ success: true });
+    await applyBillingTransition(client.query.bind(client), event, transition, subscriptionId);
+    await client.query('COMMIT');
+    return 'applied';
   } catch (err) {
-    // Nunca deixar o Asaas re-tentar em loop por falha nossa: loga e responde 200.
-    console.error('[Billing] Erro ao processar webhook Asaas:', err);
-    res.status(200).json({ success: true });
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      /* a transação já foi desfeita ou nem abriu */
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function webhookHandler(req: Request, res: Response) {
+  const expected = process.env.ASAAS_WEBHOOK_TOKEN;
+  if (!expected) {
+    console.error('[Billing] ASAAS_WEBHOOK_TOKEN nao configurado — webhook recusado');
+    return res.status(503).json({ success: false, message: 'Webhook nao configurado' });
+  }
+
+  const headerValue = req.headers['asaas-access-token'];
+  const provided = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+  if (!timingSafeEqualString(provided, expected)) {
+    return res.status(401).json({ success: false, message: 'Token invalido' });
+  }
+
+  const event = typeof req.body?.event === 'string' ? req.body.event : '';
+  const subscriptionId = req.body?.payment?.subscription as string | undefined;
+  const transition = event ? classifyBillingEvent(event) : null;
+  if (!transition || !subscriptionId) {
+    return res.status(200).json({ success: true });
+  }
+
+  const paymentId = typeof req.body?.payment?.id === 'string' ? req.body.payment.id : '';
+  const rawId = typeof req.body?.id === 'string' ? req.body.id : '';
+  const eventId = rawId || `${event}:${paymentId || subscriptionId}`;
+  try {
+    const outcome = await recordWebhook(eventId, event, transition, subscriptionId);
+    return res.status(200).json({ success: true, duplicate: outcome === 'duplicate' });
+  } catch {
+    console.error('[Billing] Erro ao processar webhook. O provedor pode tentar de novo.');
+    return res.status(500).json({ success: false });
   }
 }
 
