@@ -7,6 +7,7 @@ import { linkCustomer } from '../services/linking.js';
 import { normalizeEmail } from '../utils/normalizeEmail.js';
 import { normalizePhone } from '../utils/phone.js';
 import { OWN_EMAIL_MESSAGE, OWN_PHONE_MESSAGE } from '../services/accountAccess.js';
+import { assertCanAddCustomers } from '../services/planLimits.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -50,7 +51,11 @@ async function ownContactError(
   const me = await query('SELECT email, phone FROM users WHERE id = $1', [userId]);
   const row = me.rows[0];
   if (!row) return null;
-  if (touchesPhone && normalizePhone(phone) !== '' && normalizePhone(phone) === normalizePhone(row.phone)) {
+  if (
+    touchesPhone &&
+    normalizePhone(phone) !== '' &&
+    normalizePhone(phone) === normalizePhone(row.phone)
+  ) {
     return OWN_PHONE_MESSAGE;
   }
   if (touchesEmail && normalizeEmail(email as string) === normalizeEmail(String(row.email ?? ''))) {
@@ -84,6 +89,16 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
     const body = CustomerSchema.parse(req.body);
     const own = await ownContactError(req.user!.sub, body.phone, body.email);
     if (own) return next(new ApiError(400, own, 'OWN_CONTACT'));
+    const userId = req.user!.sub;
+    let adding = 1;
+    if (body.id) {
+      const existing = await query(
+        `SELECT 1 FROM customers WHERE id = $1 AND owner_user_id = $2 AND deleted_at IS NULL`,
+        [body.id, userId],
+      );
+      if (existing.rows.length > 0) adding = 0;
+    }
+    if (adding === 1) await assertCanAddCustomers(userId, 1);
     const result = await query(
       `INSERT INTO customers (id, owner_user_id, name, phone, email, pix_key, trusted, overpayment_strategy, notes, score)
        VALUES (COALESCE($1::uuid, uuid_generate_v4()), $2, $3, $4, $5, $6, COALESCE($7, FALSE), COALESCE($8, 'RETURN'), COALESCE($9::jsonb, '[]'::jsonb), $10)
