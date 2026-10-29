@@ -1,4 +1,5 @@
 import { query } from '../config/database.js';
+import { expireAdminAuditLogs } from './adminAudit.js';
 
 export type AccountDeletionUser = {
   password_hash: string | null;
@@ -22,7 +23,8 @@ export async function purgeExpiredAccounts(): Promise<void> {
        FROM users
       WHERE purge_after <= NOW()
         AND purge_completed_at IS NULL
-        AND deleted_at IS NOT NULL`,
+        AND deleted_at IS NOT NULL
+        AND legal_hold IS NOT TRUE`,
   );
 
   for (const row of result.rows as Array<{ id: string }>) {
@@ -49,14 +51,19 @@ export async function purgeExpiredAccounts(): Promise<void> {
   }
 }
 
+async function runAccountMaintenance(): Promise<void> {
+  await purgeExpiredAccounts();
+  await expireAdminAuditLogs();
+}
+
 export function startAccountPurgeScheduler(): ReturnType<typeof setInterval> {
-  void purgeExpiredAccounts().catch((error: unknown) => {
+  void runAccountMaintenance().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     console.error(message);
   });
 
   const timer = setInterval(() => {
-    void purgeExpiredAccounts().catch((error: unknown) => {
+    void runAccountMaintenance().catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
       console.error(message);
     });

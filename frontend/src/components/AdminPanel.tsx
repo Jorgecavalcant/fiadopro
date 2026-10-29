@@ -4,6 +4,7 @@ import {
   BarChart3,
   Settings as SettingsIcon,
   FileBarChart,
+  ClipboardList,
   Search,
   KeyRound,
   ShieldCheck,
@@ -12,13 +13,15 @@ import {
   Loader2,
   AlertCircle,
 } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'https://www.fiadopro.com.br/api';
+import { adminFetch } from './adminApi';
+import { AdminAuditTab } from './AdminAuditTab';
+import { AdminBlockDialog } from './AdminBlockDialog';
+import { BLOCK_REASON_LABEL } from './adminLabels';
 
 /* ============================================================
  * Tipos (espelham o envelope { success, ... } do backend /api/admin/*)
  * ============================================================ */
-type AdminTab = 'users' | 'metrics' | 'settings' | 'reports';
+type AdminTab = 'users' | 'metrics' | 'settings' | 'reports' | 'audit';
 
 interface AdminUser {
   id: string;
@@ -30,6 +33,10 @@ interface AdminUser {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  block_reason?: string | null;
+  block_note?: string | null;
+  legal_hold?: boolean;
+  blocked_at?: string | null;
 }
 
 interface UsersMeta {
@@ -65,29 +72,6 @@ interface ReportRow {
 /* ============================================================
  * Cliente HTTP mínimo — sempre credentials:'include' (cookie httpOnly)
  * ============================================================ */
-interface ApiEnvelope {
-  success?: boolean;
-  error?: { message?: string };
-}
-
-async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}/admin${path}`, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    ...init,
-  });
-  let data: ApiEnvelope | null = null;
-  try {
-    data = await res.json();
-  } catch {
-    // corpo vazio ou nao-JSON
-  }
-  if (!res.ok || !data?.success) {
-    throw new Error(data?.error?.message || `Falha na requisição (${res.status})`);
-  }
-  return data as T;
-}
-
 /* ============================================================
  * Componente raiz
  * ============================================================ */
@@ -99,6 +83,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
     { id: 'metrics', label: 'Métricas', icon: BarChart3 },
     { id: 'settings', label: 'Configurações', icon: SettingsIcon },
     { id: 'reports', label: 'Relatórios', icon: FileBarChart },
+    { id: 'audit', label: 'Registro', icon: ClipboardList },
   ];
 
   return (
@@ -106,7 +91,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
       <div>
         <h2 className="text-2xl font-black text-slate-900">Painel Administrativo</h2>
         <p className="text-slate-400 font-semibold text-sm">
-          Usuários, métricas, configurações e relatórios do sistema
+          Usuários, métricas, configurações, relatórios e registro de ações
         </p>
       </div>
 
@@ -131,6 +116,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
       {tab === 'metrics' && <MetricsTab />}
       {tab === 'settings' && <SettingsTab />}
       {tab === 'reports' && <ReportsTab />}
+      {tab === 'audit' && <AdminAuditTab />}
     </div>
   );
 };
@@ -162,6 +148,7 @@ const UsersTab: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [accessUser, setAccessUser] = useState<AdminUser | null>(null);
   const [editForm, setEditForm] = useState({ full_name: '', phone: '' });
   const [savingId, setSavingId] = useState<string | null>(null);
 
@@ -195,17 +182,21 @@ const UsersTab: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
     setSearch(searchInput.trim());
   };
 
-  const toggleActive = async (user: AdminUser) => {
-    const nextActive = !user.is_active;
-    if (!nextActive && !window.confirm(`Desativar o acesso de ${user.full_name || user.email}?`))
-      return;
-    setSavingId(user.id);
+  const confirmAccess = async (input: { reason: string; note: string }) => {
+    if (!accessUser) return;
+    const blocking = accessUser.is_active;
+    setSavingId(accessUser.id);
     try {
-      const data = await adminFetch<{ user: AdminUser }>(`/users/${user.id}`, {
+      const data = await adminFetch<{ user: AdminUser }>(`/users/${accessUser.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ is_active: nextActive }),
+        body: JSON.stringify(
+          blocking
+            ? { is_active: false, block_reason: input.reason, block_note: input.note || undefined }
+            : { is_active: true, unblock_note: input.note },
+        ),
       });
-      setUsers((prev) => prev.map((u) => (u.id === user.id ? data.user : u)));
+      setUsers((prev) => prev.map((u) => (u.id === accessUser.id ? data.user : u)));
+      setAccessUser(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao atualizar usuário');
     } finally {
@@ -297,11 +288,21 @@ const UsersTab: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
                     </span>
                   </td>
                   <td>
-                    <span
-                      className={`fp-badge ${u.is_active ? 'fp-badge-success' : 'fp-badge-danger'}`}
-                    >
-                      {u.is_active ? 'Ativo' : 'Inativo'}
-                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      <span
+                        className={`fp-badge ${u.is_active ? 'fp-badge-success' : 'fp-badge-danger'}`}
+                      >
+                        {u.is_active ? 'Ativo' : 'Inativo'}
+                      </span>
+                      {(u.legal_hold || u.block_reason) && (
+                        <span
+                          className={`fp-badge ${u.legal_hold ? 'fp-badge-danger' : 'fp-badge-warning'}`}
+                          title={u.block_note || BLOCK_REASON_LABEL[u.block_reason || ''] || 'Bloqueio'}
+                        >
+                          {u.legal_hold ? 'Judicial' : (BLOCK_REASON_LABEL[u.block_reason || ''] || u.block_reason)}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td>
                     <div className="flex items-center gap-1">
@@ -328,7 +329,7 @@ const UsersTab: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
                           type="button"
                           aria-label={u.is_active ? 'Bloquear acesso' : 'Desbloquear acesso'}
                           title={u.is_active ? 'Desativar' : 'Ativar'}
-                          onClick={() => toggleActive(u)}
+                          onClick={() => setAccessUser(u)}
                           disabled={savingId === u.id}
                           className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 disabled:opacity-50"
                         >
@@ -385,6 +386,16 @@ const UsersTab: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
             </button>
           </div>
         </div>
+      )}
+
+      {accessUser && (
+        <AdminBlockDialog
+          userName={accessUser.full_name || accessUser.email}
+          blocking={accessUser.is_active}
+          saving={savingId === accessUser.id}
+          onClose={() => setAccessUser(null)}
+          onConfirm={confirmAccess}
+        />
       )}
 
       {editingUser && (

@@ -2,8 +2,18 @@ import { describe, it, expect, vi, beforeEach, afterAll, beforeAll } from 'vites
 import type { AddressInfo } from 'net';
 
 // Mocks precisam vir antes dos imports que os consomem (vitest faz hoist dos vi.mock).
+const { queryMock, getClientMock } = vi.hoisted(() => {
+  const queryMock = vi.fn();
+  const getClientMock = vi.fn(async () => ({
+    query: queryMock,
+    release() {},
+  }));
+  return { queryMock, getClientMock };
+});
+
 vi.mock('../../config/database.js', () => ({
-  query: vi.fn(),
+  query: queryMock,
+  getClient: getClientMock,
 }));
 
 vi.mock('../../services/email.js', () => ({
@@ -169,27 +179,27 @@ describe('PATCH /api/admin/users/:id', () => {
   });
 
   it('atualiza is_active/full_name/phone quando payload e valido', async () => {
+    const saved = {
+      id: USER_ID,
+      email: 'u@x.com',
+      full_name: 'Novo Nome',
+      phone: null,
+      avatar_url: null,
+      role: 'user',
+      is_active: false,
+      created_at: 'x',
+      updated_at: 'x',
+      block_reason: 'fraude',
+      block_note: null,
+      legal_hold: false,
+      blocked_at: 'x',
+    };
     mockedQuery.mockImplementation(async (sql: string) => {
       if (sql.includes('SELECT role FROM users WHERE id = $1'))
         return { rows: [{ role: 'admin' }] };
-      if (sql.startsWith('SELECT id FROM users WHERE id = $1 AND deleted_at IS NULL'))
-        return { rows: [{ id: USER_ID }] };
-      if (sql.startsWith('UPDATE users SET')) {
-        return {
-          rows: [
-            {
-              id: USER_ID,
-              email: 'u@x.com',
-              full_name: 'Novo Nome',
-              phone: null,
-              avatar_url: null,
-              role: 'user',
-              is_active: false,
-              created_at: 'x',
-              updated_at: 'x',
-            },
-          ],
-        };
+      if (sql.includes('block_note')) return { rows: [saved] };
+      if (sql.includes('legal_hold')) {
+        return { rows: [{ id: USER_ID, is_active: true, block_reason: null, legal_hold: false, deleted_at: null }] };
       }
       return { rows: [] };
     });
@@ -197,12 +207,16 @@ describe('PATCH /api/admin/users/:id', () => {
     const res = await fetch(`${baseUrl}/api/admin/users/${USER_ID}`, {
       method: 'PATCH',
       headers: { ...withCookie(adminToken), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_active: false, full_name: 'Novo Nome' }),
+      body: JSON.stringify({ is_active: false, full_name: 'Novo Nome', block_reason: 'fraude' }),
     });
     const body = await json(res);
     expect(res.status).toBe(200);
     expect(body.user.is_active).toBe(false);
     expect(body.user).not.toHaveProperty('password_hash');
+    const audit = mockedQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO admin_audit_log'));
+    expect(audit).toBeTruthy();
+    expect(JSON.stringify(audit?.[1])).not.toContain('u@x.com');
+    expect(JSON.stringify(audit?.[1])).not.toContain('Novo Nome');
   });
 
   it('retorna 404 quando usuario nao existe', async () => {

@@ -60,6 +60,12 @@ describe('painel admin — bloquear a própria linha', () => {
     expect(other).not.toBeNull();
     expect(other?.disabled).toBe(false);
 
+    await act(async () => {
+      other?.click();
+    });
+    expect(document.body.textContent).toContain('Motivo');
+    expect(document.body.textContent).toContain('Não cole CPF, senha ou chave Pix nesta observação.');
+
     act(() => root.unmount());
   });
 });
