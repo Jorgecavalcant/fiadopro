@@ -184,6 +184,7 @@
 | 29/10/2026 | Implement | Devolução e Abatimento mostram o saldo atual. Devolver tudo e Abater tudo preenchem o valor que zera. Valor além disso pede confirmação. O aviso de saldo credor não tem botão. Acerto de lucro saiu da tela; o que já foi gravado continua. Pendência: corrigir o acerto de lucro numa PR própria, sem apagar o que já existe. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 29/10/2026 | Proposta | Visual único e simulação da Fase 3 em docs/design-proposta. Nenhum arquivo de produção foi alterado. | PR aberta, sem merge. | Jorge: aprovar ou ajustar a proposta antes de qualquer tela nova. |
 | 29/10/2026 | Proposta | A proposta do PR #60 foi refeita no padrão sóbrio aprovado: azul-marinho #2B2F77, fundo claro, ícone de linha, sem gradiente e sem emoji. A interface fala em Minha conta e Pessoas. No Free o patrocínio é um cartão com o rótulo Patrocinado. No Pro não há anúncio. Continua só documentação. Produção não foi alterada. | PR #60 atualizada, sem merge. | Jorge: revisar os protótipos em 360px e 1280px. |
+| 29/10/2026 | Implement | Base visual: cores, componentes e navegação de Início, Pessoas, Extrato e Menu. A tela passa a dizer Minha conta e Pessoas. Rotas, saldo e lançamentos continuam iguais. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. As telas inteiras ficam para os próximos PRs. |
 
 ---
 

@@ -224,7 +224,7 @@ describe('saldo nas abas e aviso credor', () => {
     expect(notice).toBeTruthy();
     expect(notice?.textContent).toContain('Você deve');
     expect(notice?.textContent).toContain('425,00');
-    expect(notice?.textContent).toContain('a este cliente');
+    expect(notice?.textContent).toContain('a esta pessoa');
     expect(notice?.textContent).toContain('Use Devolução para devolver o dinheiro');
     expect(notice?.querySelector('button')).toBeNull();
     expect(notice?.textContent).not.toContain('Acerto de Lucro');
