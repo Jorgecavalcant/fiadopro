@@ -107,10 +107,11 @@ export function resolveEffectivePlan(row: PlanRow): Plan {
 }
 
 /**
- * Lê o plano no banco. Falha de leitura devolve FREE e não derruba o app.
- * Não consulta o provedor de pagamento.
+ * Lê o plano no banco. Falha de leitura devolve FREE e confirmed false.
+ * O app antigo continua recebendo FREE. Patrocínio usa confirmed para não
+ * abrir tela cheia quando o plano não foi lido. Não consulta o provedor.
  */
-export async function getUserPlan(userId: string): Promise<Plan> {
+export async function readUserPlan(userId: string): Promise<{ plan: Plan; confirmed: boolean }> {
   try {
     const result = await query(
       `SELECT u.role,
@@ -143,12 +144,17 @@ export async function getUserPlan(userId: string): Promise<Plan> {
       [userId],
     );
     const row = result.rows[0] as PlanRow | undefined;
-    if (!row) return 'FREE';
-    return resolveEffectivePlan(row);
+    if (!row) return { plan: 'FREE', confirmed: true };
+    return { plan: resolveEffectivePlan(row), confirmed: true };
   } catch (err) {
     console.error('[Billing] Erro ao consultar plano do usuario:', err);
-    return 'FREE';
+    return { plan: 'FREE', confirmed: false };
   }
+}
+
+/** Lê o plano no banco. Falha de leitura devolve FREE e não derruba o app. */
+export async function getUserPlan(userId: string): Promise<Plan> {
+  return (await readUserPlan(userId)).plan;
 }
 
 /** Janela máxima (em meses) de relatórios permitida para cada plano. */

@@ -64,6 +64,12 @@ describe('plans.getUserPlan', () => {
     queryMock.mockRejectedValueOnce(new Error('conexao recusada'));
     await expect(getUserPlan('user-6')).resolves.toBe('FREE');
   });
+
+  it('marca o plano como não confirmado quando a consulta falha', async () => {
+    queryMock.mockRejectedValueOnce(new Error('conexao recusada'));
+    const { readUserPlan } = await import('./plans.js');
+    await expect(readUserPlan('user-7')).resolves.toEqual({ plan: 'FREE', confirmed: false });
+  });
 });
 
 describe('plans.maxReportMonths', () => {

@@ -19,6 +19,8 @@ import inboxRoutes from './routes/inbox.js';
 import adminRoutes from './routes/admin.js';
 import billingRoutes from './routes/billing.js';
 import aiRoutes, { adminAiConfigRouter } from './routes/ai.js';
+import sponsorRoutes from './routes/sponsors.js';
+import adminSponsorRoutes from './routes/adminSponsors.js';
 import { ensureAdminRole } from './services/linking.js';
 import { startAccountPurgeScheduler } from './services/accountPurge.js';
 
@@ -76,6 +78,8 @@ app.use('/api/transactions', transactionsRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin', adminAiConfigRouter);
+app.use('/api/admin/sponsors', adminSponsorRoutes);
+app.use('/api/sponsors', sponsorRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api', inboxRoutes);
