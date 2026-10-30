@@ -8,6 +8,7 @@ import {
   eventAllowed,
   metricPlan,
   pickCreative,
+  pruneOnceKeys,
   saoPauloToday,
   saoPauloTurn,
   toPublicCreative,
@@ -114,6 +115,7 @@ export async function recordEvent(
   now = new Date(),
 ): Promise<{ counted: boolean }> {
   const today = saoPauloToday(now);
+  pruneOnceKeys(once, today);
   const key = `${userId}|${creativeId}|${tipo}|${today}`;
   if (once.has(key)) return { counted: false };
   if (!consumeRate(rates, userId, now.getTime(), 30, 60_000)) {

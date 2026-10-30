@@ -246,6 +246,55 @@ export async function createCreative(
   });
 }
 
+export async function updateCreative(
+  adminId: string,
+  id: string,
+  input: {
+    tipo: 'imagem' | 'video';
+    slot: SponsorSlot;
+    media_url: string;
+    link_destino: string;
+    titulo: string;
+    texto_alt: string;
+  },
+) {
+  return withTransaction(async (sql) => {
+    const current = await sql(
+      `SELECT c.id, c.tipo, c.slot, c.titulo, k.status, k.slots
+         FROM sponsor_creatives c
+         JOIN sponsor_contracts k ON k.id = c.contract_id
+        WHERE c.id = $1`,
+      [id],
+    );
+    const row = current.rows[0];
+    if (!row) throw new ApiError(404, 'Criativo não encontrado.', 'NOT_FOUND');
+    if (row.status === 'vencido' || row.status === 'cancelado') {
+      throw new ApiError(409, 'Contrato encerrado não troca de criativo. Renove.', 'OFF_AIR');
+    }
+    const slots = row.slots as string[];
+    if (!slots.includes(input.slot)) {
+      throw new ApiError(400, 'O criativo precisa usar um espaço do contrato.', 'VALIDATION');
+    }
+    const result = await sql(
+      `UPDATE sponsor_creatives
+          SET tipo = $2, slot = $3, media_url = $4, link_destino = $5,
+              titulo = $6, texto_alt = $7, updated_at = NOW()
+        WHERE id = $1
+        RETURNING id, tipo, slot, titulo, ativo, ordem`,
+      [id, input.tipo, input.slot, input.media_url, input.link_destino, input.titulo, input.texto_alt],
+    );
+    const safe = { id: row.id, tipo: row.tipo, slot: row.slot, titulo: row.titulo };
+    const next = result.rows[0];
+    await audit(sql, adminId, 'SPONSOR_CREATIVE_UPDATE', safe, {
+      id: next.id,
+      tipo: next.tipo,
+      slot: next.slot,
+      titulo: next.titulo,
+    });
+    return next;
+  });
+}
+
 export async function contractResults(contractId: string, from: string, to: string) {
   const rows = await query(
     `SELECT slot, plano,

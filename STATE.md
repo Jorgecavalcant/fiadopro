@@ -190,6 +190,7 @@
 | 30/10/2026 | Implement | Acabamento visual: cabeçalho claro, Início sem o botão flutuante, patrocínio em uma linha no Free, e os formulários, o detalhe do cliente e Dividir conta no mesmo padrão do Início. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 30/10/2026 | Implement | Teste da planilha do admin lê o texto das células, e o detalhe do cliente, o cadastro e Dividir conta fecham os detalhes visuais. A exportação da planilha não mudou. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 30/10/2026 | Implement | Servidor de patrocinadores locais: contrato com data, criativo por link https e contagem do dia, sem tela. Free vê faixa e tela cheia; Pro só a faixa; Enterprise não vê. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
+| 30/10/2026 | Implement | Aba Marketing no painel, com prévia da faixa e da tela cheia e PDF só de contagens. O app do usuário ainda não mostra anúncio. Contrato vencido não volta sozinho. | PR aberta, sem merge. | Jorge: revisar a PR. |
 
 ---
 

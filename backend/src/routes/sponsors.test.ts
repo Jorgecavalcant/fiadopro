@@ -221,4 +221,22 @@ describe('rotas de patrocínio', () => {
     expect(body.results[0].ctr).toBe(0.25);
     expect(JSON.stringify(body)).not.toContain('user_id');
   });
+
+  it('a lista do marketing não pede contato nem pessoa', async () => {
+    const sqls: string[] = [];
+    queryMock.mockImplementation(async (sql: string) => {
+      sqls.push(String(sql));
+      if (String(sql).includes('SELECT role FROM users')) return { rows: [{ role: 'admin' }] };
+      return { rows: [] };
+    });
+    const missing = await fetch(`${baseUrl}/api/admin/sponsors/board`);
+    expect(missing.status).toBe(401);
+    const res = await fetch(`${baseUrl}/api/admin/sponsors/board`, {
+      headers: { Cookie: `fiado_token=${adminToken}` },
+    });
+    expect(res.status).toBe(200);
+    const joined = sqls.join('\n');
+    expect(joined).toContain('FROM sponsors');
+    expect(joined).not.toMatch(/contato_nome|valor_centavos|user_id/);
+  });
 });

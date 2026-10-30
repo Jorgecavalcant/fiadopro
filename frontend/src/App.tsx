@@ -62,6 +62,7 @@ import {
 } from './types';
 import Layout from './components/Layout';
 import AdminPanel from './components/AdminPanel';
+import { adminPanelFor } from './utils/adminAccess';
 import UpgradePlano from './components/UpgradePlano';
 import FullScreenModal from './components/FullScreenModal';
 import DeleteAccountPanels from './components/DeleteAccountPanels';
@@ -5165,7 +5166,7 @@ const App: React.FC = () => {
               }}
             />
           )}
-          {activeView === AppView.ADMIN && user && user.role === 'admin' && (
+          {activeView === AppView.ADMIN && user && adminPanelFor(user.role) && (
             <AdminPanel currentUserId={user.id} />
           )}
         </Layout>

@@ -168,6 +168,57 @@ export function toPublicCreative(row: PublicCreative & Record<string, unknown>):
 
 const PRIVATE_V4 = /^(?:\d{1,3}\.){3}\d{1,3}$/;
 
+function privateV4(a: number, b: number): boolean {
+  if (a > 255 || b > 255) return true;
+  if (a === 10 || a === 127 || a === 0) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 100 && b >= 64 && b <= 127) return true;
+  return false;
+}
+
+function v4Pair(host: string): [number, number] | null {
+  if (!PRIVATE_V4.test(host)) return null;
+  const [a, b] = host.split('.').map(Number);
+  return [a, b];
+}
+
+function mappedV4Private(rest: string): boolean {
+  if (rest.includes(':')) {
+    const [hi, lo] = rest.split(':');
+    const hiN = Number.parseInt(hi, 16);
+    const loN = Number.parseInt(lo || '', 16);
+    if (!Number.isInteger(hiN) || !Number.isInteger(loN) || hiN < 0 || loN < 0 || hiN > 0xffff || loN > 0xffff) {
+      return true;
+    }
+    const n = hiN * 65536 + loN;
+    return privateV4(Math.floor(n / 16777216) % 256, Math.floor(n / 65536) % 256);
+  }
+  const pair = v4Pair(rest);
+  if (!pair) return true;
+  return privateV4(pair[0], pair[1]);
+}
+
+function isPrivateHost(host: string): boolean {
+  if (host.includes(':')) {
+    if (host === '::' || host === '::1') return true;
+    if (host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')) return true;
+    if (host.startsWith('::ffff:')) return mappedV4Private(host.slice('::ffff:'.length));
+    return false;
+  }
+  const pair = v4Pair(host);
+  if (!pair) return false;
+  return privateV4(pair[0], pair[1]);
+}
+
+export function pruneOnceKeys(keys: Set<string>, today: string) {
+  for (const key of keys) {
+    const day = key.slice(key.lastIndexOf('|') + 1);
+    if (day < today) keys.delete(key);
+  }
+}
+
 export function assertPublicHttps(value: string): string {
   let url: URL;
   try {
@@ -188,20 +239,6 @@ export function assertPublicHttps(value: string): string {
     throw new SponsorRuleError('Esse endereço não pode ser usado.');
   }
   return url.toString();
-}
-
-function isPrivateHost(host: string): boolean {
-  if (host === '::1' || host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')) {
-    return true;
-  }
-  if (!PRIVATE_V4.test(host)) return false;
-  const [a, b] = host.split('.').map(Number);
-  if ([a, b].some((part) => part > 255)) return true;
-  if (a === 10 || a === 127 || a === 0) return true;
-  if (a === 169 && b === 254) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
-  return false;
 }
 
 export function cleanText(value: string, max: number, label: string): string {

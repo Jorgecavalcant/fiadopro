@@ -5,6 +5,7 @@ import {
   ClipboardList,
   Archive,
   Gift,
+  Megaphone,
   Search,
   KeyRound,
   ShieldCheck,
@@ -19,12 +20,14 @@ import { AdminBlockDialog } from './AdminBlockDialog';
 import { AdminClosedTab } from './AdminClosedTab';
 import { AdminGrantsTab } from './AdminGrantsTab';
 import { AdminOverviewTab } from './AdminOverviewTab';
+import { MarketingTab } from './marketing/MarketingTab';
+import './marketing/marketing.css';
 import { BLOCK_REASON_LABEL } from './adminLabels';
 
 /* ============================================================
  * Tipos (espelham o envelope { success, ... } do backend /api/admin/*)
  * ============================================================ */
-type AdminTab = 'users' | 'overview' | 'grants' | 'audit' | 'closed';
+type AdminTab = 'users' | 'overview' | 'grants' | 'marketing' | 'audit' | 'closed';
 
 interface AdminUser {
   id: string;
@@ -62,6 +65,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
     { id: 'users', label: 'Usuários', icon: Users },
     { id: 'overview', label: 'Visão geral', icon: BarChart3 },
     { id: 'grants', label: 'Concessões', icon: Gift },
+    { id: 'marketing', label: 'Marketing', icon: Megaphone },
     { id: 'audit', label: 'Registro', icon: ClipboardList },
     { id: 'closed', label: 'Contas encerradas', icon: Archive },
   ];
@@ -69,24 +73,21 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
-        <h2 className="text-2xl font-black text-slate-900">Painel Administrativo</h2>
-        <p className="text-slate-400 font-semibold text-sm">
-          Usuários, visão geral, concessões, registro e contas encerradas
+        <h2 className="fp-admin-title">Painel administrativo</h2>
+        <p className="fp-admin-sub">
+          Usuários, visão geral, concessões, marketing, registro e contas encerradas
         </p>
       </div>
 
-      <div className="flex gap-1 border-b border-slate-200 overflow-x-auto">
+      <div className="fp-admin-tabs" role="tablist">
         {tabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
+            type="button"
             onClick={() => setTab(id)}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 whitespace-nowrap transition-colors ${
-              tab === id
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-400 hover:text-slate-600'
-            }`}
+            className={`fp-admin-tab${tab === id ? ' on' : ''}`}
           >
-            <Icon className="w-4 h-4" />
+            <Icon />
             {label}
           </button>
         ))}
@@ -95,6 +96,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
       {tab === 'users' && <UsersTab currentUserId={currentUserId} />}
       {tab === 'overview' && <AdminOverviewTab />}
       {tab === 'grants' && <AdminGrantsTab />}
+      {tab === 'marketing' && <MarketingTab />}
       {tab === 'audit' && <AdminAuditTab />}
       {tab === 'closed' && <AdminClosedTab />}
     </div>
