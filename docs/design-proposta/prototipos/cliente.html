@@ -3,54 +3,54 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cliente — protótipo</title>
+  <title>Pessoa — protótipo</title>
   <link rel="stylesheet" href="app.css" />
 </head>
 <body>
   <div class="app">
-    <aside class="side">
-      <p class="brand">Fiado Pro<span>Loja TESTE</span></p>
-      <a href="painel.html">Painel</a>
-      <a class="active" href="clientes.html">Clientes</a>
-      <a href="dividir.html">Dividir conta</a>
-      <a href="admin.html">Admin</a>
-      <a href="marketing.html">Marketing</a>
-      <a href="anuncios.html">Anúncios</a>
+    <aside class="side-desk">
+      <p class="brand">Fiado Pro</p>
+      <a href="painel.html">Início</a>
+      <a class="on" href="clientes.html">Pessoas</a>
+      <a href="extrato.html">Extrato</a>
+      <a href="menu.html">Menu</a>
     </aside>
-    <div class="main">
-      <header class="top">
-        <div>
-          <h1>TESTE Bruno</h1>
-          <p>Telefone de teste</p>
-        </div>
-        <a class="btn btn-ghost" href="clientes.html">Voltar</a>
+    <div class="main" style="padding-bottom:76px">
+      <header class="hero">
+        <a href="clientes.html">Voltar</a>
+        <h1>TESTE Carla</h1>
+        <p>Você deve R$ 425,00 a esta pessoa</p>
       </header>
-      <div class="content stack">
-        <section class="balance balance-credit">
-          <p class="caption">Saldo atual</p>
-          <p class="money">Você deve R$ 425,00</p>
-        </section>
-        <div class="actions actions-desk">
-          <button class="btn btn-primary" type="button">Nova despesa</button>
-          <button class="btn btn-receive" type="button">Registrar pagamento</button>
-          <button class="btn btn-secondary" type="button">Abatimento</button>
-          <button class="btn btn-secondary" type="button">Devolução</button>
-        </div>
-        <aside class="alert alert-warn">
-          <strong>Você deve <span class="valor">R$ 425,00</span> a este cliente</strong>
-          <p>Use Devolução para devolver o dinheiro ou Abatimento para descontar em compras futuras.</p>
+      <div class="sheet">
+        <nav class="tabs">
+          <a class="on" href="lancamento-devolver.html">Lançar</a>
+          <a href="extrato.html">Extrato</a>
+          <a href="#dados">Dados</a>
+        </nav>
+        <nav class="tiles" aria-label="Lançar">
+          <a href="lancamento.html"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg></span>Dívida</a>
+          <a href="lancamento-receber.html"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span>Pagamento</a>
+          <a href="lancamento-abater.html"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14"/></svg></span>Abater</a>
+          <a href="lancamento-devolver.html"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></span>Devolver</a>
+        </nav>
+        <aside class="warn" style="margin-top:16px">
+          <strong>Você deve R$ 425,00</strong>
+          <p>Devolva o dinheiro ou abata numa compra futura.</p>
         </aside>
-        <article class="card">
-          <h2>Extrato</h2>
-          <div class="row"><span>Pagamento · 20/10/2026</span><strong>R$ 425,00</strong></div>
-        </article>
+        <h2 class="h2">Últimos lançamentos</h2>
+        <div class="list extrato">
+          <div class="item">
+            <span class="grow"><span class="when">20/10/2026</span><strong>Pagamento recebido a mais</strong></span>
+            <span class="amt in">R$ 425,00</span>
+          </div>
+        </div>
       </div>
     </div>
     <nav class="tabbar">
-      <a href="painel.html">Painel</a>
-      <a class="active" href="clientes.html">Clientes</a>
-      <a href="dividir.html">Dividir</a>
-      <a href="admin.html">Admin</a>
+      <a href="painel.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 11l8-7 8 7v9H4z"/></svg>Início</a>
+      <a class="on" href="clientes.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="3"/><path d="M5 19c1.5-3 3.5-4 7-4s5.5 1 7 4"/></svg>Pessoas</a>
+      <a href="extrato.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 6h11M8 12h11M8 18h11M5 6h.01M5 12h.01M5 18h.01"/></svg>Extrato</a>
+      <a href="menu.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Menu</a>
     </nav>
   </div>
 </body>

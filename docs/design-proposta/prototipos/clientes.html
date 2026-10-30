@@ -3,49 +3,53 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Clientes — protótipo</title>
+  <title>Pessoas — protótipo</title>
   <link rel="stylesheet" href="app.css" />
 </head>
 <body>
   <div class="app">
-    <aside class="side">
-      <p class="brand">Fiado Pro<span>Loja TESTE</span></p>
-      <a href="painel.html">Painel</a>
-      <a class="active" href="clientes.html">Clientes</a>
-      <a href="dividir.html">Dividir conta</a>
-      <a href="admin.html">Admin</a>
-      <a href="marketing.html">Marketing</a>
-      <a href="anuncios.html">Anúncios</a>
+    <aside class="side-desk">
+      <p class="brand">Fiado Pro</p>
+      <a href="painel.html">Início</a>
+      <a class="on" href="clientes.html">Pessoas</a>
+      <a href="extrato.html">Extrato</a>
+      <a href="dividir.html">Dividir</a>
+      <a href="menu.html">Menu</a>
     </aside>
     <div class="main">
-      <header class="top">
-        <div>
-          <h1>Clientes</h1>
-          <p>Nomes de exemplo</p>
-        </div>
-      </header>
+      <header class="top"><div><h1>Pessoas</h1><p class="sub">Quem deve e a quem você deve</p></div></header>
       <div class="content stack">
-        <input type="search" aria-label="Buscar cliente" placeholder="Buscar" />
-        <a class="card row" href="cliente.html" style="text-decoration:none">
-          <div class="person"><div class="avatar">A</div><div><strong>TESTE Ana</strong><div class="muted">Te deve</div></div></div>
-          <span class="tag tag-owe">R$ 350,00</span>
-        </a>
-        <a class="card row" href="cliente.html" style="text-decoration:none">
-          <div class="person"><div class="avatar">B</div><div><strong>TESTE Bruno</strong><div class="muted">Você deve</div></div></div>
-          <span class="tag tag-credit">R$ 425,00</span>
-        </a>
-        <article class="card row">
-          <div class="person"><div class="avatar">C</div><div><strong>TESTE Carla</strong><div class="muted">Em dia</div></div></div>
-          <span class="tag tag-even">Em dia</span>
-        </article>
-        <button class="btn btn-primary" type="button">Novo cliente</button>
+        <input class="search" type="search" aria-label="Buscar pessoa" placeholder="Buscar" />
+        <div class="chips">
+          <button class="chip on" type="button">Todas</button>
+          <button class="chip" type="button">Te deve</button>
+          <button class="chip" type="button">Você deve</button>
+          <button class="chip" type="button">Em dia</button>
+        </div>
+        <div class="list">
+          <a href="cliente.html">
+            <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="3"/><path d="M5 19c1.5-3 3.5-4 7-4s5.5 1 7 4"/></svg></span>
+            <span class="grow"><strong>TESTE Bruno</strong><span>Te deve</span></span>
+            <span class="amt bad">R$ 350,00</span>
+          </a>
+          <a href="cliente.html">
+            <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="3"/><path d="M5 19c1.5-3 3.5-4 7-4s5.5 1 7 4"/></svg></span>
+            <span class="grow"><strong>TESTE Carla</strong><span>Você deve</span></span>
+            <span class="amt in">R$ 425,00</span>
+          </a>
+          <a href="cliente.html">
+            <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="3"/><path d="M5 19c1.5-3 3.5-4 7-4s5.5 1 7 4"/></svg></span>
+            <span class="grow"><strong>TESTE Davi</strong><span>Em dia</span></span>
+            <span class="amt">R$ 0,00</span>
+          </a>
+        </div>
       </div>
     </div>
     <nav class="tabbar">
-      <a href="painel.html">Painel</a>
-      <a class="active" href="clientes.html">Clientes</a>
-      <a href="dividir.html">Dividir</a>
-      <a href="admin.html">Admin</a>
+      <a href="painel.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 11l8-7 8 7v9H4z"/></svg>Início</a>
+      <a class="on" href="clientes.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="3"/><path d="M5 19c1.5-3 3.5-4 7-4s5.5 1 7 4"/></svg>Pessoas</a>
+      <a href="extrato.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 6h11M8 12h11M8 18h11M5 6h.01M5 12h.01M5 18h.01"/></svg>Extrato</a>
+      <a href="menu.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Menu</a>
     </nav>
   </div>
 </body>

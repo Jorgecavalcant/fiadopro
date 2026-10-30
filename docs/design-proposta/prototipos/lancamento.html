@@ -3,58 +3,42 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Lançamento — protótipo</title>
+  <title>Nova dívida — protótipo</title>
   <link rel="stylesheet" href="app.css" />
 </head>
 <body>
   <div class="app">
-    <aside class="side">
-      <p class="brand">Fiado Pro<span>Loja TESTE</span></p>
-      <a href="painel.html">Painel</a>
-      <a class="active" href="clientes.html">Clientes</a>
-      <a href="dividir.html">Dividir conta</a>
-      <a href="admin.html">Admin</a>
+    <aside class="side-desk">
+      <p class="brand">Fiado Pro</p>
+      <a href="painel.html">Início</a>
+      <a class="on" href="clientes.html">Pessoas</a>
+      <a href="extrato.html">Extrato</a>
+      <a href="menu.html">Menu</a>
     </aside>
     <div class="main">
-      <header class="top">
-        <div>
-          <h1>Registrar devolução</h1>
-          <p>TESTE Bruno · as quatro abas usam este mesmo formulário</p>
-        </div>
+      <header class="hero">
+        <a href="cliente.html">Voltar</a>
+        <h1>Nova dívida</h1>
+        <p>TESTE Bruno · te deve R$ 350,00</p>
       </header>
-      <div class="content stack">
-        <div class="actions actions-desk">
-          <button class="btn btn-secondary" type="button">Nova despesa</button>
-          <button class="btn btn-secondary" type="button">Pagamento</button>
-          <button class="btn btn-secondary" type="button">Abatimento</button>
-          <button class="btn btn-primary" type="button">Devolução</button>
-        </div>
-        <section class="balance balance-credit">
-          <p class="caption">Saldo atual</p>
-          <p class="money">Você deve R$ 425,00</p>
-        </section>
+      <div class="sheet">
         <form>
           <div class="field">
             <label for="valor">Valor</label>
-            <input id="valor" inputmode="decimal" value="R$ 425,00" readonly />
-            <button class="btn btn-secondary" type="button" style="margin-top:8px">Devolver tudo</button>
+            <input id="valor" class="money-input" type="text" value="R$ 1.000,00" readonly />
           </div>
           <div class="field">
             <label for="desc">Descrição</label>
-            <input id="desc" value="" placeholder="Informe uma descrição" />
-            <p class="help-err">Informe uma descrição</p>
+            <input id="desc" type="text" value="Conta TESTE" readonly />
           </div>
-          <button class="btn btn-primary" type="button">Salvando...</button>
+          <div class="field">
+            <label for="data">Data</label>
+            <input id="data" type="text" value="29/10/2026" readonly />
+          </div>
+          <button class="btn btn-primary" type="button">Lançar dívida</button>
         </form>
-        <p class="note">Pagamento mostra Quitar. Abatimento mostra Abater tudo. Valor acima do saldo pede confirmação. O número enviado ao servidor continua sem máscara.</p>
       </div>
     </div>
-    <nav class="tabbar">
-      <a href="painel.html">Painel</a>
-      <a class="active" href="clientes.html">Clientes</a>
-      <a href="dividir.html">Dividir</a>
-      <a href="admin.html">Admin</a>
-    </nav>
   </div>
 </body>
 </html>

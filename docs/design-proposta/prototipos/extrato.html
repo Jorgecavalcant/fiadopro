@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Extrato — protótipo</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="side-desk">
+      <p class="brand">Fiado Pro</p>
+      <a href="painel.html">Início</a>
+      <a href="clientes.html">Pessoas</a>
+      <a class="on" href="extrato.html">Extrato</a>
+      <a href="menu.html">Menu</a>
+    </aside>
+    <div class="main">
+      <header class="top"><div><h1>Extrato</h1><p class="sub">Últimos 30 dias</p></div></header>
+      <div class="content stack">
+        <div class="saldo-box">
+          <p class="kicker">Total do período</p>
+          <p class="valor">R$ 825,00</p>
+        </div>
+        <div class="chips">
+          <button class="chip" type="button">7 dias</button>
+          <button class="chip" type="button">15 dias</button>
+          <button class="chip on" type="button">30 dias</button>
+          <button class="chip" type="button">Outro</button>
+        </div>
+        <input class="search" type="search" aria-label="Buscar lançamento" placeholder="Buscar" />
+        <div class="list extrato">
+          <div class="item">
+            <span class="grow"><span class="when">29/10/2026</span><strong>Dívida · TESTE Bruno</strong></span>
+            <span class="amt">R$ 350,00</span>
+          </div>
+          <div class="item">
+            <span class="grow"><span class="when">20/10/2026</span><strong>Pagamento · TESTE Carla</strong></span>
+            <span class="amt in">R$ 425,00</span>
+          </div>
+          <div class="item">
+            <span class="grow"><span class="when">12/10/2026</span><strong>Devolução · TESTE Davi</strong></span>
+            <span class="amt">- R$ 40,00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <a href="painel.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 11l8-7 8 7v9H4z"/></svg>Início</a>
+      <a href="clientes.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="3"/><path d="M5 19c1.5-3 3.5-4 7-4s5.5 1 7 4"/></svg>Pessoas</a>
+      <a class="on" href="extrato.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 6h11M8 12h11M8 18h11M5 6h.01M5 12h.01M5 18h.01"/></svg>Extrato</a>
+      <a href="menu.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Menu</a>
+    </nav>
+  </div>
+</body>
+</html>

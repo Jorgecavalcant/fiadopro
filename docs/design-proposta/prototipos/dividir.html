@@ -8,46 +8,46 @@
 </head>
 <body>
   <div class="app">
-    <aside class="side">
-      <p class="brand">Fiado Pro<span>Loja TESTE</span></p>
-      <a href="painel.html">Painel</a>
-      <a href="clientes.html">Clientes</a>
-      <a class="active" href="dividir.html">Dividir conta</a>
-      <a href="admin.html">Admin</a>
+    <aside class="side-desk">
+      <p class="brand">Fiado Pro</p>
+      <a href="painel.html">Início</a>
+      <a href="clientes.html">Pessoas</a>
+      <a href="extrato.html">Extrato</a>
+      <a class="on" href="dividir.html">Dividir</a>
+      <a href="menu.html">Menu</a>
     </aside>
     <div class="main">
-      <header class="top">
-        <div>
-          <h1>Dividir conta</h1>
-          <p>Evento TESTE Churrasco</p>
-        </div>
+      <header class="hero">
+        <a href="painel.html">Voltar</a>
+        <h1>Dividir conta</h1>
+        <p>Almoço TESTE · 29/10/2026</p>
       </header>
-      <div class="content stack">
-        <article class="card stack">
-          <div class="row"><strong>Carne</strong><span>R$ 80,00</span></div>
-          <div class="row"><strong>Bebida</strong><span>R$ 40,00</span></div>
-          <div class="row"><span class="muted">Total</span><strong>R$ 120,00</strong></div>
-        </article>
-        <article class="card">
-          <h2>Pessoas</h2>
-          <div class="row" style="margin-bottom:8px"><span>TESTE Ana</span><strong>R$ 60,00</strong></div>
-          <div class="row"><span>TESTE Bruno</span><strong>R$ 60,00</strong></div>
-        </article>
+      <div class="sheet stack">
         <div class="field">
-          <label for="vence">Vencimento das dívidas</label>
-          <input id="vence" value="30/11/2026" readonly />
-          <p class="muted">Em branco, a dívida fica sem vencimento. O que grava continua o meio-dia de São Paulo.</p>
+          <label for="total">Total da conta</label>
+          <input id="total" class="money-input" type="text" value="R$ 180,00" readonly />
         </div>
-        <button class="btn btn-secondary" type="button">Dividir igualmente</button>
+        <div class="list">
+          <div class="item">
+            <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="3"/><path d="M5 19c1.5-3 3.5-4 7-4s5.5 1 7 4"/></svg></span>
+            <span class="grow"><strong>TESTE Ana</strong><span>Parte igual</span></span>
+            <span class="amt">R$ 60,00</span>
+          </div>
+          <div class="item">
+            <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="3"/><path d="M5 19c1.5-3 3.5-4 7-4s5.5 1 7 4"/></svg></span>
+            <span class="grow"><strong>TESTE Bruno</strong><span>Parte igual</span></span>
+            <span class="amt">R$ 60,00</span>
+          </div>
+          <div class="item">
+            <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="3"/><path d="M5 19c1.5-3 3.5-4 7-4s5.5 1 7 4"/></svg></span>
+            <span class="grow"><strong>TESTE Carla</strong><span>Parte igual</span></span>
+            <span class="amt">R$ 60,00</span>
+          </div>
+        </div>
+        <button class="btn btn-quiet" type="button">Dividir igualmente</button>
         <button class="btn btn-primary" type="button">Confirmar divisão</button>
       </div>
     </div>
-    <nav class="tabbar">
-      <a href="painel.html">Painel</a>
-      <a href="clientes.html">Clientes</a>
-      <a class="active" href="dividir.html">Dividir</a>
-      <a href="admin.html">Admin</a>
-    </nav>
   </div>
 </body>
 </html>

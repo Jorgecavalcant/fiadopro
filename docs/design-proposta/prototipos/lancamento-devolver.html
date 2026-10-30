@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Devolver — protótipo</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="side-desk">
+      <p class="brand">Fiado Pro</p>
+      <a href="painel.html">Início</a>
+      <a class="on" href="clientes.html">Pessoas</a>
+      <a href="extrato.html">Extrato</a>
+      <a href="menu.html">Menu</a>
+    </aside>
+    <div class="main">
+      <header class="hero">
+        <a href="cliente.html">Voltar</a>
+        <h1>Devolver</h1>
+        <p>TESTE Carla · você deve R$ 425,00</p>
+      </header>
+      <div class="sheet">
+        <form>
+          <div class="field">
+            <label for="valor">Valor</label>
+            <input id="valor" class="money-input" type="text" value="R$ 1.000,00" readonly />
+          </div>
+          <div class="field">
+            <label for="desc">Descrição</label>
+            <input id="desc" type="text" value="Devolução TESTE" readonly />
+          </div>
+          <div class="field">
+            <label for="data">Data</label>
+            <input id="data" type="text" value="29/10/2026" readonly />
+          </div>
+          <button class="btn btn-quiet" type="button">Devolver tudo</button>
+          <button class="btn btn-primary" type="button">Devolver</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

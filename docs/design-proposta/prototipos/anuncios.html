@@ -8,54 +8,46 @@
 </head>
 <body>
   <div class="app">
-    <aside class="side">
-      <p class="brand">Fiado Pro<span>Simulação</span></p>
-      <a href="painel.html">Painel</a>
-      <a href="marketing.html">Marketing</a>
-      <a class="active" href="anuncios.html">Anúncios</a>
+    <aside class="side-desk">
+      <p class="brand">Fiado Pro</p>
+      <a href="painel.html">Início</a>
+      <a href="menu.html">Menu</a>
+      <a class="on" href="anuncios.html">Planos</a>
     </aside>
     <div class="main">
-      <header class="top">
-        <div>
-          <h1>Anúncios por plano</h1>
-          <p>Exemplos TESTE. Sem código de anúncio e sem chave.</p>
-        </div>
-      </header>
+      <header class="top"><div><h1>Planos</h1><p class="sub">Onde o patrocínio aparece</p></div></header>
       <div class="content stack">
-        <article class="card stack">
-          <h2>Free</h2>
-          <p class="muted">Tela cheia no máximo 1 vez por período (manhã, tarde ou noite/madrugada) e barra no topo. Vale no site e no app Android, o mesmo frontend.</p>
-          <div class="adbar"><span class="admark">Anúncio</span><span>Google — exemplo TESTE</span></div>
-          <div class="adfull">
-            <div>
-              <p class="admark">Anúncio</p>
-              <p><strong>Patrocinador local TESTE</strong></p>
-              <p class="muted">Pão fresco · exemplo.test</p>
-              <p class="note">Esta tela cheia já foi vista neste período.</p>
+        <section>
+          <p class="kicker">Free</p>
+          <div class="list" style="margin-top:8px">
+            <div class="item">
+              <span class="grow"><strong>TESTE Bruno</strong><span>Te deve</span></span>
+              <span class="amt bad">R$ 350,00</span>
             </div>
           </div>
-        </article>
-        <article class="card stack">
-          <h2>Pro</h2>
-          <p class="muted">Só patrocinador local, na barra do topo. Sem tela cheia.</p>
-          <div class="adbar"><span class="admark">Local</span><span>Padaria TESTE · exemplo.test</span></div>
-          <section class="balance balance-even"><p class="caption">Painel</p><p class="money">Em dia</p></section>
-        </article>
-        <article class="card stack">
-          <h2>Enterprise</h2>
-          <aside class="alert alert-ok">
-            <strong>Sem anúncios</strong>
-            <p>Nem barra, nem tela cheia, nem peça do Google.</p>
-          </aside>
-        </article>
-        <p class="note">No celular a barra fica em cima do conteúdo e a tela cheia cobre a tela. No desktop a barra fica no topo da área principal e a tela cheia fica no centro, sem sair da página.</p>
+          <article class="card sponsor" style="margin-top:12px">
+            <p class="kicker">Patrocinado</p>
+            <strong>Padaria TESTE</strong>
+            <p class="note">Pão fresco · exemplo.test</p>
+          </article>
+        </section>
+        <section>
+          <p class="kicker">Pro</p>
+          <div class="list" style="margin-top:8px">
+            <div class="item">
+              <span class="grow"><strong>TESTE Bruno</strong><span>Te deve</span></span>
+              <span class="amt bad">R$ 350,00</span>
+            </div>
+          </div>
+          <p class="note" style="margin-top:12px">O Pro não mostra anúncio.</p>
+        </section>
       </div>
     </div>
     <nav class="tabbar">
-      <a href="painel.html">Painel</a>
-      <a href="marketing.html">Marketing</a>
-      <a class="active" href="anuncios.html">Anúncios</a>
-      <a href="admin.html">Admin</a>
+      <a href="painel.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 11l8-7 8 7v9H4z"/></svg>Início</a>
+      <a href="clientes.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="3"/><path d="M5 19c1.5-3 3.5-4 7-4s5.5 1 7 4"/></svg>Pessoas</a>
+      <a href="extrato.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 6h11M8 12h11M8 18h11M5 6h.01M5 12h.01M5 18h.01"/></svg>Extrato</a>
+      <a href="menu.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Menu</a>
     </nav>
   </div>
 </body>

@@ -1,40 +1,23 @@
-/* Fiado Pro — tokens propostos. Ainda não entram no app.
-   Contraste medido em 29/10/2026 (WCAG). Texto normal precisa de 4,5:1. */
+/* Fiado Pro — tokens aprovados em 29/10/2026.
+   Ainda não entram no app. Contraste medido neste dia (WCAG, texto normal 4,5:1). */
 
 :root {
-  --fp-navy: #1c2446;
-  --fp-bg: #f4f6fb;
+  --fp-navy: #2b2f77;
+  --fp-navy-soft: #ecedf7;
+  --fp-bg: #f6f6f4;
   --fp-surface: #ffffff;
-  --fp-line: #d5dcec;
-  --fp-text: #1c2446;
-  --fp-muted: #3e4c6e;
-  --fp-receive: #065f46;
-  --fp-danger: #b91c1c;
-  --fp-owe-bg: #fff1f2;
-  --fp-owe-text: #9f1239;
-  --fp-credit-bg: #ecfdf5;
-  --fp-credit-text: #065f46;
-  --fp-even-bg: #eef2ff;
-  --fp-even-text: #1c2446;
-  --fp-ok-bg: #ecfdf5;
-  --fp-ok-line: #047857;
-  --fp-ok-text: #064e3b;
-  --fp-warn-bg: #fffbeb;
-  --fp-warn-line: #b45309;
-  --fp-warn-strong: #92400e;
-  --fp-err-bg: #fef2f2;
-  --fp-err-line: #b91c1c;
-  --fp-err-text: #7f1d1d;
-  --fp-info-bg: #eef2ff;
-  --fp-info-line: #1c2446;
-  --fp-radius: 12px;
-  --fp-radius-card: 16px;
-  --fp-space: 8px;
-  --fp-font: Inter, "Segoe UI", system-ui, sans-serif;
-  --fp-h1: 28px;
-  --fp-h2: 22px;
-  --fp-body: 16px;
-  --fp-small: 14px;
-  --fp-caption: 12px;
-  --fp-control: 48px;
+  --fp-tile: #efefec;
+  --fp-line: #e6e6e2;
+  --fp-text: #1a1a1a;
+  --fp-muted: #5c5c5c;
+  --fp-in: #1f7a4d;
+  --fp-danger: #b3261e;
+  --fp-warn-bg: #fff6e5;
+  --fp-warn-text: #5a3a00;
+  --fp-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --fp-radius: 10px;
+  --fp-font: -apple-system, Inter, Roboto, "Segoe UI", sans-serif;
+  --fp-value: 28px;
+  --fp-title: 22px;
+  --fp-body: 15px;
 }

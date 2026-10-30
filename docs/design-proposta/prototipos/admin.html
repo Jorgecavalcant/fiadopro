@@ -8,48 +8,43 @@
 </head>
 <body>
   <div class="app">
-    <aside class="side">
-      <p class="brand">Fiado Pro<span>Admin TESTE</span></p>
-      <a href="painel.html">Painel</a>
-      <a href="clientes.html">Clientes</a>
-      <a href="dividir.html">Dividir conta</a>
-      <a class="active" href="admin.html">Admin</a>
-      <a href="marketing.html">Marketing</a>
-      <a href="anuncios.html">Anúncios</a>
+    <aside class="side-desk">
+      <p class="brand">Admin</p>
+      <a href="admin.html" class="on">Contas</a>
+      <a href="marketing.html">Patrocínios</a>
+      <a href="painel.html">Voltar ao app</a>
     </aside>
-    <div class="main">
-      <header class="top">
-        <div>
-          <h1>Admin</h1>
-          <p>O mesmo visual do app. Sem dado real de conta.</p>
-        </div>
-      </header>
-      <div class="content stack">
-        <div class="actions actions-desk">
-          <button class="btn btn-primary" type="button">Usuários</button>
-          <button class="btn btn-secondary" type="button">Visão geral</button>
-          <button class="btn btn-secondary" type="button">Concessões</button>
-          <button class="btn btn-secondary" type="button">Registro</button>
-          <button class="btn btn-secondary" type="button">Contas encerradas</button>
-          <a class="btn btn-secondary" href="marketing.html" style="text-decoration:none">Marketing</a>
-        </div>
-        <article class="card">
+    <div class="main admin-main">
+      <header class="top"><div><h1>Contas</h1><p class="sub">Exemplos TESTE</p></div></header>
+      <div class="content">
+        <nav class="admin-links chips">
+          <a class="chip on" href="admin.html">Contas</a>
+          <a class="chip" href="marketing.html">Patrocínios</a>
+          <a class="chip" href="painel.html">App</a>
+        </nav>
+        <div class="card" style="overflow:auto">
           <table>
-            <thead><tr><th>Nome</th><th>Plano</th><th></th></tr></thead>
+            <thead>
+              <tr><th>Conta</th><th>Plano</th><th>Situação</th><th></th></tr>
+            </thead>
             <tbody>
-              <tr><td>TESTE Loja Um</td><td>Free</td><td><button class="btn btn-danger" type="button">Bloquear</button></td></tr>
-              <tr><td>TESTE Loja Dois</td><td>Pro</td><td><button class="btn btn-secondary" type="button">Salvar</button></td></tr>
+              <tr>
+                <td>TESTE Ana</td>
+                <td>Free</td>
+                <td>Ativa</td>
+                <td><button class="chip" type="button">Ver</button></td>
+              </tr>
+              <tr>
+                <td>TESTE Oficina</td>
+                <td>Pro</td>
+                <td>Ativa</td>
+                <td><button class="chip" type="button">Ver</button></td>
+              </tr>
             </tbody>
           </table>
-        </article>
+        </div>
       </div>
     </div>
-    <nav class="tabbar">
-      <a href="painel.html">Painel</a>
-      <a href="clientes.html">Clientes</a>
-      <a href="dividir.html">Dividir</a>
-      <a class="active" href="admin.html">Admin</a>
-    </nav>
   </div>
 </body>
 </html>

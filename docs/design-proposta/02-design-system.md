@@ -1,96 +1,79 @@
-# Design system proposto
+# Design system — aprovado em 29/10/2026
 
-Um visual só, no site e no Android. Os tokens estão em `tokens.css`. As classes de exemplo estão em `prototipos/app.css`. Nada disso foi ligado ao app.
+Uma cor principal. Fundo claro. Ícone de linha. Texto que cabe em 360px.
 
-Contraste medido em 29/10/2026. Texto normal precisa de 4,5:1.
+O arquivo `tokens.css` desta pasta é a fonte dos protótipos. Ainda não entra no app.
 
 ## Cor
 
-| Token | Hex | Uso | Contraste medido |
-|---|---|---|---|
-| `--fp-navy` | `#1C2446` | Texto, botão primário, navegação | 15,11:1 com branco |
-| `--fp-bg` | `#F4F6FB` | Fundo da página | 13,97:1 com o navy |
-| `--fp-surface` | `#FFFFFF` | Cartão | — |
-| `--fp-line` | `#D5DCEC` | Borda | não usar como texto |
-| `--fp-muted` | `#3E4C6E` | Legenda | 8,52:1 no branco |
-| `--fp-receive` | `#065F46` | Botão de receber pagamento | 7,68:1 com branco |
-| `--fp-danger` | `#B91C1C` | Excluir, bloquear | 6,47:1 com branco |
-| `--fp-owe-text` / `--fp-owe-bg` | `#9F1239` / `#FFF1F2` | Te deve | 7,30:1 |
-| `--fp-credit-text` / `--fp-credit-bg` | `#065F46` / `#ECFDF5` | Você deve | 7,29:1 |
-| `--fp-even-text` / `--fp-even-bg` | `#1C2446` / `#EEF2FF` | Em dia | 13,51:1 |
+| Uso | Valor |
+|---|---|
+| Principal | `#2B2F77` |
+| Fundo suave (círculo do ícone) | `#ECEDF7` |
+| Fundo do app | `#F6F6F4` |
+| Cartão | `#FFFFFF` |
+| Tile | `#EFEFEC` |
+| Divisória | `#E6E6E2` |
+| Texto | `#1A1A1A` |
+| Texto secundário | `#5C5C5C` |
+| Entrada / recebido | `#1F7A4D` |
+| Atraso / erro | `#B3261E` |
+| Aviso, fundo | `#FFF6E5` |
+| Aviso, texto | `#5A3A00` |
 
-O cinza `#94A3B8` sai do texto. Ele mede 2,56:1 no branco.
+Cartão: raio 10px, sombra `0 1px 2px rgba(0,0,0,.05)`.
 
-Alertas:
+## Contraste medido em 29/10/2026
 
-| Tipo | Fundo | Borda | Texto | Contraste |
-|---|---|---|---|---|
-| Sucesso | `#ECFDF5` | `#047857` | `#064E3B` | 9,23:1 |
-| Aviso | `#FFFBEB` | `#B45309` | `#1C2446`, valor `#92400E` | 14,57:1 e 6,84:1 |
-| Erro | `#FEF2F2` | `#B91C1C` | `#7F1D1D` | 9,16:1 |
-| Info | `#EEF2FF` | `#1C2446` | `#1C2446` | 13,51:1 |
+Texto normal precisa de 4,5:1. Todas as combinações abaixo passam.
 
-## Tipo e tamanho
+| Texto | Fundo | Razão |
+|---|---|---|
+| `#FFFFFF` | `#2B2F77` | 11,83 |
+| `#1A1A1A` | `#F6F6F4` | 16,08 |
+| `#1A1A1A` | `#FFFFFF` | 17,40 |
+| `#5C5C5C` | `#FFFFFF` | 6,69 |
+| `#5C5C5C` | `#F6F6F4` | 6,18 |
+| `#5C5C5C` | `#EFEFEC` | 5,80 |
+| `#1F7A4D` | `#FFFFFF` | 5,32 |
+| `#1F7A4D` | `#F6F6F4` | 4,91 |
+| `#B3261E` | `#FFFFFF` | 6,54 |
+| `#5A3A00` | `#FFF6E5` | 9,59 |
+| `#2B2F77` | `#ECEDF7` | 10,15 |
+| `#FFFFFF` | `#1F7A4D` | 5,32 |
+| `#B3261E` | `#F8E8E6` (Sair) | 5,50 |
 
-Fonte: Inter, com Segoe UI ou a fonte do sistema se a Inter não carregar.
+## Tipo
+
+Fonte do sistema: `-apple-system`, Inter, Roboto.
 
 | Papel | Tamanho | Peso |
 |---|---|---|
-| Título de tela | 28px no desktop, 20px no topo do celular | 800 |
-| Seção | 22px | 800 |
-| Corpo e campo | 16px | 400 a 700 |
-| Apoio | 14px | 600 |
-| Rótulo | 12px, caixa alta, espaçamento 0,04em | 700 |
+| Valor principal | 28px | 600 |
+| Título | 22px | 500 |
+| Corpo | 15px | 400 |
 
-Não usar 10px. Não usar peso 900 em tudo. Campo com altura mínima de 48px, para o dedo e para o celular não dar zoom.
+## Ícone
+
+SVG de linha, traço 1,5, sem preenchimento, na cor principal. De preferência dentro do círculo `#ECEDF7`.
+
+Proibido: emoji, imagem de banco, ilustração e gradiente.
 
 ## Peças
 
-**Botão primário.** Fundo navy, texto branco, altura mínima 48px, largura 100% no celular, texto que quebra em palavras inteiras.
+- **Ação rápida.** Pílula preenchida na cor principal, ícone branco, rótulo embaixo, numa linha só.
+- **Lista.** Círculo de ícone, título, subtítulo e seta fina. Divisória de 1px.
+- **Extrato.** Data pequena em cima, descrição, valor à direita. Entrada em verde. Saída em preto com menos.
+- **Detalhe.** Cabeçalho sólido na cor principal, título branco grande, folha clara arredondada por baixo. Aba com sublinhado.
+- **Filtro.** Chip em pílula: 7 dias, 15 dias, 30 dias, Outro.
+- **Busca.** Campo cinza, arredondado.
+- **Navegação.** Quatro itens de contorno: Início, Pessoas, Extrato, Menu. O ativo fica na cor principal.
+- **Saldo oculto.** Ícone de olho. No lugar do valor, `••••`.
+- **Aviso.** Caixa `#FFF6E5`, texto curto que diz o que fazer. Sem botão cortado.
+- **Sair.** Texto `#B3261E` em fundo `#F8E8E6`, no fim do menu.
 
-**Botão de receber.** Só para Registrar pagamento. Verde `#065F46`. É o único verde de ação.
+Nenhum texto ou botão pode cortar em 360px. Conferir também em 390, 768 e 1280px.
 
-**Botão secundário.** Fundo branco, borda e texto navy. Abatimento, Devolução, voltar, ação alternativa.
+## Palavras
 
-**Botão de perigo.** Fundo `#B91C1C`, texto branco. Excluir e bloquear. Não usar para saldo.
-
-**Cartão.** Fundo branco, borda `#D5DCEC`, raio 16px, padding 16px.
-
-**Saldo.** Um componente só.
-
-- Te deve: fundo rosa, texto `#9F1239`, frase "Te deve R$ 350,00".
-- Você deve: fundo verde claro, texto `#065F46`, frase "Você deve R$ 425,00".
-- Em dia: fundo azul claro, texto navy, frase "Em dia".
-
-**Alerta.** Largura total, ícone ou título em uma linha, texto embaixo, sem botão dentro. O aviso de saldo credor usa o alerta âmbar: título "Você deve R$ 425,00 a este cliente" e uma frase apontando Devolução ou Abatimento.
-
-**Campo.** Rótulo 14px, caixa 48px, erro embaixo em `#7F1D1D`. Data sempre dd/mm/aaaa. Moeda sempre R$ 1.000,00 na tela e número no envio.
-
-**Ícone.** 20px, alinhado ao texto, sem círculo de 56px competindo com o título.
-
-**Espaço.** Grade de 8px. Entre blocos, 16px. Nada de 32px num aviso e 8px no vizinho.
-
-## Tailwind, para aplicar depois
-
-```js
-// trecho para o theme, quando a PR de tokens for aprovada
-colors: {
-  fp: {
-    navy: '#1C2446',
-    bg: '#F4F6FB',
-    line: '#D5DCEC',
-    muted: '#3E4C6E',
-    receive: '#065F46',
-    danger: '#B91C1C',
-    owe: '#9F1239',
-    oweBg: '#FFF1F2',
-    credit: '#065F46',
-    creditBg: '#ECFDF5',
-  },
-},
-borderRadius: { fp: '12px', fpCard: '16px' },
-fontSize: { caption: ['12px', '1.3'] },
-minHeight: { control: '48px' },
-```
-
-O arquivo que vale é o `tokens.css`. O trecho acima só traduz os mesmos números.
+A interface diz **Minha conta**, **Pessoas** e **Contatos**. Não diz loja nem lojista. Qualquer pessoa lança o que outros devem a ela ou o que ela deve.
