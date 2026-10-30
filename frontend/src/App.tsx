@@ -1607,12 +1607,12 @@ const EventDetailView = ({
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           <div className="space-y-8">
-            <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+            <div className="flex justify-between items-center gap-2 flex-wrap pb-4 border-b border-slate-100">
               <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
                 <Receipt className="w-6 h-6 text-indigo-600" /> {t.itemsList}
               </h3>
-              <div className="flex items-center gap-2">
-                <label className="cursor-pointer bg-amber-50 text-amber-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase hover:bg-amber-100 transition-all flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <label className="fp-btn fp-btn-secondary" style={{ minHeight: 36, fontSize: 13 }}>
                   {isScanning ? (
                     <Loader2 className="w-3 h-3 animate-spin" />
                   ) : (
@@ -1639,7 +1639,7 @@ const EventDetailView = ({
                     }));
                     setLastAddedItemId(newItemId);
                   }}
-                  className="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-100 transition-all"
+                  className="fp-btn fp-btn-secondary" style={{ minHeight: 36, fontSize: 13 }}
                 >
                   {t.addItem}
                 </button>
@@ -1761,11 +1761,11 @@ const EventDetailView = ({
             </div>
           </div>
           <div className="space-y-8">
-            <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+            <div className="flex justify-between items-center gap-2 flex-wrap pb-4 border-b border-slate-100">
               <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
                 <Users className="w-6 h-6 text-emerald-600" /> {t.participants}
               </h3>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -1832,7 +1832,7 @@ const EventDetailView = ({
                     }));
                     setLastAddedParticipantId(newParticipantId);
                   }}
-                  className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase hover:bg-emerald-100 transition-all"
+                  className="fp-btn fp-btn-secondary" style={{ minHeight: 36, fontSize: 13 }}
                 >
                   {t.addParticipant}
                 </button>
@@ -1854,7 +1854,7 @@ const EventDetailView = ({
                   }));
                 }}
                 disabled={event.items.length === 0 || event.participants.length === 0}
-                className="w-full bg-white border-2 border-emerald-200 text-emerald-700 px-4 py-3 rounded-2xl text-sm font-black hover:bg-emerald-50 transition-all disabled:opacity-40"
+                className="fp-btn fp-btn-secondary fp-btn-block"
               >
                 Dividir igualmente entre todos
               </button>
@@ -2063,22 +2063,22 @@ const EventDetailView = ({
                   ? `Vence em ${formatBrDate(splitDueDate)}`
                   : 'Se ficar em branco, a dívida fica sem vencimento.'}
               </p>
-              <p className="text-indigo-400 font-black uppercase tracking-widest text-[10px] mb-4">
-                CÁLCULO FINAL
+              <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--fp-muted)' }}>
+                Cálculo final
               </p>
               <button
                 onClick={handleConfirmSplit}
                 disabled={totalBill <= 0 || event.isCompleted}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-5 rounded-2xl font-black text-lg transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                className="fp-btn fp-btn-primary fp-btn-block"
               >
                 {event.isCompleted
-                  ? '✓ Divisão já confirmada'
+                  ? 'Divisão já confirmada'
                   : t.confirmSplitBtn || 'Confirmar Divisão'}
               </button>
               {event.splitDirty && (
                 <button
                   onClick={handleConfirmSplit}
-                  className="w-full mt-3 bg-amber-500 hover:bg-amber-600 text-white py-5 rounded-2xl font-black text-lg transition-all shadow-lg active:scale-95"
+                  className="fp-btn fp-btn-primary fp-btn-block" style={{ marginTop: 12 }}
                 >
                   {t.updateSplitBtn || 'Atualizar Divisão'}
                 </button>
