@@ -188,6 +188,7 @@
 | 30/10/2026 | Implement | Início no estilo de app de banco, extrato geral do período e a volta do termo Clientes. Dividir conta fica na lateral do computador e como atalho no Início do celular. Os números não mudaram. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 30/10/2026 | Implement | Início no padrão aprovado, com a pergunta à IA só na tela e o visual novo nas telas de lançamento, do cliente e de Dividir conta. A pergunta livre da IA fica Em breve no Pro porque o servidor ainda não tem essa rota com checagem de plano. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 30/10/2026 | Implement | Acabamento visual: cabeçalho claro, Início sem o botão flutuante, patrocínio em uma linha no Free, e os formulários, o detalhe do cliente e Dividir conta no mesmo padrão do Início. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
+| 30/10/2026 | Implement | Teste da planilha do admin lê o texto das células, e o detalhe do cliente, o cadastro e Dividir conta fecham os detalhes visuais. A exportação da planilha não mudou. | PR aberta, sem merge. | Jorge: revisar a PR. |
 
 ---
 
