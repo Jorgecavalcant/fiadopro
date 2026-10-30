@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { AlertTriangle, ArrowDownLeft, ArrowRight, ChevronRight, Clock, Eye, EyeOff, Plus, Sparkles, SquareSplitHorizontal, Undo2, UserPlus } from 'lucide-react';
+import { AlertTriangle, ArrowDownLeft, ArrowRight, Clock, Eye, EyeOff, Plus, Sparkles, SquareSplitHorizontal, Undo2, UserPlus } from 'lucide-react';
+import { HomeFull, HomeStrip, useHomeAds, type AdPlan } from './HomeAds';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { activeDebtorLabel } from '../utils/ledgerPeriod';
 import type { AttentionItem } from '../utils/attention';
@@ -27,15 +28,6 @@ function Chart({ data }: { data: Point[] }) {
   );
 }
 
-function Sponsor() {
-  return (
-    <div className="fp-sponsor">
-      <span>Patrocinado · Espaço do patrocinador</span>
-      <ChevronRight size={16} strokeWidth={1.5} aria-hidden="true" />
-    </div>
-  );
-}
-
 export function HomePanel({
   userName,
   initial,
@@ -55,6 +47,8 @@ export function HomePanel({
   onLanguage,
   language = 'pt-BR',
   isPro = false,
+  adPlan,
+  flowOpen = false,
   canUpgrade = false,
   onUpgrade,
   attention = [],
@@ -85,6 +79,8 @@ export function HomePanel({
   onLanguage?: () => void;
   language?: 'pt-BR' | 'en';
   isPro?: boolean;
+  adPlan?: AdPlan;
+  flowOpen?: boolean;
   canUpgrade?: boolean;
   onUpgrade?: () => void;
   attention?: AttentionItem[];
@@ -102,6 +98,7 @@ export function HomePanel({
     }
   });
   const [asking, setAsking] = useState(false);
+  const ads = useHomeAds(adPlan ?? (isPro ? 'pro' : 'free'), flowOpen);
   const money = (value: number) => (hidden ? '••••' : formatCurrency(value));
   const first = userName?.trim().split(/\s+/)[0] || 'olá';
   const letter = (initial || first).charAt(0).toUpperCase();
@@ -203,9 +200,9 @@ export function HomePanel({
         ) : null}
       </div>
 
-      {!isPro ? (
+      {ads.creative ? (
         <div className="fp-sponsor-slot desk">
-          <Sponsor />
+          <HomeStrip creative={ads.creative} quiet={ads.quiet} onHide={ads.hideStrip} />
         </div>
       ) : null}
 
@@ -272,11 +269,12 @@ export function HomePanel({
         </article>
       </div>
 
-      {!isPro ? (
+      {ads.creative ? (
         <div className="fp-sponsor-slot mob">
-          <Sponsor />
+          <HomeStrip creative={ads.creative} quiet={ads.quiet} onHide={ads.hideStrip} />
         </div>
       ) : null}
+      {ads.full ? <HomeFull creative={ads.full} onClose={ads.dismissFull} onHide={ads.hideFull} /> : null}
     </div>
   );
 }

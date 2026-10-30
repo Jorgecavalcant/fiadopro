@@ -59,8 +59,9 @@ export function emailAddress(value: string): string {
 
 export const TECH42 = {
   razao: 'TECH 42 LTDA',
-  cnpj: '[CNPJ da Tech 42]',
-  endereco: '[Endereço da Tech 42]',
+  fantasia: 'TECH 42',
+  cnpj: '66.499.920/0001-04',
+  endereco: 'Avenida Comercial, 814, Quadra 61, Lote 10, Sala 1, Bairro da Vitória, Goiânia/GO, CEP 74477-012',
   cidade: 'Goiânia',
   uf: 'GO',
 };

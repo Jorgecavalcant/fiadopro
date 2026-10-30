@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto';
+import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
-import { ImageRuleError, readImage, readMultipartFile } from './sponsorImage.js';
+import { FILE_LIMIT_BYTES, ImageRuleError, REQUEST_LIMIT, readImage, readMultipartFile, reencodeImage } from './sponsorImage.js';
 import { cnpjDigits, cpfDigits, emailAddress, maskDocument, phoneDigits } from './sponsorParty.js';
 import { SponsorRuleError } from './sponsors.js';
 
@@ -19,6 +21,39 @@ describe('arte e documento do patrocinador', () => {
     expect(() => readImage(Buffer.from('<html><body></body></html>'))).toThrow(ImageRuleError);
     expect(() => readImage(png(4001, 10))).toThrow(/4000/);
     expect(() => readImage(Buffer.alloc(2 * 1024 * 1024 + 1, 1))).toThrow(/2 MB/);
+    const exact = Buffer.alloc(FILE_LIMIT_BYTES);
+    png(8, 8).copy(exact);
+    expect(readImage(exact)).toEqual({ type: 'image/png', width: 8, height: 8 });
+    expect(() => readImage(Buffer.concat([exact, Buffer.from([0])]))).toThrow(/2 MB/);
+    expect(REQUEST_LIMIT).toBe('2.5mb');
+    expect(FILE_LIMIT_BYTES).toBe(2 * 1024 * 1024);
+  });
+
+  it('regrava a imagem sem GPS e recalcula o hash', async () => {
+    const source = await sharp({
+      create: { width: 20, height: 10, channels: 3, background: { r: 180, g: 20, b: 20 } },
+    })
+      .jpeg()
+      .withMetadata({
+        orientation: 6,
+        exif: { IFD0: { ImageDescription: 'GPS-TESTE-COORD' } },
+      })
+      .toBuffer();
+    expect(source.includes(Buffer.from('GPS-TESTE-COORD'))).toBe(true);
+    const before = await sharp(source).metadata();
+    expect(before.exif || before.orientation).toBeTruthy();
+    const out = await reencodeImage(source);
+    const after = await sharp(out).metadata();
+    expect(after.exif).toBeUndefined();
+    expect(out.includes(Buffer.from('GPS-TESTE-COORD'))).toBe(false);
+    expect(createHash('sha256').update(out).digest('hex')).not.toBe(
+      createHash('sha256').update(source).digest('hex'),
+    );
+    const read = readImage(out);
+    expect(read.type).toBe('image/jpeg');
+    expect(read.width).toBe(10);
+    expect(read.height).toBe(20);
+    expect(after.orientation).toBeUndefined();
   });
 
   it('lê o arquivo de um envio multipart', () => {

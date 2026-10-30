@@ -206,6 +206,28 @@ describe('rotas de patrocínio', () => {
     expect(last).toBe(429);
   });
 
+  it('o evento não devolve e-mail, ip nem id de usuário', async () => {
+    role('user');
+    readPlan.mockResolvedValue({ plan: 'FREE', confirmed: true });
+    const res = await fetch(`${baseUrl}/api/sponsors/event`, {
+      method: 'POST',
+      headers: { Cookie: `fiado_token=${userToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        creative_id: '00000000-0000-4000-8000-000000000001',
+        tipo: 'exibicao',
+        email: 'pessoa@exemplo.test',
+        user_id: 'nao-guardar',
+        ip: '203.0.113.10',
+      }),
+    });
+    const text = await res.text();
+    expect(text.includes('@')).toBe(false);
+    expect(text).not.toContain('nao-guardar');
+    expect(text).not.toContain('203.0.113.10');
+    expect(text).not.toContain('user_id');
+    expect(text).not.toContain('pessoa');
+  });
+
   it('o relatório não pede dado de usuário', async () => {
     role('admin');
     queryMock.mockImplementation(async (sql: string) => {

@@ -1,4 +1,7 @@
-const MAX_BYTES = 2 * 1024 * 1024;
+import sharp from 'sharp';
+
+export const FILE_LIMIT_BYTES = 2 * 1024 * 1024;
+export const REQUEST_LIMIT = '2.5mb';
 const MAX_EDGE = 4000;
 
 export type ImageKind = 'image/jpeg' | 'image/png' | 'image/webp';
@@ -53,7 +56,7 @@ function webpSize(file: Buffer): { width: number; height: number } {
 }
 
 export function readImage(file: Buffer): { type: ImageKind; width: number; height: number } {
-  if (file.length === 0 || file.length > MAX_BYTES) fail('A imagem passa de 2 MB.');
+  if (file.length === 0 || file.length > FILE_LIMIT_BYTES) fail('A imagem passa de 2 MB.');
   const head = file.subarray(0, 16).toString('utf8').trimStart().toLowerCase();
   if (head.startsWith('<') || head.startsWith('gif8')) fail('Envie JPG, PNG ou WebP.');
   let type: ImageKind;
@@ -107,4 +110,25 @@ export function readMultipartFile(body: Buffer, contentType: string): { file: Bu
   }
   if (!file) fail('Escolha o arquivo da arte.');
   return { file, fields };
+}
+
+async function encode(file: Buffer, type: ImageKind, quality: number): Promise<Buffer> {
+  try {
+    const pipeline = sharp(file, { failOn: 'none' }).rotate();
+    if (type === 'image/jpeg') return await pipeline.jpeg({ quality }).toBuffer();
+    if (type === 'image/png') return await pipeline.png().toBuffer();
+    return await pipeline.webp({ quality }).toBuffer();
+  } catch {
+    return fail('Envie JPG, PNG ou WebP.');
+  }
+}
+
+/** Regrava no mesmo formato, aplica a rotação do EXIF e descarta o resto do metadado. */
+export async function reencodeImage(file: Buffer): Promise<Buffer> {
+  const image = readImage(file);
+  const first = await encode(file, image.type, 85);
+  const chosen = first.length <= FILE_LIMIT_BYTES || image.type === 'image/png' ? first : await encode(file, image.type, 60);
+  const again = readImage(chosen);
+  if (again.type !== image.type) fail('Envie JPG, PNG ou WebP.');
+  return chosen;
 }

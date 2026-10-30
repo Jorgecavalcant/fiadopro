@@ -11,6 +11,7 @@ const memory = new Map<string, string>();
 
 beforeEach(() => {
   memory.clear();
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ creative: null }) })));
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => memory.get(key) ?? null,
     setItem: (key: string, value: string) => {
@@ -29,18 +30,18 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function render(node: React.ReactNode) {
+async function render(node: React.ReactNode) {
   const host = document.createElement('div');
   document.body.appendChild(host);
   root = createRoot(host);
-  act(() => {
+  await act(async () => {
     root?.render(node);
   });
 }
 
 describe('início', () => {
-  it('esconde os valores e guarda a escolha no aparelho', () => {
-    render(
+  it('esconde os valores e guarda a escolha no aparelho', async () => {
+    await render(
       <HomePanel
         userName="TESTE Ana"
         formatCurrency={(value) => `R$ ${value.toFixed(2)}`}
@@ -68,8 +69,8 @@ describe('início', () => {
     expect(memory.get('fiado_pro_hide_values')).toBe('1');
   });
 
-  it('esconde a atenção quando não há itens e o patrocínio some no Pro', () => {
-    render(
+  it('esconde a atenção quando não há itens e o Pro sem anúncio não reserva espaço', async () => {
+    await render(
       <HomePanel
         userName="TESTE Ana"
         formatCurrency={(value) => `R$ ${value.toFixed(2)}`}
@@ -78,6 +79,7 @@ describe('início', () => {
         overdue={0}
         activeDebtors={0}
         isPro
+        adPlan="pro"
         onNewDebt={() => undefined}
         onReceive={() => undefined}
         onSplit={() => undefined}
@@ -88,8 +90,8 @@ describe('início', () => {
     expect(document.body.textContent).not.toContain('Patrocinado');
   });
 
-  it('mostra no máximo os itens recebidos e o patrocínio no Free', () => {
-    render(
+  it('mostra no máximo os itens recebidos e o patrocínio no Free', async () => {
+    await render(
       <HomePanel
         userName="TESTE Ana"
         formatCurrency={(value) => `R$ ${value.toFixed(2)}`}
@@ -110,12 +112,9 @@ describe('início', () => {
     );
     expect(document.body.textContent).toContain('Precisa da sua atenção');
     expect(document.body.textContent).toContain('TESTE Ana');
-    expect(document.body.textContent).toContain('Patrocinado · Espaço do patrocinador');
+    expect(document.body.textContent).not.toContain('Patrocinado · Espaço do patrocinador');
+    expect(document.querySelector('.fp-sponsor-slot')).toBeNull();
     expect(document.querySelector('[aria-label="Acesso rápido"]')).toBeNull();
-    document.querySelectorAll('.fp-sponsor').forEach((node) => {
-      expect(node.textContent).toBe('Patrocinado · Espaço do patrocinador');
-      expect(node.querySelector('div')).toBeNull();
-    });
     expect(document.querySelectorAll('.fp-attention-row')).toHaveLength(3);
   });
 });

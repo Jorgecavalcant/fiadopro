@@ -4,10 +4,10 @@ CONTRATO DE PATROCÍNIO E VEICULAÇÃO DE PUBLICIDADE
 
 CONTRATANTE: {{CONTRATANTE_QUALIFICACAO}}
 
-CONTRATADA: {{CONTRATADA_RAZAO}}, CNPJ {{CONTRATADA_CNPJ}}, com sede em {{CONTRATADA_ENDERECO}}, {{CONTRATADA_CIDADE}}/{{CONTRATADA_UF}}, responsável pelo aplicativo Fiado Pro.
+CONTRATADA: {{CONTRATADA_RAZAO}} (nome fantasia {{CONTRATADA_FANTASIA}}), CNPJ {{CONTRATADA_CNPJ}}, com sede em {{CONTRATADA_ENDERECO}}, criadora e gestora do aplicativo Fiado Pro, produto da {{CONTRATADA_RAZAO}}.
 
 1. Objeto
-Veiculação de publicidade do CONTRATANTE no aplicativo Fiado Pro, nos espaços {{ESPACOS}}.
+Veiculação de publicidade do CONTRATANTE no aplicativo Fiado Pro, produto criado e gerido pela {{CONTRATADA_RAZAO}}, nos espaços {{ESPACOS}}.
 
 2. Prazo e vigência
 De {{INICIO}} a {{FIM}}, encerrando sozinho no fim do prazo. A renovação só acontece por um contrato novo.

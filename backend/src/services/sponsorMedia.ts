@@ -1,18 +1,30 @@
 import { createHash } from 'node:crypto';
 import type { Response } from 'express';
 import { query } from '../config/database.js';
-import { readImage, type ImageKind } from '../domain/sponsorImage.js';
+import { readImage, reencodeImage, type ImageKind } from '../domain/sponsorImage.js';
 import { assertPublicHttps, cleanText } from '../domain/sponsors.js';
 import { verifyToken } from '../utils/jwt.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import type { AuthRequest } from '../middleware/auth.js';
-import { withTransaction } from './adminAudit.js';
+import { insertAuditEntry, withTransaction } from './adminAudit.js';
+
+export function artAuditState(mediaId: string, creativeId: string): Record<string, string> {
+  return { media_id: mediaId, creative_id: creativeId, resumo: 'arte enviada' };
+}
 
 export const MEDIA_SQL = `SELECT m.conteudo, m.content_type, m.sha256, k.status
        FROM sponsor_media m
        JOIN sponsor_creatives c ON c.media_id = m.id
        JOIN sponsor_contracts k ON k.id = c.contract_id
-      WHERE m.id = $1`;
+      WHERE m.id = $1
+      ORDER BY CASE
+        WHEN k.status = 'ativo'
+         AND k.inicio <= (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+         AND k.fim >= (NOW() AT TIME ZONE 'America/Sao_Paulo')::date THEN 0
+        WHEN k.status = 'ativo' THEN 1
+        ELSE 2
+      END, k.inicio DESC
+      LIMIT 1`;
 
 const FILE_NAME: Record<ImageKind, string> = {
   'image/jpeg': 'arte.jpg',
@@ -71,8 +83,10 @@ export async function storeSponsorMedia(
   contractId: string,
   file: Buffer,
   fields: Record<string, string>,
+  adminId: string,
 ) {
-  const image = readImage(file);
+  const prepared = await reencodeImage(file);
+  const image = readImage(prepared);
   const slot = fields.slot === 'tela_cheia' ? 'tela_cheia' : fields.slot === 'faixa' ? 'faixa' : null;
   if (!slot) throw new ApiError(400, 'Escolha a faixa ou a tela cheia.', 'VALIDATION');
   const link = assertPublicHttps(fields.link_destino || '');
@@ -80,7 +94,7 @@ export async function storeSponsorMedia(
   const zoom = frame(fields.zoom, 1, 1, 3);
   const x = frame(fields.x, 50, 0, 100);
   const y = frame(fields.y, 50, 0, 100);
-  const hash = createHash('sha256').update(file).digest('hex');
+  const hash = createHash('sha256').update(prepared).digest('hex');
   return withTransaction(async (sql) => {
     const contract = await sql(`SELECT slots, status FROM sponsor_contracts WHERE id = $1`, [contractId]);
     const row = contract.rows[0];
@@ -94,7 +108,7 @@ export async function storeSponsorMedia(
       `INSERT INTO sponsor_media (conteudo, content_type, byte_size, largura, altura, sha256)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id`,
-      [file, image.type, file.length, image.width, image.height, hash],
+      [prepared, image.type, prepared.length, image.width, image.height, hash],
     );
     const mediaId = String(media.rows[0].id);
     const mediaUrl = `/api/sponsors/media/${mediaId}`;
@@ -102,24 +116,38 @@ export async function storeSponsorMedia(
       `SELECT id FROM sponsor_creatives WHERE contract_id = $1 AND slot = $2 ORDER BY ordem LIMIT 1`,
       [contractId, slot],
     );
+    let creativeId = '';
     if (current.rows[0]) {
+      creativeId = String(current.rows[0].id);
       await sql(
         `UPDATE sponsor_creatives
             SET tipo = 'imagem', media_url = $2, media_origem = 'upload', media_id = $3,
                 link_destino = $4, texto_alt = $5, titulo = $5,
                 enquadramento_zoom = $6, enquadramento_x = $7, enquadramento_y = $8, updated_at = NOW()
           WHERE id = $1`,
-        [current.rows[0].id, mediaUrl, mediaId, link, alt, zoom, x, y],
+        [creativeId, mediaUrl, mediaId, link, alt, zoom, x, y],
       );
     } else {
-      await sql(
+      const inserted = await sql(
         `INSERT INTO sponsor_creatives
            (contract_id, tipo, slot, media_url, media_origem, media_id, link_destino, titulo, texto_alt,
             enquadramento_zoom, enquadramento_x, enquadramento_y)
-         VALUES ($1, 'imagem', $2, $3, 'upload', $4, $5, $6, $6, $7, $8, $9)`,
+         VALUES ($1, 'imagem', $2, $3, 'upload', $4, $5, $6, $6, $7, $8, $9)
+         RETURNING id`,
         [contractId, slot, mediaUrl, mediaId, link, alt, zoom, x, y],
       );
+      creativeId = String(inserted.rows[0].id);
     }
+    await insertAuditEntry(sql, {
+      adminId,
+      action: 'SPONSOR_ART',
+      targetUserId: null,
+      reason: null,
+      note: null,
+      beforeState: {},
+      afterState: artAuditState(mediaId, creativeId),
+      keepWhileOrderStands: false,
+    });
     return { media_id: mediaId, media_url: mediaUrl, largura: image.width, altura: image.height, slot };
   });
 }

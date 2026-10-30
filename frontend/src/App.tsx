@@ -77,6 +77,7 @@ import HelpView from './components/HelpView';
 import { MenuView } from './components/MenuView';
 import { StatementView } from './components/StatementView';
 import { HomePanel } from './components/HomePanel';
+import { skipFullscreenThisSession } from './components/HomeAds';
 import { CustomerIdentity } from './components/CustomerIdentity';
 import { EmptyState } from './components/ui/EmptyState';
 import { PageHeader } from './components/ui/PageHeader';
@@ -341,6 +342,8 @@ const DashboardView = ({
   formatCurrency,
   setActiveView,
   isPro,
+  adPlan,
+  flowOpen,
   userName,
   customersWithBalance,
   transactions,
@@ -380,6 +383,8 @@ const DashboardView = ({
       onLanguage={onLanguage}
       language={language}
       isPro={isPro}
+      adPlan={adPlan}
+      flowOpen={flowOpen}
       canUpgrade={canUpgrade}
       onUpgrade={onUpgrade}
       attention={attentionItems(customersWithBalance || [], transactions || [])}
@@ -4347,6 +4352,7 @@ const App: React.FC = () => {
       if (!res.ok || !data.success)
         throw new Error(data.error?.message || data.message || 'Falha no login com Google');
       setRecoverAccount(null);
+      skipFullscreenThisSession();
       setUser({
         id: data.user.id,
         name: data.user.full_name || data.user.email,
@@ -4386,6 +4392,7 @@ const App: React.FC = () => {
       if (!res.ok || !data.success)
         throw new Error(data.error?.message || data.message || 'E-mail ou senha incorretos');
       setRecoverAccount(null);
+      skipFullscreenThisSession();
       setUser({
         id: data.user.id,
         name: data.user.full_name || data.user.email,
@@ -4440,6 +4447,7 @@ const App: React.FC = () => {
       if (!res.ok || !data.success)
         throw new Error(data.error?.message || data.message || 'Erro ao criar conta');
       setRecoverAccount(null);
+      skipFullscreenThisSession();
       setUser({
         id: data.user.id,
         name: data.user.full_name || data.user.email,
@@ -4505,6 +4513,7 @@ const App: React.FC = () => {
       const data = await res.json();
       if (!res.ok || !data.success)
         throw new Error(data.error?.message || data.message || 'Token invalido ou expirado.');
+      skipFullscreenThisSession();
       setUser({
         id: data.user.id,
         name: data.user.full_name || data.user.email,
@@ -4844,6 +4853,22 @@ const App: React.FC = () => {
               navigateToCustomer={navigateToCustomer}
               setActiveView={setActiveView}
               isPro={isPro}
+              adPlan={
+                user?.role === 'admin'
+                  ? 'admin'
+                  : plan.type === 'PRO'
+                    ? 'pro'
+                    : plan.type === 'ENTERPRISE'
+                      ? 'enterprise'
+                      : 'free'
+              }
+              flowOpen={
+                isQuickAddOpen
+                || isCustomerModalOpen
+                || isEditCustomerModalOpen
+                || isTransactionModalOpen
+                || isUpgradeModalOpen
+              }
               t={t}
               userName={user?.name}
               customersWithBalance={customersWithBalance}
