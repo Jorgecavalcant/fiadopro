@@ -191,6 +191,7 @@
 | 30/10/2026 | Implement | Teste da planilha do admin lê o texto das células, e o detalhe do cliente, o cadastro e Dividir conta fecham os detalhes visuais. A exportação da planilha não mudou. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 30/10/2026 | Implement | Servidor de patrocinadores locais: contrato com data, criativo por link https e contagem do dia, sem tela. Free vê faixa e tela cheia; Pro só a faixa; Enterprise não vê. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 30/10/2026 | Implement | Aba Marketing no painel, com prévia da faixa e da tela cheia e PDF só de contagens. O app do usuário ainda não mostra anúncio. Contrato vencido não volta sozinho. | PR aberta, sem merge. | Jorge: revisar a PR. |
+| 30/10/2026 | Implement | Fluxo de patrocínio em 4 passos, com envio da arte, prévia ao vivo e contrato em PDF. O app do usuário ainda não mostra anúncio. Contrato vencido não volta sozinho. | PR aberta, sem merge. | Jorge: revisar a PR. |
 
 ---
 

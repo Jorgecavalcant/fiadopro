@@ -1,3 +1,4 @@
+import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import {
   BOARD_SQL,
@@ -36,15 +37,16 @@ describe('leituras de marketing', () => {
         { dia: '2026-10-18', exibicoes: 6, cliques: 1 },
       ],
     });
-    const text = [...pdf.toString('latin1').matchAll(/<([0-9a-fA-F]+)>/g)]
-      .map((match) => {
+    const raw = pdf.toString('latin1');
+    const text = [...raw.matchAll(/stream\n([\s\S]*?)\nendstream/g)].map((match) => {
+      let plain = match[1];
+      try { plain = inflateSync(Buffer.from(match[1], 'latin1')).toString('latin1'); } catch { /* fluxo sem compressão */ }
+      return [...plain.matchAll(/<([0-9A-Fa-f]+)>/g)].map((item) => {
         let word = '';
-        for (let i = 0; i + 1 < match[1].length; i += 2) {
-          word += String.fromCharCode(Number.parseInt(match[1].slice(i, i + 2), 16));
-        }
+        for (let i = 0; i + 1 < item[1].length; i += 2) word += String.fromCharCode(Number.parseInt(item[1].slice(i, i + 2), 16));
         return word;
-      })
-      .join('');
+      }).join('');
+    }).join('');
     expect(text).toContain('Fiado Pro');
     expect(text).toContain('contagens');
     expect(text).toContain('TESTE Padaria');

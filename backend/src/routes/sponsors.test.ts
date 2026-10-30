@@ -121,6 +121,9 @@ describe('rotas de patrocínio', () => {
               exibicoes_hoje: 0,
               valor_centavos: 1500,
               observacao: 'não mostrar',
+              documento: '39053344705',
+              telefone: '62900000000',
+              email: 'teste@exemplo.test',
             },
           ],
         };
@@ -135,6 +138,9 @@ describe('rotas de patrocínio', () => {
     expect(body.creative.patrocinador).toBe('TESTE Mercado');
     expect(body.creative).not.toHaveProperty('valor_centavos');
     expect(body.creative).not.toHaveProperty('observacao');
+    expect(body.creative).not.toHaveProperty('documento');
+    expect(body.creative).not.toHaveProperty('telefone');
+    expect(body.creative).not.toHaveProperty('email');
   });
 
   it('não entrega tela cheia para o Pro', async () => {
@@ -238,5 +244,54 @@ describe('rotas de patrocínio', () => {
     const joined = sqls.join('\n');
     expect(joined).toContain('FROM sponsors');
     expect(joined).not.toMatch(/contato_nome|valor_centavos|user_id/);
+    expect(joined).not.toMatch(/\btelefone\b|\bemail\b/);
+  });
+
+  it('id que não é UUID não vira erro 500', async () => {
+    role('admin');
+    const res = await fetch(`${baseUrl}/api/admin/sponsors/contracts/nao-e-uuid`, {
+      headers: { Cookie: `fiado_token=${adminToken}` },
+    });
+    expect(res.status).toBe(400);
+    const body = await json(res);
+    expect(body.error.message).toBe('Identificador inválido.');
+  });
+
+  it('a arte pública sai com nosniff e some se o contrato não está no ar', async () => {
+    const id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    queryMock.mockImplementation(async (sql: string) => {
+      if (String(sql).includes('FROM sponsor_media')) {
+        return {
+          rows: [{
+            conteudo: Buffer.from('PNG'),
+            content_type: 'image/png',
+            sha256: 'a'.repeat(64),
+            status: 'rascunho',
+          }],
+        };
+      }
+      return { rows: [] };
+    });
+    const hidden = await fetch(`${baseUrl}/api/sponsors/media/${id}`);
+    expect(hidden.status).toBe(404);
+    queryMock.mockImplementation(async (sql: string) => {
+      if (String(sql).includes('SELECT role FROM users')) return { rows: [{ role: 'admin' }] };
+      if (String(sql).includes('FROM sponsor_media')) {
+        return {
+          rows: [{
+            conteudo: Buffer.from('PNG'),
+            content_type: 'image/png',
+            sha256: 'b'.repeat(64),
+            status: 'ativo',
+          }],
+        };
+      }
+      return { rows: [] };
+    });
+    const shown = await fetch(`${baseUrl}/api/sponsors/media/${id}`);
+    expect(shown.status).toBe(200);
+    expect(shown.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(shown.headers.get('content-type')).toContain('image/png');
+    expect(shown.headers.get('content-disposition')).toContain('inline');
   });
 });

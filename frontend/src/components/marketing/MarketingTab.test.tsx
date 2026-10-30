@@ -5,7 +5,7 @@ import React, { act } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import AdminPanel from '../AdminPanel';
-import { MarketingContract } from './MarketingContract';
+import { ContractStep } from './ContractStep';
 import { MarketingOverview } from './MarketingOverview';
 import { MarketingResults } from './MarketingResults';
 import { SponsorStrip } from './SponsorCreative';
@@ -117,7 +117,7 @@ describe('marketing no admin', () => {
     document.body.appendChild(form);
     const formRoot = createRoot(form);
     await act(async () => {
-      formRoot.render(<MarketingContract sponsorId="00000000-0000-4000-8000-000000000001" contractId={null} onOpenContract={() => undefined} />);
+      formRoot.render(<ContractStep sponsorId="00000000-0000-4000-8000-000000000001" contractId={null} saving={false} onSaving={() => undefined} onBack={() => undefined} onSaved={() => undefined} />);
     });
     const enterprise = [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('sem anúncios'));
     expect(enterprise).toBeTruthy();
