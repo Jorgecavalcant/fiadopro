@@ -36,7 +36,6 @@ import {
   Bell,
   Download,
   Upload,
-  AlertTriangle,
   ThumbsUp,
   ThumbsDown,
   ClipboardList,
