@@ -23,6 +23,9 @@ COPY package*.json ./
 # npm prune --omit=dev abaixo remove tudo que é dev da imagem final)
 RUN npm ci
 
+# sharp precisa carregar no Alpine do deploy. Se falhar, a imagem não segue.
+RUN node --input-type=module -e "import sharp from 'sharp'; const b = await sharp({ create: { width: 2, height: 2, channels: 3, background: 'white' } }).png().toBuffer(); if (b.length < 8) process.exit(1);"
+
 # Copy source and build
 COPY . .
 RUN npm run build

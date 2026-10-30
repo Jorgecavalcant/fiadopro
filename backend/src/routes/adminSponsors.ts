@@ -20,7 +20,7 @@ import {
 } from '../services/sponsorAdmin.js';
 import { contractDaily, contractDetail, contractReport, sponsorBoard, sponsorSummary } from '../services/sponsorReads.js';
 import { renderSponsorPdf } from '../services/sponsorReportPdf.js';
-import { ImageRuleError, readMultipartFile } from '../domain/sponsorImage.js';
+import { ImageRuleError, REQUEST_LIMIT, readMultipartFile } from '../domain/sponsorImage.js';
 import { contractPdf, documentPreview, issueContractDocument } from '../services/sponsorContractDoc.js';
 import { storeSponsorMedia } from '../services/sponsorMedia.js';
 import { loadSponsor, readProfile, saveSponsorProfile } from '../services/sponsorProfile.js';
@@ -369,9 +369,10 @@ router.get('/:id', async (req, res, next) => {
 router.post(
   '/contracts/:id/media',
   (req, res, next) => {
-    express.raw({ type: 'multipart/form-data', limit: '2mb' })(req, res, (error) => {
+    express.raw({ type: 'multipart/form-data', limit: REQUEST_LIMIT })(req, res, (error) => {
       if (error) {
-        next(new ApiError(400, 'A imagem passa de 2 MB.', 'VALIDATION'));
+        const tooBig = (error as { type?: string }).type === 'entity.too.large';
+        next(tooBig ? new ApiError(400, 'A imagem passa de 2 MB.', 'VALIDATION') : error);
         return;
       }
       next();
@@ -380,7 +381,7 @@ router.post(
   async (req: AuthRequest, res, next) => {
     try {
       const parsed = readMultipartFile(req.body as Buffer, String(req.headers['content-type'] || ''));
-      const saved = await storeSponsorMedia(req.params.id, parsed.file, parsed.fields);
+      const saved = await storeSponsorMedia(req.params.id, parsed.file, parsed.fields, req.user!.sub);
       res.status(201).json({ creative: saved });
     } catch (error) {
       pass(error, next);

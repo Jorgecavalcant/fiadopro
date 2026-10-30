@@ -54,6 +54,7 @@ export function fillContract(snapshot: ContractSnapshot, generatedOn: string): s
     CONTRATANTE_QUALIFICACAO: snapshot.qualificacao,
     CONTRATANTE_ASSINATURA: snapshot.assinatura,
     CONTRATADA_RAZAO: TECH42.razao,
+    CONTRATADA_FANTASIA: TECH42.fantasia,
     CONTRATADA_CNPJ: TECH42.cnpj,
     CONTRATADA_ENDERECO: TECH42.endereco,
     CONTRATADA_CIDADE: TECH42.cidade,

@@ -1,6 +1,6 @@
 .fp-admin-title { margin: 0; font-size: 22px; font-weight: 600; color: var(--fp-text); }
 .fp-admin-sub { margin: 4px 0 0; font-size: 13px; font-weight: 400; color: var(--fp-muted); }
-.fp-admin-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--fp-line); overflow-x: auto; }
+.fp-admin-tabs { display: flex; gap: 4px; flex-wrap: nowrap; border-bottom: 1px solid var(--fp-line); overflow-x: auto; }
 .fp-admin-tab {
   display: inline-flex;
   align-items: center;
@@ -13,6 +13,7 @@
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
+  flex: 0 0 auto;
   cursor: pointer;
 }
 .fp-admin-tab svg { width: 16px; height: 16px; }
@@ -154,6 +155,136 @@
   background: linear-gradient(90deg, transparent 62%, rgba(0, 0, 0, 0.22) 100%);
   pointer-events: none;
 }
+.fp-sponsor-strip.captioned .fp-sponsor-fade {
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.28) 48%, rgba(0, 0, 0, 0.35) 100%);
+}
+.fp-sponsor-copy {
+  position: absolute;
+  left: 12px;
+  right: 118px;
+  top: 30px;
+  z-index: 1;
+  margin: 0;
+  color: #fff;
+}
+.fp-sponsor-copy strong,
+.fp-sponsor-copy span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fp-sponsor-copy strong { font-size: 15px; font-weight: 700; line-height: 1.2; }
+.fp-sponsor-copy span { font-size: 12px; font-weight: 500; line-height: 1.3; }
+.fp-sponsor-quiet {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid var(--fp-line, #eaeae5);
+  border-radius: 12px;
+  color: var(--fp-text, #1a1a1a);
+}
+.fp-sponsor-quiet em {
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--fp-muted, #6b6b66);
+  flex: none;
+}
+.fp-sponsor-quiet span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+.fp-sponsor-quiet a {
+  flex: none;
+  color: var(--fp-navy, #2b2f77);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.fp-sponsor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: #111;
+}
+.fp-sponsor-overlay .fp-sponsor-full {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 100%;
+  border-radius: 0;
+}
+.fp-sponsor-overlay .fp-sponsor-close {
+  position: fixed;
+  z-index: 5;
+  width: 48px;
+  height: 48px;
+  top: 12px;
+  right: 12px;
+  background: #fff;
+  color: #1a1a1a;
+}
+.fp-sponsor-overlay .fp-sponsor-fade {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 30%, rgba(0, 0, 0, 0.78) 78%);
+}
+.fp-sponsor-story {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 118px;
+  z-index: 1;
+  margin: 0;
+  color: #fff;
+}
+.fp-sponsor-story em { display: block; font-style: normal; font-size: 14px; font-weight: 500; }
+.fp-sponsor-story strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.fp-sponsor-story span { display: block; margin-top: 6px; font-size: 15px; }
+.fp-sponsor-overlay .fp-sponsor-cta {
+  left: 16px;
+  right: 16px;
+  bottom: 52px;
+  text-align: center;
+  color: #2b2f77;
+  padding: 14px 16px;
+}
+.fp-sponsor-note {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1;
+  margin: 0;
+  text-align: center;
+  color: #fff;
+  font-size: 13px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fp-sponsor-strip,
+  .fp-sponsor-full,
+  .fp-sponsor-overlay,
+  .fp-sponsor-art,
+  .fp-sponsor-quiet {
+    transition: none;
+    animation: none;
+  }
+}
 .fp-sponsor-cta {
   position: absolute;
   right: 10px;
@@ -209,7 +340,7 @@
   .fp-mkt-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
-  .fp-admin-tabs { flex-wrap: wrap; overflow: visible; }
+  .fp-admin-tabs { flex-wrap: nowrap; overflow-x: auto; }
   .fp-admin-tab { padding: 8px 10px; font-size: 13px; }
   .fp-mkt-table { display: none; }
   .fp-mkt-cards-list { display: flex; flex-direction: column; gap: 8px; }
