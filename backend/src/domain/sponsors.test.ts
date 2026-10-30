@@ -9,6 +9,7 @@ import {
   metricPlan,
   pickCreative,
   planRenewal,
+  pruneOnceKeys,
   saoPauloToday,
   saoPauloTurn,
   SponsorRuleError,
@@ -147,6 +148,23 @@ describe('endereço e texto público', () => {
   it('não guarda e-mail nem telefone no contato e não vaza campo interno', () => {
     expect(() => cleanOptionalName('ana@exemplo.com')).toThrow(SponsorRuleError);
     expect(() => cleanOptionalName('(11) 98888-7777')).toThrow(SponsorRuleError);
+    expect(assertPublicHttps('https://fcbarcelona.com/a')).toContain('fcbarcelona.com');
+    expect(assertPublicHttps('https://fdcomunicacao.com.br/a')).toContain('fdcomunicacao.com.br');
+    expect(assertPublicHttps('https://wa.me/5500000000000')).toContain('wa.me');
+    expect(assertPublicHttps('https://100.128.0.1/a')).toContain('100.128.0.1');
+    for (const bad of [
+      'https://[::ffff:127.0.0.1]/a',
+      'https://[::ffff:7f00:1]/a',
+      'https://[::]/a',
+      'https://100.64.0.1/a',
+      'https://[fc00::1]/a',
+      'https://[fe80::1]/a',
+    ]) {
+      expect(() => assertPublicHttps(bad)).toThrow(SponsorRuleError);
+    }
+    const keys = new Set(['u|c|exibicao|2026-10-29', 'u|c|clique|2026-10-30']);
+    pruneOnceKeys(keys, '2026-10-30');
+    expect([...keys]).toEqual(['u|c|clique|2026-10-30']);
     const pub = toPublicCreative({
       id: 'c1',
       tipo: 'imagem',

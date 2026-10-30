@@ -14,8 +14,11 @@ import {
   pauseContract,
   renewContract,
   resumeContract,
+  updateCreative,
   updateSponsor,
 } from '../services/sponsorAdmin.js';
+import { contractDaily, contractDetail, contractReport, sponsorBoard, sponsorSummary } from '../services/sponsorReads.js';
+import { renderSponsorPdf } from '../services/sponsorReportPdf.js';
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -206,6 +209,82 @@ router.post('/contracts/:id/creatives', async (req: AuthRequest, res: Response, 
       ordem: body.ordem ?? 0,
     });
     res.status(201).json({ creative });
+  } catch (error) {
+    pass(error, next);
+  }
+});
+
+function periodOf(value: unknown) {
+  const query = readInput(z.object({ from: dateField, to: dateField }), value);
+  if (query.to < query.from) {
+    throw new ApiError(400, 'A data final não pode ser antes do início.', 'VALIDATION');
+  }
+  const [fromYear, fromMonth, fromDay] = query.from.split('-').map(Number);
+  const [toYear, toMonth, toDay] = query.to.split('-').map(Number);
+  const span = (Date.UTC(toYear, toMonth - 1, toDay) - Date.UTC(fromYear, fromMonth - 1, fromDay)) / 86400000;
+  if (span > 366) throw new ApiError(400, 'Escolha no máximo um ano.', 'VALIDATION');
+  return query;
+}
+
+router.get('/board', async (_req, res, next) => {
+  try {
+    res.json({ rows: await sponsorBoard() });
+  } catch (error) {
+    pass(error, next);
+  }
+});
+
+router.get('/summary', async (_req, res, next) => {
+  try {
+    res.json({ summary: await sponsorSummary() });
+  } catch (error) {
+    pass(error, next);
+  }
+});
+
+router.get('/contracts/:id/daily', async (req, res, next) => {
+  try {
+    const query = periodOf(req.query);
+    res.json({ days: await contractDaily(req.params.id, query.from, query.to) });
+  } catch (error) {
+    pass(error, next);
+  }
+});
+
+router.get('/contracts/:id/report.pdf', async (req, res, next) => {
+  try {
+    const query = periodOf(req.query);
+    const report = await contractReport(req.params.id, query.from, query.to);
+    const pdf = await renderSponsorPdf(report);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="resultados.pdf"');
+    res.send(pdf);
+  } catch (error) {
+    pass(error, next);
+  }
+});
+
+router.get('/contracts/:id', async (req, res, next) => {
+  try {
+    res.json({ contract: await contractDetail(req.params.id) });
+  } catch (error) {
+    pass(error, next);
+  }
+});
+
+router.patch('/creatives/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const body = readInput(CreativeBody, req.body);
+    const urls = httpsFields(body.media_url, body.link_destino);
+    const creative = await updateCreative(req.user!.sub, req.params.id, {
+      tipo: body.tipo,
+      slot: body.slot,
+      media_url: urls.media_url,
+      link_destino: urls.link_destino,
+      titulo: cleanText(body.titulo, 80, 'o título'),
+      texto_alt: cleanText(body.texto_alt, 160, 'o texto alternativo'),
+    });
+    res.json({ creative });
   } catch (error) {
     pass(error, next);
   }
