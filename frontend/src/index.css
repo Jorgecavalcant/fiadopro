@@ -26,13 +26,13 @@
   --fp-bg: #f6f6f4;
   --fp-surface: #ffffff;
   --fp-tile: #efefec;
-  --fp-border: #e6e6e2;
-  --fp-line: #e6e6e2;
+  --fp-border: #eaeae5;
+  --fp-line: #eaeae5;
   --fp-text: #1a1a1a;
   --fp-muted: #5c5c5c;
   --fp-subtle: #5c5c5c;
-  --fp-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --fp-radius: 10px;
+  --fp-shadow: none;
+  --fp-radius: 16px;
   --fp-font: -apple-system, Inter, Roboto, "Segoe UI", sans-serif;
   --fp-value: 28px;
   --fp-title: 22px;

@@ -67,4 +67,50 @@ describe('início', () => {
     expect(document.body.textContent).not.toContain('R$ 350.00');
     expect(memory.get('fiado_pro_hide_values')).toBe('1');
   });
+
+  it('esconde a atenção quando não há itens e o patrocínio some no Pro', () => {
+    render(
+      <HomePanel
+        userName="TESTE Ana"
+        formatCurrency={(value) => `R$ ${value.toFixed(2)}`}
+        receivable={0}
+        payable={0}
+        overdue={0}
+        activeDebtors={0}
+        isPro
+        onNewDebt={() => undefined}
+        onReceive={() => undefined}
+        onSplit={() => undefined}
+        onNewCustomer={() => undefined}
+      />,
+    );
+    expect(document.body.textContent).not.toContain('Precisa da sua atenção');
+    expect(document.body.textContent).not.toContain('Patrocinado');
+  });
+
+  it('mostra no máximo os itens recebidos e o patrocínio no Free', () => {
+    render(
+      <HomePanel
+        userName="TESTE Ana"
+        formatCurrency={(value) => `R$ ${value.toFixed(2)}`}
+        receivable={10}
+        payable={0}
+        overdue={10}
+        activeDebtors={1}
+        attention={[
+          { customerId: 'a', name: 'TESTE Ana', kind: 'overdue', reason: 'Venceu há 5 dias', amount: 10 },
+          { customerId: 'b', name: 'TESTE Bruno', kind: 'dueSoon', reason: 'Vence em 2 dias', amount: 5 },
+          { customerId: 'c', name: 'TESTE Carlos', kind: 'refund', reason: 'Você deve devolver', amount: 3 },
+        ]}
+        onNewDebt={() => undefined}
+        onReceive={() => undefined}
+        onSplit={() => undefined}
+        onNewCustomer={() => undefined}
+      />,
+    );
+    expect(document.body.textContent).toContain('Precisa da sua atenção');
+    expect(document.body.textContent).toContain('TESTE Ana');
+    expect(document.body.textContent).toContain('Patrocinado');
+    expect(document.querySelectorAll('.fp-attention-row')).toHaveLength(3);
+  });
 });

@@ -4,6 +4,7 @@ import {
   cumulativeThrough,
   periodRange,
   periodResult,
+  periodToReceive,
   sumConfirmed,
   type LedgerTx,
 } from './ledgerPeriod';
@@ -28,6 +29,11 @@ describe('período do extrato', () => {
     expect(chart.Received).toBe(sums.payment);
     expect(sums).toEqual({ debt: 150, payment: 40, refund: 10, abatement: 15 });
     expect(periodResult(sums)).toBe(40 + 15 - 150 - 10);
+    expect(periodToReceive(sums)).toBe(150 - 40 - 10 - 15);
+  });
+
+  it('a receber no período não fica negativo quando entrou mais do que saiu', () => {
+    expect(periodToReceive({ debt: 20, payment: 50, refund: 0, abatement: 0 })).toBe(0);
   });
 
   it('o mês atual não mistura o mês passado', () => {

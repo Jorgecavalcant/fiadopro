@@ -70,7 +70,7 @@ const Layout = ({
         })}
       </aside>
       <div className="fp-main">
-        <header className="fp-top">
+        <header className="fp-top" hidden={activeView === AppView.DASHBOARD}>
           <h1>{title}</h1>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
             {isPro ? <span style={{ color: 'var(--fp-navy)', fontWeight: 600, fontSize: 13 }}>Pro</span> : null}
