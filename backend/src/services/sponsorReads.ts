@@ -4,6 +4,11 @@ import { saoPauloToday } from '../domain/sponsors.js';
 import { contractResults } from './sponsorAdmin.js';
 
 export const BOARD_SQL = `SELECT s.id AS sponsor_id, s.nome, s.categoria, s.cidade, s.ativo,
+            CASE
+              WHEN s.documento IS NULL THEN NULL
+              WHEN char_length(s.documento) = 11 THEN '***.***.***-' || right(s.documento, 2)
+              ELSE '**.***.***/' || substring(s.documento from 9 for 4) || '-' || right(s.documento, 2)
+            END AS documento_mascarado,
             k.id AS contract_id, k.inicio::text AS inicio, k.fim::text AS fim,
             k.planos_alvo, k.slots, k.status
        FROM sponsors s
@@ -36,18 +41,22 @@ export const DAILY_SQL = `SELECT dia::text AS dia,
       ORDER BY dia`;
 
 export const DETAIL_SQL = `SELECT k.id, k.sponsor_id, s.nome, s.categoria, s.cidade,
+            s.tipo_pessoa, s.razao_social, s.documento, s.endereco, s.uf,
+            s.representante_nome, s.representante_cargo, s.telefone, s.email,
             s.contato_nome, s.ativo AS sponsor_ativo,
-            k.inicio::text AS inicio, k.fim::text AS fim, k.planos_alvo, k.slots, k.status
+            k.inicio::text AS inicio, k.fim::text AS fim, k.planos_alvo, k.slots, k.status,
+            k.valor_centavos, k.observacao, k.forma_pagamento, k.parcelas, k.dia_vencimento, k.aviso_previo_dias
        FROM sponsor_contracts k
        JOIN sponsors s ON s.id = k.sponsor_id
       WHERE k.id = $1`;
 
-const CREATIVE_SQL = `SELECT id, tipo, slot, media_url, link_destino, titulo, texto_alt, ativo, ordem
+const CREATIVE_SQL = `SELECT id, tipo, slot, media_url, media_origem, link_destino, titulo, texto_alt, ativo, ordem,
+            enquadramento_zoom::float AS zoom, enquadramento_x::float AS enquadramento_x, enquadramento_y::float AS enquadramento_y
        FROM sponsor_creatives
       WHERE contract_id = $1
       ORDER BY ordem, id`;
 
-const REPORT_HEAD_SQL = `SELECT s.nome, k.inicio::text AS inicio, k.fim::text AS fim
+export const REPORT_HEAD_SQL = `SELECT s.nome, k.inicio::text AS inicio, k.fim::text AS fim
        FROM sponsor_contracts k
        JOIN sponsors s ON s.id = k.sponsor_id
       WHERE k.id = $1`;

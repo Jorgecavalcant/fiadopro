@@ -12,6 +12,7 @@ export type BoardRow = {
   planos_alvo: string[] | null;
   slots: string[] | null;
   status: string | null;
+  documento_mascarado?: string | null;
 };
 
 export type Summary = {
@@ -36,6 +37,8 @@ export type Creative = {
   texto_alt: string;
   ativo: boolean;
   ordem: number;
+  zoom?: number;
+  media_origem?: string;
 };
 
 export type ContractDetail = {
@@ -79,6 +82,28 @@ export async function sponsorFetch<T>(path: string, init?: RequestInit): Promise
   const data = await readBody(res);
   if (!res.ok) throw new Error(data?.error?.message || 'Não consegui falar com o servidor.');
   return data as T;
+}
+
+export async function uploadArt(contractId: string, body: FormData) {
+  const res = await fetch(`${API_URL}/admin/sponsors/contracts/${contractId}/media`, {
+    method: 'POST',
+    credentials: 'include',
+    body,
+  });
+  const data = await readBody(res);
+  if (!res.ok) throw new Error(data?.error?.message || 'Não consegui enviar a arte.');
+}
+
+export async function downloadContract(id: string) {
+  const res = await fetch(`${API_URL}/admin/sponsors/contracts/${id}/contract.pdf`, { credentials: 'include' });
+  if (!res.ok) throw new Error('Não consegui baixar o contrato.');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'contrato-patrocinio.pdf';
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export async function downloadReport(id: string, from: string, to: string) {

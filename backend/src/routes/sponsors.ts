@@ -3,8 +3,18 @@ import { z } from 'zod';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { nextCreative, recordEvent } from '../services/sponsorDelivery.js';
+import { sendSponsorMedia } from '../services/sponsorMedia.js';
 
 const router = Router();
+
+router.get('/media/:id', async (req: AuthRequest, res, next) => {
+  try {
+    await sendSponsorMedia(req, res);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.use(requireAuth);
 
 const SlotQuery = z.object({

@@ -34,14 +34,21 @@ function aside(row: BoardRow, today: string): string {
   return '';
 }
 
+function badge(row: BoardRow, today: string) {
+  if (row.status === 'ativo' && row.inicio && row.inicio > today) {
+    return { label: 'Agendado', className: 'fp-badge fp-badge-warning' };
+  }
+  return STATUS[row.status || ''] || { label: 'Sem contrato', className: 'fp-badge fp-badge-muted' };
+}
+
 function RowBody({ row, today }: { row: BoardRow; today: string }) {
-  const status = STATUS[row.status || ''] || { label: 'Sem contrato', className: 'fp-badge fp-badge-muted' };
+  const status = badge(row, today);
   const hint = aside(row, today);
   return (
     <>
       <div>
         <span className="fp-mkt-name">{row.nome}</span>
-        <span className="fp-mkt-meta">{row.categoria} · {row.cidade}</span>
+        <span className="fp-mkt-meta">{row.categoria} · {row.cidade}{row.documento_mascarado ? ` · ${row.documento_mascarado}` : ''}</span>
       </div>
       <span>{row.inicio && row.fim ? `${brDate(row.inicio)} – ${brDate(row.fim)}` : '—'}</span>
       <span>{plans(row.planos_alvo)}</span>

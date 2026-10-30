@@ -5,6 +5,7 @@ import {
   consumeRate,
   contractIsLive,
   decideSlot,
+  deliversOn,
   eventAllowed,
   metricPlan,
   pickCreative,
@@ -152,6 +153,8 @@ describe('endereço e texto público', () => {
     expect(assertPublicHttps('https://fdcomunicacao.com.br/a')).toContain('fdcomunicacao.com.br');
     expect(assertPublicHttps('https://wa.me/5500000000000')).toContain('wa.me');
     expect(assertPublicHttps('https://100.128.0.1/a')).toContain('100.128.0.1');
+    expect(assertPublicHttps('https://[fec0::1]/a')).toContain('fec0::1');
+    expect(assertPublicHttps('https://[64:ff99::1]/a')).toContain('64:ff99::1');
     for (const bad of [
       'https://[::ffff:127.0.0.1]/a',
       'https://[::ffff:7f00:1]/a',
@@ -159,6 +162,11 @@ describe('endereço e texto público', () => {
       'https://100.64.0.1/a',
       'https://[fc00::1]/a',
       'https://[fe80::1]/a',
+      'https://[fe90::1]/a',
+      'https://[fea0::1]/a',
+      'https://[febf::1]/a',
+      'https://[64:ff9b::1]/a',
+      'https://[64:ff9b::8.8.8.8]/a',
     ]) {
       expect(() => assertPublicHttps(bad)).toThrow(SponsorRuleError);
     }
@@ -180,5 +188,8 @@ describe('endereço e texto público', () => {
     expect(pub).not.toHaveProperty('valor_centavos');
     expect(pub).not.toHaveProperty('observacao');
     expect(JSON.stringify(pub)).not.toContain('@');
+    expect(deliversOn('ativo', '2026-11-01', '2026-12-31', '2026-10-30')).toBe(false);
+    expect(deliversOn('ativo', '2026-11-01', '2026-12-31', '2026-11-01')).toBe(true);
+    expect(deliversOn('rascunho', '2026-10-01', '2026-12-31', '2026-11-01')).toBe(false);
   });
 });

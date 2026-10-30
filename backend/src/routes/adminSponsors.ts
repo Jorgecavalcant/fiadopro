@@ -1,4 +1,4 @@
-import { Router, Response, NextFunction } from 'express';
+import express, { Router, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { requireAdmin, requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
@@ -8,6 +8,7 @@ import {
   cancelContract,
   contractResults,
   createContract,
+  updateContractDraft,
   createCreative,
   createSponsor,
   listSponsors,
@@ -19,9 +20,21 @@ import {
 } from '../services/sponsorAdmin.js';
 import { contractDaily, contractDetail, contractReport, sponsorBoard, sponsorSummary } from '../services/sponsorReads.js';
 import { renderSponsorPdf } from '../services/sponsorReportPdf.js';
+import { ImageRuleError, readMultipartFile } from '../domain/sponsorImage.js';
+import { contractPdf, documentPreview, issueContractDocument } from '../services/sponsorContractDoc.js';
+import { storeSponsorMedia } from '../services/sponsorMedia.js';
+import { loadSponsor, readProfile, saveSponsorProfile } from '../services/sponsorProfile.js';
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
+
+router.param('id', (_req, _res, next, value) => {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value))) {
+    next(new ApiError(400, 'Identificador inválido.', 'VALIDATION'));
+    return;
+  }
+  next();
+});
 
 const dateField = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a data no formato AAAA-MM-DD.');
 
@@ -31,6 +44,15 @@ const SponsorBody = z.object({
   cidade: z.string(),
   contato_nome: z.string().nullable().optional(),
   ativo: z.boolean().optional(),
+  tipo_pessoa: z.enum(['pj', 'pf']).optional(),
+  razao_social: z.string().nullable().optional(),
+  documento: z.string().nullable().optional(),
+  endereco: z.string().nullable().optional(),
+  uf: z.string().nullable().optional(),
+  representante_nome: z.string().nullable().optional(),
+  representante_cargo: z.string().nullable().optional(),
+  telefone: z.string().nullable().optional(),
+  email: z.string().nullable().optional(),
 });
 
 const ContractBody = z.object({
@@ -40,6 +62,10 @@ const ContractBody = z.object({
   slots: z.array(z.enum(['faixa', 'tela_cheia'])).min(1, 'Escolha o espaço do anúncio.'),
   valor_centavos: z.number().int().min(0).nullable().optional(),
   observacao: z.string().max(280, 'A observação passa de 280 caracteres.').nullable().optional(),
+  forma_pagamento: z.enum(['pix', 'boleto', 'transferencia']).nullable().optional(),
+  parcelas: z.number().int().min(1).max(36).nullable().optional(),
+  dia_vencimento: z.number().int().min(1).max(28).nullable().optional(),
+  aviso_previo_dias: z.number().int().min(1).max(90).nullable().optional(),
 });
 
 const CreativeBody = z.object({
@@ -50,6 +76,9 @@ const CreativeBody = z.object({
   titulo: z.string(),
   texto_alt: z.string(),
   ordem: z.number().int().min(0).max(999).optional(),
+  zoom: z.number().min(1).max(3).optional(),
+  x: z.number().min(0).max(100).optional(),
+  y: z.number().min(0).max(100).optional(),
 });
 
 function readInput<T>(schema: z.ZodType<T>, value: unknown): T {
@@ -68,7 +97,7 @@ function asRule(error: unknown): never {
 }
 
 function pass(error: unknown, next: NextFunction) {
-  if (error instanceof SponsorRuleError) {
+  if (error instanceof SponsorRuleError || error instanceof ImageRuleError) {
     next(new ApiError(400, error.message, 'VALIDATION'));
     return;
   }
@@ -100,6 +129,10 @@ function contractInput(body: z.infer<typeof ContractBody>) {
     slots: body.slots,
     valor_centavos: body.valor_centavos ?? null,
     observacao: body.observacao?.trim() ? cleanText(body.observacao, 280, 'a observação') : null,
+    forma_pagamento: body.forma_pagamento ?? null,
+    parcelas: body.parcelas ?? null,
+    dia_vencimento: body.dia_vencimento ?? null,
+    aviso_previo_dias: body.aviso_previo_dias ?? 15,
   };
 }
 
@@ -123,7 +156,10 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
   try {
     const body = readInput(SponsorBody, req.body);
     const sponsor = await createSponsor(req.user!.sub, sponsorInput(body));
-    res.status(201).json({ sponsor });
+    if (body.tipo_pessoa) {
+      await saveSponsorProfile(req.user!.sub, String(sponsor.id), readProfile(body));
+    }
+    res.status(201).json({ sponsor: { ...sponsor, id: sponsor.id } });
   } catch (error) {
     pass(error, next);
   }
@@ -132,12 +168,22 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
 router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const body = readInput(SponsorBody, req.body);
-    const sponsor = await updateSponsor(
-      req.user!.sub,
-      req.params.id,
-      sponsorInput(body, body.ativo ?? true),
-    );
-    res.json({ sponsor });
+    if (body.tipo_pessoa) {
+      await saveSponsorProfile(req.user!.sub, req.params.id, readProfile(body));
+    } else {
+      await updateSponsor(req.user!.sub, req.params.id, sponsorInput(body, body.ativo ?? true));
+    }
+    res.json({ sponsor: { id: req.params.id } });
+  } catch (error) {
+    pass(error, next);
+  }
+});
+
+router.patch('/contracts/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const body = readInput(ContractBody, req.body);
+    const contract = await updateContractDraft(req.user!.sub, req.params.id, contractInput(body));
+    res.json({ contract });
   } catch (error) {
     pass(error, next);
   }
@@ -207,6 +253,9 @@ router.post('/contracts/:id/creatives', async (req: AuthRequest, res: Response, 
       titulo: cleanText(body.titulo, 80, 'o título'),
       texto_alt: cleanText(body.texto_alt, 160, 'o texto alternativo'),
       ordem: body.ordem ?? 0,
+      zoom: body.zoom,
+      x: body.x,
+      y: body.y,
     });
     res.status(201).json({ creative });
   } catch (error) {
@@ -283,6 +332,9 @@ router.patch('/creatives/:id', async (req: AuthRequest, res: Response, next: Nex
       link_destino: urls.link_destino,
       titulo: cleanText(body.titulo, 80, 'o título'),
       texto_alt: cleanText(body.texto_alt, 160, 'o texto alternativo'),
+      zoom: body.zoom,
+      x: body.x,
+      y: body.y,
     });
     res.json({ creative });
   } catch (error) {
@@ -301,6 +353,63 @@ router.get('/contracts/:id/results', async (req, res, next) => {
     }
     const results = await contractResults(req.params.id, query.from, query.to);
     res.json({ results });
+  } catch (error) {
+    pass(error, next);
+  }
+});
+
+router.get('/:id', async (req, res, next) => {
+  try {
+    res.json({ sponsor: await loadSponsor(req.params.id) });
+  } catch (error) {
+    pass(error, next);
+  }
+});
+
+router.post(
+  '/contracts/:id/media',
+  (req, res, next) => {
+    express.raw({ type: 'multipart/form-data', limit: '2mb' })(req, res, (error) => {
+      if (error) {
+        next(new ApiError(400, 'A imagem passa de 2 MB.', 'VALIDATION'));
+        return;
+      }
+      next();
+    });
+  },
+  async (req: AuthRequest, res, next) => {
+    try {
+      const parsed = readMultipartFile(req.body as Buffer, String(req.headers['content-type'] || ''));
+      const saved = await storeSponsorMedia(req.params.id, parsed.file, parsed.fields);
+      res.status(201).json({ creative: saved });
+    } catch (error) {
+      pass(error, next);
+    }
+  },
+);
+
+router.get('/contracts/:id/document', async (req, res, next) => {
+  try {
+    res.json({ document: await documentPreview(req.params.id) });
+  } catch (error) {
+    pass(error, next);
+  }
+});
+
+router.post('/contracts/:id/document', async (req: AuthRequest, res, next) => {
+  try {
+    res.status(201).json({ document: await issueContractDocument(req.user!.sub, req.params.id) });
+  } catch (error) {
+    pass(error, next);
+  }
+});
+
+router.get('/contracts/:id/contract.pdf', async (req, res, next) => {
+  try {
+    const file = await contractPdf(req.params.id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+    res.send(file.pdf);
   } catch (error) {
     pass(error, next);
   }

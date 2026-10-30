@@ -200,16 +200,49 @@ function mappedV4Private(rest: string): boolean {
   return privateV4(pair[0], pair[1]);
 }
 
+function expandIpv6(host: string): number[] | null {
+  let text = host;
+  if (text.includes('.')) {
+    const cut = text.lastIndexOf(':');
+    const parts = text.slice(cut + 1).split('.').map(Number);
+    if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return null;
+    const hi = ((parts[0] << 8) | parts[1]).toString(16);
+    const lo = ((parts[2] << 8) | parts[3]).toString(16);
+    text = `${text.slice(0, cut)}:${hi}:${lo}`;
+  }
+  const halves = text.split('::');
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(':') : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(':') : [];
+  const missing = 8 - head.length - tail.length;
+  if (missing < 0) return null;
+  const full = [...head, ...Array.from({ length: missing }, () => '0'), ...tail];
+  if (full.length !== 8) return null;
+  const groups = full.map((part) => Number.parseInt(part || '0', 16));
+  if (groups.some((part) => !Number.isInteger(part) || part < 0 || part > 0xffff)) return null;
+  return groups;
+}
+
 function isPrivateHost(host: string): boolean {
   if (host.includes(':')) {
     if (host === '::' || host === '::1') return true;
-    if (host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')) return true;
+    if (host.startsWith('fc') || host.startsWith('fd')) return true;
+    const head = Number.parseInt(host.split(':')[0], 16);
+    if (Number.isInteger(head) && head >= 0xfe80 && head <= 0xfebf) return true;
+    const groups = expandIpv6(host);
+    if (groups && groups[0] === 0x64 && groups[1] === 0xff9b && groups.slice(2, 6).every((part) => part === 0)) {
+      return true;
+    }
     if (host.startsWith('::ffff:')) return mappedV4Private(host.slice('::ffff:'.length));
     return false;
   }
   const pair = v4Pair(host);
   if (!pair) return false;
   return privateV4(pair[0], pair[1]);
+}
+
+export function deliversOn(status: string, inicio: string, fim: string, today: string): boolean {
+  return status === 'ativo' && inicio <= today && fim >= today;
 }
 
 export function pruneOnceKeys(keys: Set<string>, today: string) {

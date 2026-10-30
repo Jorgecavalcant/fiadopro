@@ -32,10 +32,21 @@ function audit(
   });
 }
 
+const PRIVATE_KEYS = [
+  'contato_nome',
+  'observacao',
+  'documento',
+  'telefone',
+  'email',
+  'endereco',
+  'razao_social',
+  'representante_nome',
+  'representante_cargo',
+];
+
 function withoutContact(row: Record<string, unknown>) {
   const copy = { ...row };
-  delete copy.contato_nome;
-  delete copy.observacao;
+  for (const key of PRIVATE_KEYS) delete copy[key];
   return copy;
 }
 
@@ -60,7 +71,7 @@ export async function createSponsor(
       [input.nome, input.categoria, input.cidade, input.contato_nome],
     );
     const row = result.rows[0];
-    await audit(sql, adminId, 'SPONSOR_CREATE', {}, withoutContact(row));
+    await audit(sql, adminId, 'SPONSOR_CREATE', {}, { id: row.id, resumo: 'dados do patrocinador alterados' });
     return row;
   });
 }
@@ -80,7 +91,7 @@ export async function updateSponsor(
         RETURNING ${SPONSOR_FIELDS}`,
       [id, input.nome, input.categoria, input.cidade, input.contato_nome, input.ativo],
     );
-    await audit(sql, adminId, 'SPONSOR_UPDATE', withoutContact(before.rows[0]), withoutContact(result.rows[0]));
+    await audit(sql, adminId, 'SPONSOR_UPDATE', { id }, { id, resumo: 'dados do patrocinador alterados' });
     return result.rows[0];
   });
 }
@@ -99,7 +110,42 @@ type ContractInput = {
   slots: SponsorSlot[];
   valor_centavos: number | null;
   observacao: string | null;
+  forma_pagamento?: string | null;
+  parcelas?: number | null;
+  dia_vencimento?: number | null;
+  aviso_previo_dias?: number | null;
 };
+
+export async function updateContractDraft(adminId: string, id: string, input: ContractInput) {
+  return withTransaction(async (sql) => {
+    const before = await loadContract(sql, id);
+    if (before.status === 'vencido' || before.status === 'cancelado') {
+      throw new ApiError(409, 'Contrato encerrado não muda. Renove.', 'OFF_AIR');
+    }
+    await sql(
+      `UPDATE sponsor_contracts
+          SET inicio = $2::date, fim = $3::date, planos_alvo = $4::text[], slots = $5::text[],
+              valor_centavos = $6, observacao = $7, forma_pagamento = $8, parcelas = $9,
+              dia_vencimento = $10, aviso_previo_dias = $11, updated_at = NOW()
+        WHERE id = $1`,
+      [
+        id,
+        input.inicio,
+        input.fim,
+        input.planos_alvo,
+        input.slots,
+        input.valor_centavos,
+        input.observacao,
+        input.forma_pagamento ?? null,
+        input.parcelas ?? null,
+        input.dia_vencimento ?? null,
+        input.aviso_previo_dias ?? 15,
+      ],
+    );
+    await audit(sql, adminId, 'SPONSOR_CONTRACT_UPDATE', { id }, { id });
+    return { id };
+  });
+}
 
 export async function createContract(adminId: string, sponsorId: string, input: ContractInput) {
   return withTransaction(async (sql) => {
@@ -107,8 +153,9 @@ export async function createContract(adminId: string, sponsorId: string, input: 
     if (!sponsor.rows[0]) throw new ApiError(404, 'Patrocinador não encontrado.', 'NOT_FOUND');
     const result = await sql(
       `INSERT INTO sponsor_contracts
-         (sponsor_id, inicio, fim, planos_alvo, slots, valor_centavos, observacao, created_by)
-       VALUES ($1, $2::date, $3::date, $4::text[], $5::text[], $6, $7, $8)
+         (sponsor_id, inicio, fim, planos_alvo, slots, valor_centavos, observacao, created_by,
+          forma_pagamento, parcelas, dia_vencimento, aviso_previo_dias)
+       VALUES ($1, $2::date, $3::date, $4::text[], $5::text[], $6, $7, $8, $9, $10, $11, $12)
        RETURNING id, sponsor_id, inicio, fim, planos_alvo, slots, status, valor_centavos, renovado_de`,
       [
         sponsorId,
@@ -119,6 +166,10 @@ export async function createContract(adminId: string, sponsorId: string, input: 
         input.valor_centavos,
         input.observacao,
         adminId,
+        input.forma_pagamento ?? null,
+        input.parcelas ?? null,
+        input.dia_vencimento ?? null,
+        input.aviso_previo_dias ?? 15,
       ],
     );
     await audit(sql, adminId, 'SPONSOR_CONTRACT_CREATE', {}, withoutContact(result.rows[0]));
@@ -161,7 +212,11 @@ async function applyAction(adminId: string, id: string, action: 'ativar' | 'paus
 export const pauseContract = (adminId: string, id: string) => applyAction(adminId, id, 'pausar');
 export const resumeContract = (adminId: string, id: string) => applyAction(adminId, id, 'retomar');
 export const cancelContract = (adminId: string, id: string) => applyAction(adminId, id, 'cancelar');
-export const activateContract = (adminId: string, id: string) => applyAction(adminId, id, 'ativar');
+export async function activateContract(adminId: string, id: string) {
+  const { assertCurrentDocument } = await import('./sponsorContractDoc.js');
+  await assertCurrentDocument(id);
+  return applyAction(adminId, id, 'ativar');
+}
 
 export async function renewContract(adminId: string, id: string, input: ContractInput) {
   return withTransaction(async (sql) => {
@@ -194,8 +249,10 @@ export async function renewContract(adminId: string, id: string, input: Contract
     );
     await sql(
       `INSERT INTO sponsor_creatives
-         (contract_id, tipo, slot, media_url, media_origem, link_destino, titulo, texto_alt, ativo, ordem)
-       SELECT $1, tipo, slot, media_url, media_origem, link_destino, titulo, texto_alt, ativo, ordem
+         (contract_id, tipo, slot, media_url, media_origem, media_id, link_destino, titulo, texto_alt, ativo, ordem,
+          enquadramento_zoom, enquadramento_x, enquadramento_y)
+       SELECT $1, tipo, slot, media_url, media_origem, media_id, link_destino, titulo, texto_alt, ativo, ordem,
+              enquadramento_zoom, enquadramento_x, enquadramento_y
          FROM sponsor_creatives
         WHERE contract_id = $2 AND ativo = TRUE`,
       [created.rows[0].id, id],
@@ -216,6 +273,9 @@ export async function createCreative(
     titulo: string;
     texto_alt: string;
     ordem: number;
+    zoom?: number;
+    x?: number;
+    y?: number;
   },
 ) {
   return withTransaction(async (sql) => {
@@ -227,8 +287,9 @@ export async function createCreative(
     }
     const result = await sql(
       `INSERT INTO sponsor_creatives
-         (contract_id, tipo, slot, media_url, media_origem, link_destino, titulo, texto_alt, ordem)
-       VALUES ($1, $2, $3, $4, 'link', $5, $6, $7, $8)
+         (contract_id, tipo, slot, media_url, media_origem, link_destino, titulo, texto_alt, ordem,
+          enquadramento_zoom, enquadramento_x, enquadramento_y)
+       VALUES ($1, $2, $3, $4, 'link', $5, $6, $7, $8, $9, $10, $11)
        RETURNING id, contract_id, tipo, slot, media_origem, titulo, ativo, ordem`,
       [
         contractId,
@@ -239,6 +300,9 @@ export async function createCreative(
         input.titulo,
         input.texto_alt,
         input.ordem,
+        input.zoom ?? 1,
+        input.x ?? 50,
+        input.y ?? 50,
       ],
     );
     await audit(sql, adminId, 'SPONSOR_CREATIVE_CREATE', {}, result.rows[0]);
@@ -256,6 +320,9 @@ export async function updateCreative(
     link_destino: string;
     titulo: string;
     texto_alt: string;
+    zoom?: number;
+    x?: number;
+    y?: number;
   },
 ) {
   return withTransaction(async (sql) => {
@@ -277,11 +344,23 @@ export async function updateCreative(
     }
     const result = await sql(
       `UPDATE sponsor_creatives
-          SET tipo = $2, slot = $3, media_url = $4, link_destino = $5,
-              titulo = $6, texto_alt = $7, updated_at = NOW()
+          SET tipo = $2, slot = $3, media_url = $4, media_origem = 'link', media_id = NULL, link_destino = $5,
+              titulo = $6, texto_alt = $7, enquadramento_zoom = $8, enquadramento_x = $9,
+              enquadramento_y = $10, updated_at = NOW()
         WHERE id = $1
         RETURNING id, tipo, slot, titulo, ativo, ordem`,
-      [id, input.tipo, input.slot, input.media_url, input.link_destino, input.titulo, input.texto_alt],
+      [
+        id,
+        input.tipo,
+        input.slot,
+        input.media_url,
+        input.link_destino,
+        input.titulo,
+        input.texto_alt,
+        input.zoom ?? 1,
+        input.x ?? 50,
+        input.y ?? 50,
+      ],
     );
     const safe = { id: row.id, tipo: row.tipo, slot: row.slot, titulo: row.titulo };
     const next = result.rows[0];

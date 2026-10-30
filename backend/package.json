@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "tsc && mkdir -p dist/templates && cp src/templates/contrato-patrocinio.md dist/templates/",
     "start": "node dist/server.js",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint src",
