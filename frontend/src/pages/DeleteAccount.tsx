@@ -56,7 +56,7 @@ const DeleteAccount: React.FC = () => {
           login ficam guardados para você voltar na mesma conta em até 30 dias.
         </p>
         <p>
-          Os clientes, fiados e pagamentos daquela loja são apagados depois desse prazo.
+          Os lançamentos desta conta são apagados depois desse prazo.
           Durante esses 30 dias, dá para consultar o histórico se a outra pessoa ainda
           entra no sistema, mas não fazer um lançamento novo.
         </p>

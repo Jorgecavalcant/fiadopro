@@ -207,4 +207,6 @@ export enum AppView {
   INBOX = 'INBOX',
   MY_DEBTS = 'MY_DEBTS',
   ADMIN = 'ADMIN',
+  STATEMENT = 'STATEMENT',
+  MENU = 'MENU',
 }

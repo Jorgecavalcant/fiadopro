@@ -124,7 +124,7 @@ export default function InboxAprovacoes({ formatCurrency, onChanged }: InboxApro
                     onClick={() => setRejectingId(null)}
                     className="flex-1 bg-slate-100 text-slate-600 rounded-lg py-2 text-sm font-semibold"
                   >
-                    Voltar
+                    Cancelar
                   </button>
                 </div>
               </div>

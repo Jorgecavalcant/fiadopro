@@ -8,12 +8,12 @@ const HelpView = () => {
     {
       title: 'Menu',
       content:
-        'O menu mostra Painel, Clientes, Dividir Conta, Aprovações, Minhas Dívidas, Notificações, A Pagar (Devoluções), Minhas Despesas, Gestão de Clientes, Insights IA e Ajuda & Suporte.',
+        'O menu de baixo mostra Início, Pessoas, Extrato e Menu. No Menu ficam Dividir conta, Aprovações, Minhas dívidas, Lembretes, A pagar, Minhas despesas, Gestão, Insights e Ajuda.',
     },
     {
-      title: 'Novo Cliente',
+      title: 'Nova pessoa',
       content:
-        'Abra Clientes e toque em Novo Cliente. Preencha nome e telefone. O cadastro fica salvo neste aparelho.',
+        'Abra Pessoas e toque em Nova pessoa. Preencha nome e telefone. O cadastro fica salvo neste aparelho.',
     },
     {
       title: 'Nova Despesa',
@@ -33,12 +33,12 @@ const HelpView = () => {
     {
       title: 'Devolução',
       content:
-        'No perfil, toque em Devolução e informe o valor. Se a loja deve ao cliente, o aviso pede para usar Devolução ou Abatimento. Devolver tudo e Abater tudo preenchem o valor que zera o saldo. Esse cliente aparece em A Pagar (Devoluções).',
+        'No perfil, toque em Devolução e informe o valor. Se você deve a esta pessoa, o aviso pede para usar Devolução ou Abatimento. Devolver tudo e Abater tudo preenchem o valor que zera o saldo. Essa pessoa aparece em A pagar.',
     },
     {
       title: 'Pontualidade do cliente',
       content:
-        'A pontualidade desta loja sai do histórico de pagamento. Quem paga em dia aparece melhor.',
+        'A pontualidade desta conta sai do histórico de pagamento. Quem paga em dia aparece melhor.',
     },
     {
       title: 'Compra parcelada',
@@ -53,7 +53,7 @@ const HelpView = () => {
     {
       title: 'Minhas Despesas',
       content:
-        'No menu Minhas Despesas ficam os gastos da loja, como aluguel e fornecedor. A sua parte num rateio também pode aparecer aqui.',
+        'No menu Minhas despesas ficam os gastos da conta, como aluguel e fornecedor. A sua parte num rateio também pode aparecer aqui.',
     },
     {
       title: 'Extrato',
@@ -104,7 +104,7 @@ const HelpView = () => {
     },
     {
       q: 'Como funciona a pontualidade do cliente?',
-      a: 'A pontualidade do cliente nesta loja é baseada no histórico de pagamento em dia. Quanto mais o cliente paga em dia nesta loja, melhor aparece.',
+      a: 'A pontualidade nesta conta é baseada no histórico de pagamento em dia. Quanto mais a pessoa paga em dia, melhor aparece.',
     },
     {
       q: 'O que é "Abatimento"?',

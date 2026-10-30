@@ -90,6 +90,9 @@ import {
 } from './services/aiService';
 import { translations, Translation } from './translations';
 import HelpView from './components/HelpView';
+import { MenuView } from './components/MenuView';
+import { StatementView } from './components/StatementView';
+import { SearchField } from './components/ui/SearchField';
 import CurrencyInput from './components/CurrencyInput';
 import BrDateField from './components/BrDateField';
 import SaveButton from './components/SaveButton';
@@ -783,7 +786,7 @@ const CustomerManagementView = ({
   );
 
   const tabs: { id: 'todos' | RankingType; label: string; badge?: number }[] = [
-    { id: 'todos', label: 'Todos os Clientes', badge: customersWithBalance.length },
+    { id: 'todos', label: 'Todas as pessoas', badge: customersWithBalance.length },
     {
       id: 'maiores_devedores',
       label: 'Maiores Devedores',
@@ -932,7 +935,7 @@ const CustomerManagementView = ({
         }}
       >
         {[
-          { label: 'Total Clientes', value: stats.total, color: '#6366F1', bg: '#EEF2FF' },
+          { label: 'Pessoas', value: stats.total, color: '#2B2F77', bg: '#ECEDF7' },
           {
             label: 'A Receber',
             value: formatCurrency(stats.totalReceivable),
@@ -1062,7 +1065,7 @@ const CustomerManagementView = ({
               }}
             >
               <Users style={{ width: 48, height: 48, color: '#CBD5E1', margin: '0 auto 12px' }} />
-              <p style={{ fontWeight: 800, color: '#64748B' }}>Nenhum cliente encontrado</p>
+              <p style={{ fontWeight: 800, color: '#5C5C5C' }}>Nenhuma pessoa encontrada</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -1178,7 +1181,7 @@ const CustomerManagementView = ({
             <TrendingUp
               style={{ width: 48, height: 48, color: '#CBD5E1', margin: '0 auto 12px' }}
             />
-            <p style={{ fontWeight: 800, color: '#64748B' }}>Nenhum cliente neste ranking ainda</p>
+            <p style={{ fontWeight: 800, color: '#5C5C5C' }}>Nenhuma pessoa neste ranking ainda</p>
             <p style={{ fontSize: 13, color: '#94A3B8', marginTop: 4 }}>
               Registre transações para ver os rankings
             </p>
@@ -1243,7 +1246,7 @@ const CustomerManagementView = ({
                       flexShrink: 0,
                     }}
                   >
-                    {index < 3 ? ['🥇', '🥈', '🥉'][index] : index + 1}
+                    {index + 1}
                   </div>
                   <div
                     style={{
@@ -2588,11 +2591,11 @@ const InstallmentGroupCard = ({
                       <td className="py-3 px-4 text-center">
                         {status === 'paid' ? (
                           <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full">
-                            ✅ {t.installmentStatus_paid || 'Pago'}
+                            {t.installmentStatus_paid || 'Pago'}
                           </span>
                         ) : status === 'overdue' ? (
                           <span className="text-[10px] font-black text-red-700 bg-red-50 px-2 py-1 rounded-full">
-                            ⚠️ {t.installmentStatus_overdue || 'Em Atraso'}
+                            {t.installmentStatus_overdue || 'Em Atraso'}
                           </span>
                         ) : (
                           <span className="text-[10px] font-black text-amber-700 bg-amber-50 px-2 py-1 rounded-full">
@@ -2806,7 +2809,7 @@ const CustomerDetailView = ({
   @media print { body { padding: 20px; } }
 </style></head>
 <body>
-<div class="logo">FiadoPro <span>Extrato do Cliente</span></div>
+<div class="logo">Fiado Pro <span>Extrato</span></div>
 <div class="header">
   <div><div class="customer-name">${esc(selectedCustomer.name)}</div><div class="customer-phone">${esc(selectedCustomer.phone || '')}</div>${filterInfo}</div>
   <div class="balance-box"><div class="balance-label">Saldo atual</div><div class="balance-value">${formatCurrency(Math.abs(selectedCustomer.rawBalance))}</div><div style="font-size:11px;color:${saldoColor};font-weight:700;margin-top:2px">${selectedCustomer.rawBalance > 0 ? 'A receber' : selectedCustomer.rawBalance < 0 ? 'A pagar' : 'Quitado'}</div></div>
@@ -3053,7 +3056,7 @@ const CustomerDetailView = ({
                   {transactions.some((tx: Transaction) => tx.customerId !== selectedCustomer.id) &&
                   !transactions.some((tx: Transaction) => tx.customerId === selectedCustomer.id) ? (
                     <p className="text-slate-500 font-bold px-4">
-                      Nenhuma transação registrada para este cliente ainda. Clique em &quot;Nova
+                      Nenhuma transação registrada para esta pessoa ainda. Clique em &quot;Nova
                       Despesa&quot; ou &quot;Registrar Pagamento&quot; para começar.
                     </p>
                   ) : (
@@ -3676,7 +3679,7 @@ const ToPayView: React.FC<{
                         customerId: c.id,
                         amount: Math.abs(c.rawBalance),
                         type: 'DEBT' as TransactionType,
-                        description: 'Devolução em dinheiro ao cliente',
+                        description: 'Devolução em dinheiro',
                         timestamp: Date.now(),
                         status: 'CONFIRMED' as const,
                       },
@@ -4076,7 +4079,7 @@ const App: React.FC = () => {
         const owed = Math.max(0, balance);
         const extra = Math.max(0, Math.round((tx.amount - owed) * 100) / 100);
         const confirmed = window.confirm(
-          `${customer?.name ?? 'O cliente'} devia ${formatCurrency(owed)}. Os ${formatCurrency(extra)} a mais vão ficar como crédito dele (você vai dever a ele). Confirmar?`,
+          `${customer?.name ?? 'Esta pessoa'} devia ${formatCurrency(owed)}. Os ${formatCurrency(extra)} a mais vão ficar como crédito (você vai dever). Confirmar?`,
         );
         if (!confirmed) {
           showToast('O pagamento continua neste aparelho até você confirmar o crédito.');
@@ -4337,7 +4340,8 @@ const App: React.FC = () => {
   const showPlanLimit = (kind: 'clientes' | 'eventos' | 'participantes', max: number) => {
     if (!Number.isFinite(max)) return;
     const planName = plan.type === 'FREE' ? 'Grátis' : plan.type === 'PRO' ? 'Pro' : 'Enterprise';
-    const message = `Você atingiu o limite de ${max} ${kind} do plano ${planName}`;
+    const kindLabel = kind === 'clientes' ? 'pessoas' : kind;
+    const message = `Você atingiu o limite de ${max} ${kindLabel} do plano ${planName}`;
     if (!canShowCheckout()) {
       showToast(message);
       return;
@@ -5284,16 +5288,11 @@ const App: React.FC = () => {
           {activeView === AppView.CUSTOMERS && (
             <div className="space-y-6">
               <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="relative w-full md:max-w-md">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder={t.searchPlaceholder}
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl font-medium outline-none"
-                  />
-                </div>
+                <SearchField
+                  label={t.searchPlaceholder}
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                />
                 <button
                   onClick={() => setIsCustomerModalOpen(true)}
                   className="w-full md:w-auto flex items-center justify-center gap-2 bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-lg shadow-lg active:scale-95 transition-all"
@@ -5558,19 +5557,44 @@ const App: React.FC = () => {
             />
           )}
           {activeView === AppView.HELP && <HelpView />}
+          {activeView === AppView.STATEMENT && (
+            <StatementView
+              transactions={transactions}
+              customers={customers}
+              formatCurrency={formatCurrency}
+            />
+          )}
+          {activeView === AppView.MENU && (
+            <MenuView
+              isAdmin={user?.role === 'admin'}
+              isPro={plan.hasAI}
+              onOpen={setActiveView}
+              onUpgrade={() => {
+                if (canShowCheckout()) {
+                  setPlanLimitReason(null);
+                  setIsUpgradeModalOpen(true);
+                }
+              }}
+              onLogout={() => {
+                resetSyncState();
+                setUser(null);
+              }}
+            />
+          )}
           {activeView === AppView.ADMIN && user && user.role === 'admin' && (
             <AdminPanel currentUserId={user.id} />
           )}
         </Layout>
-        {/* FAB - Floating Action Button */}
-        <button
-          onClick={() => setIsQuickAddOpen(true)}
-          style={{ position: 'fixed', bottom: 28, right: 28, zIndex: 55 }}
-          className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-violet-600 text-white rounded-[20px] shadow-2xl flex items-center justify-center hover:from-indigo-600 hover:to-violet-700 transition-all active:scale-95 hover:scale-105 hover:-translate-y-1"
-          title="Acesso Rápido"
-        >
-          <Plus className="w-8 h-8" />
-        </button>
+        {activeView !== AppView.MENU && (
+          <button
+            onClick={() => setIsQuickAddOpen(true)}
+            className="fp-fab"
+            title="Acesso Rápido"
+            aria-label="Acesso rápido"
+          >
+            <Plus className="w-8 h-8" />
+          </button>
+        )}
 
         {isQuickAddOpen && (
           <FullScreenModal>
@@ -5635,8 +5659,8 @@ const App: React.FC = () => {
                   {quickAddStep === 1
                     ? '⚡ Acesso Rápido'
                     : quickAddType === 'DEBT'
-                      ? '💸 Lançar Dívida — Selecione o cliente'
-                      : '✅ Registrar Pagamento — Selecione o cliente'}
+                      ? 'Lançar dívida — selecione a pessoa'
+                      : 'Receber — selecione a pessoa'}
                 </p>
               </div>
               {/* Content */}
@@ -5713,7 +5737,7 @@ const App: React.FC = () => {
                         <input
                           autoFocus
                           type="text"
-                          placeholder="Buscar cliente pelo nome..."
+                          placeholder="Buscar pessoa pelo nome..."
                           value={quickAddSearch}
                           onChange={(e) => setQuickAddSearch(e.target.value)}
                           style={{
@@ -5863,7 +5887,7 @@ const App: React.FC = () => {
                                   Cadastrar &quot;{quickAddSearch}&quot;
                                 </p>
                                 <p style={{ fontSize: 12, color: '#6366F1', margin: '2px 0 0' }}>
-                                  Novo cliente
+                                  Nova pessoa
                                 </p>
                               </div>
                             </button>
@@ -5871,7 +5895,7 @@ const App: React.FC = () => {
                         {!quickAddSearch.trim() && customers.length === 0 && (
                           <div style={{ textAlign: 'center', padding: '40px 0', color: '#94A3B8' }}>
                             <Users style={{ width: 40, height: 40, margin: '0 auto 8px' }} />
-                            <p style={{ fontWeight: 700 }}>Nenhum cliente cadastrado ainda</p>
+                            <p style={{ fontWeight: 700 }}>Nenhuma pessoa cadastrada ainda</p>
                           </div>
                         )}
                       </div>
@@ -6496,7 +6520,7 @@ const App: React.FC = () => {
                     )}
                     <SaveButton
                       saving={savingCustomer}
-                      label={isEditCustomerModalOpen ? 'Salvar Alterações' : 'Cadastrar Cliente'}
+                      label={isEditCustomerModalOpen ? 'Salvar alterações' : 'Salvar'}
                       style={{
                         width: '100%',
                         padding: '16px',
@@ -6972,13 +6996,13 @@ const App: React.FC = () => {
                   {[
                     {
                       planData: PLANS.FREE,
-                      features: ['20 clientes', '15 eventos', 'Sem IA', 'Com anúncios'],
+                      features: ['20 pessoas', '15 eventos', 'Sem IA', 'Com anúncios'],
                       popular: false,
                     },
                     {
                       planData: PLANS.PRO,
                       features: [
-                        '500 clientes',
+                        '500 pessoas',
                         'Eventos ilimitados',
                         'IA habilitada',
                         'Sem anúncios',
@@ -6988,7 +7012,7 @@ const App: React.FC = () => {
                     {
                       planData: PLANS.ENTERPRISE,
                       features: [
-                        'Clientes ilimitados',
+                        'Pessoas ilimitadas',
                         'Eventos ilimitados',
                         'IA habilitada',
                         'Sem anúncios',
