@@ -3,7 +3,7 @@ import { ArrowDownLeft, ArrowUpRight, Minus, Undo2, type LucideIcon } from 'luci
 import type { Customer, Transaction } from '../types';
 import { esc } from '../utils/escapeHtml';
 import { formatBrDate, formatBrDateTime } from '../utils/formatBr';
-import { periodRange, periodResult, sumConfirmed, type PeriodPreset } from '../utils/ledgerPeriod';
+import { periodRange, periodToReceive, sumConfirmed, type PeriodPreset } from '../utils/ledgerPeriod';
 import BrDateField from './BrDateField';
 import { Chip } from './ui/Chip';
 import { EmptyState } from './ui/EmptyState';
@@ -59,7 +59,7 @@ export function StatementView({
     (tx) => tx.status === 'CONFIRMED' && tx.timestamp >= range.from && tx.timestamp <= range.to,
   );
   const sums = sumConfirmed(inPeriod);
-  const result = periodResult(sums);
+  const toReceive = periodToReceive(sums);
   const needle = query.trim().toLowerCase();
   const visible = inPeriod
     .filter((tx) => (typeFilter === 'ALL' ? true : tx.type === typeFilter))
@@ -82,7 +82,7 @@ export function StatementView({
     { label: 'Recebido', value: sums.payment },
     { label: 'Devolvido', value: sums.refund },
     { label: 'Abatido', value: sums.abatement },
-    { label: 'Resultado', value: result },
+    { label: 'A receber no período', value: toReceive, hint: 'Quanto do que foi lançado no período ainda não voltou' },
   ];
 
   const downloadPdf = () => {
@@ -127,9 +127,10 @@ export function StatementView({
         {cards.map((card) => (
           <article key={card.label} className="fp-card" style={{ padding: 14 }}>
             <p style={{ margin: 0, fontSize: 12, color: 'var(--fp-muted)' }}>{card.label}</p>
-            <p style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 600, color: card.label === 'Resultado' && result < 0 ? 'var(--fp-danger)' : 'var(--fp-text)' }}>
+            <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--fp-text)' }}>
               {formatCurrency(card.value)}
             </p>
+            {card.hint ? <p style={{ margin: '6px 0 0', fontSize: 13, fontWeight: 400, color: 'var(--fp-muted)' }}>{card.hint}</p> : null}
           </article>
         ))}
       </div>
@@ -139,7 +140,7 @@ export function StatementView({
         ))}
       </div>
       <SearchField value={query} onChange={setQuery} label="Buscar cliente" />
-      <button type="button" className="fp-btn fp-btn-secondary" onClick={downloadPdf}>
+      <button type="button" className="fp-btn fp-btn-secondary fp-btn-block" onClick={downloadPdf}>
         Baixar PDF
       </button>
       {visible.length === 0 ? (

@@ -10,7 +10,6 @@ import {
   Sparkles,
   Phone,
   Trash2,
-  Calendar,
   Users,
   User as UserIcon,
   TrendingUp,
@@ -26,7 +25,6 @@ import {
   Printer,
   CheckCircle,
   Loader2,
-  ArrowDownCircle,
   RefreshCcw,
   MapPin,
   Mail,
@@ -39,23 +37,10 @@ import {
   ThumbsUp,
   ThumbsDown,
   ClipboardList,
-  Star,
   Camera,
   Percent,
   Undo2,
 } from 'lucide-react';
-import {
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  AreaChart,
-  Area,
-} from 'recharts';
 import {
   AppView,
   Customer,
@@ -92,10 +77,13 @@ import HelpView from './components/HelpView';
 import { MenuView } from './components/MenuView';
 import { StatementView } from './components/StatementView';
 import { HomePanel } from './components/HomePanel';
+import { CustomerIdentity } from './components/CustomerIdentity';
+import { EmptyState } from './components/ui/EmptyState';
 import { PageHeader } from './components/ui/PageHeader';
 import { IconCircle } from './components/ui/IconCircle';
 import { esc } from './utils/escapeHtml';
-import { cumulativeThrough } from './utils/ledgerPeriod';
+import { cumulativeThrough, periodRange, periodToReceive, sumConfirmed } from './utils/ledgerPeriod';
+import { attentionItems } from './utils/attention';
 import { SearchField } from './components/ui/SearchField';
 import CurrencyInput from './components/CurrencyInput';
 import BrDateField from './components/BrDateField';
@@ -347,325 +335,54 @@ const DashboardView = ({
   formatCurrency,
   setActiveView,
   isPro,
-  t,
   userName,
   customersWithBalance,
+  transactions,
   onNewDebt,
   onReceive,
   onNewCustomer,
+  onOpenCustomer,
+  onUpgrade,
+  canUpgrade,
+  language,
+  onLanguage,
 }: any) => {
   const payable = (customersWithBalance || [])
     .filter((c: { rawBalance: number; overpaymentStrategy?: string }) => c.rawBalance < 0 && c.overpaymentStrategy === 'RETURN')
     .reduce((sum: number, c: { rawBalance: number }) => sum + Math.abs(c.rawBalance), 0);
-  const pieData = [
-    { name: t.overdueAmount || 'Em Atraso', value: stats.totalOverdue || 0, color: '#B3261E' },
-    { name: t.futureAmount || 'A Vencer', value: stats.totalFuture || 0, color: '#2B2F77' },
-  ];
+  const month = sumConfirmed(transactions || [], periodRange('month', Date.now()));
+  const monthName = new Intl.DateTimeFormat('pt-BR', { month: 'long', timeZone: 'America/Sao_Paulo' }).format(new Date());
+  const label = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
   return (
-    <div className="fp-view-enter" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <HomePanel
-        userName={userName}
-        formatCurrency={formatCurrency}
-        receivable={stats.totalReceivable || 0}
-        payable={payable}
-        overdue={stats.totalOverdue || 0}
-        overdueCustomers={stats.overdueCustomerCount || 0}
-        activeDebtors={stats.activeDebtors || 0}
-        onNewDebt={onNewDebt}
-        onReceive={onReceive}
-        onSplit={() => setActiveView(AppView.SPLIT_BILL)}
-        onNewCustomer={onNewCustomer}
-        onOverdue={() => setActiveView(AppView.RECEIVABLES_LIST)}
-        onPayable={() => setActiveView(AppView.TO_PAY)}
-      />
-
-      {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* Area Chart */}
-        <div className="fp-card lg:col-span-3" style={{ padding: 28 }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 20,
-            }}
-          >
-            <div>
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--fp-text)', margin: 0 }}>
-                {t.evolution || 'Evolução'}
-              </h3>
-              <p style={{ fontSize: 12, color: 'var(--fp-muted)', marginTop: 2 }}>
-                Últimos 14 dias
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div
-                  style={{ width: 10, height: 10, borderRadius: '50%', background: '#2B2F77' }}
-                />
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fp-muted)' }}>
-                  Fiado
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div
-                  style={{ width: 10, height: 10, borderRadius: '50%', background: '#1F7A4D' }}
-                />
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fp-muted)' }}>
-                  Recebido
-                </span>
-              </div>
-            </div>
-          </div>
-          <div style={{ height: 200 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={stats.evolutionData || []}
-                margin={{ top: 4, right: 8, bottom: 0, left: -12 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--fp-border)" />
-                <XAxis
-                  dataKey="date"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: 'var(--fp-muted)', fontSize: 10, fontWeight: 500 }}
-                  tickFormatter={(value: string) => value.slice(0, 5)}
-                  dy={8}
-                  interval={2}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: 'var(--fp-muted)', fontSize: 10 }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 16,
-                    border: 'none',
-                    boxShadow: 'var(--shadow-lg)',
-                    background: 'var(--fp-surface)',
-                    fontSize: 13,
-                    fontWeight: 600,
-                  }}
-                  formatter={(val: number) => formatCurrency(val)}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="Offered"
-                  stroke="#2B2F77"
-                  strokeWidth={2.5}
-                  fillOpacity={1}
-                  fill="transparent"
-                  dot={false}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="Received"
-                  stroke="#1F7A4D"
-                  strokeWidth={2.5}
-                  fillOpacity={1}
-                  fill="transparent"
-                  dot={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Pie + Totals */}
-        <div className="fp-card lg:col-span-2" style={{ padding: 28 }}>
-          <h3
-            style={{ fontSize: 15, fontWeight: 600, color: 'var(--fp-text)', margin: '0 0 4px 0' }}
-          >
-            {t.overview || 'Distribuição'}
-          </h3>
-          <p style={{ fontSize: 12, color: 'var(--fp-muted)', marginBottom: 16 }}>
-            Saldo por situação
-          </p>
-          <div className="fp-pie" style={{ height: 140 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  innerRadius={44}
-                  outerRadius={62}
-                  paddingAngle={4}
-                  dataKey="value"
-                  strokeWidth={0}
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 14,
-                    border: 'none',
-                    boxShadow: 'var(--shadow-md)',
-                    fontSize: 13,
-                    fontWeight: 600,
-                  }}
-                  formatter={(val: number) => formatCurrency(val)}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 10,
-              marginTop: 12,
-              paddingTop: 16,
-              borderTop: '1px solid var(--fp-border)',
-            }}
-          >
-            {pieData.map((item) => (
-              <div
-                key={item.name}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: '50%',
-                      background: item.color,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fp-muted)' }}>
-                    {item.name}
-                  </span>
-                </div>
-                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--fp-text)' }}>
-                  {formatCurrency(item.value)}
-                </span>
-              </div>
-            ))}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingTop: 8,
-                borderTop: '1px solid var(--fp-border)',
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: 'var(--fp-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                Total
-              </span>
-              <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--fp-text)' }}>
-                {formatCurrency(stats.totalReceivable || 0)}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <button
-        type="button"
-        className="fp-card"
-        onClick={() => setActiveView(AppView.INSIGHTS)}
-        style={{ padding: 16, textAlign: 'left', cursor: 'pointer', width: '100%' }}
-      >
-        <p style={{ margin: 0, fontSize: 13, color: 'var(--fp-muted)' }}>Insights</p>
-        <p style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 600 }}>{isPro ? 'Pro' : 'Free'}</p>
-        <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--fp-muted)' }}>{t.aiDescription}</p>
-      </button>
-
-      {/* Recent Transactions */}
-      {stats.recentTransactions?.length > 0 && (
-        <div className="fp-card" style={{ padding: 28 }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 20,
-            }}
-          >
-            <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--fp-text)', margin: 0 }}>
-              {t.recentTransactions || 'Últimos Lançamentos'}
-            </h3>
-            <button
-              className="fp-btn fp-btn-ghost"
-              style={{ padding: '6px 14px', fontSize: 12 }}
-              onClick={() => setActiveView(AppView.STATEMENT)}
-            >
-              Ver todos
-            </button>
-          </div>
-          <table className="fp-table">
-            <tbody>
-              {stats.recentTransactions.map((tx: any) => {
-                const isDebt = tx.type === 'DEBT';
-                return (
-                  <tr key={tx.id}>
-                    <td style={{ paddingLeft: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 10,
-                            flexShrink: 0,
-                            background: isDebt ? '#FEE2E2' : '#DCFCE7',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: isDebt ? '#EF4444' : '#10B981',
-                          }}
-                        >
-                          {isDebt ? <ArrowUpRight size={16} /> : <ArrowDownLeft size={16} />}
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--fp-text)' }}>
-                            {tx.customerName}
-                          </div>
-                          <div style={{ fontSize: 11, color: 'var(--fp-muted)', marginTop: 1 }}>
-                            {tx.description ||
-                              (isDebt
-                                ? t.debtLaunched || 'Débito lançado'
-                                : t.paymentRegistered || 'Pagamento')}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ textAlign: 'right', paddingRight: 0 }}>
-                      <div
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 800,
-                          color: isDebt ? '#EF4444' : '#10B981',
-                        }}
-                      >
-                        {isDebt ? '+' : '-'}
-                        {formatCurrency(tx.amount)}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--fp-muted)', marginTop: 1 }}>
-                        {formatBrDate(tx.timestamp)}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+    <HomePanel
+      userName={userName}
+      initial={userName}
+      formatCurrency={formatCurrency}
+      receivable={stats.totalReceivable || 0}
+      payable={payable}
+      overdue={stats.totalOverdue || 0}
+      activeDebtors={stats.activeDebtors || 0}
+      onNewDebt={onNewDebt}
+      onReceive={onReceive}
+      onSplit={() => setActiveView(AppView.SPLIT_BILL)}
+      onNewCustomer={onNewCustomer}
+      onStatement={() => setActiveView(AppView.STATEMENT)}
+      onOpenCustomer={onOpenCustomer}
+      onSeeAll={() => setActiveView(AppView.CUSTOMERS)}
+      onAvatar={() => setActiveView(AppView.PROFILE)}
+      onLanguage={onLanguage}
+      language={language}
+      isPro={isPro}
+      canUpgrade={canUpgrade}
+      onUpgrade={onUpgrade}
+      attention={attentionItems(customersWithBalance || [], transactions || [])}
+      monthLabel={label}
+      launched={month.debt}
+      received={month.payment}
+      stillToReceive={periodToReceive(month)}
+      evolution={stats.evolutionData || []}
+    />
   );
 };
 
@@ -1082,7 +799,7 @@ const CustomerManagementView = ({
                         width: 44,
                         height: 44,
                         borderRadius: 14,
-                        background: 'linear-gradient(135deg,#EEF2FF,#E0E7FF)',
+                        background: '#ECEDF7',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -1404,36 +1121,17 @@ const SplitBillView = ({
   setTransactions,
   setDebts,
 }: any) => (
-  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-      <div className="flex items-center gap-4 bg-indigo-50 border border-indigo-200 p-8 rounded-t42lg w-full md:w-auto flex-1">
-        <div className="bg-indigo-600 p-4 rounded-3xl text-white shadow-lg">
-          <Receipt className="w-10 h-10" />
-        </div>
-        <div>
-          <h2 className="text-2xl font-black text-indigo-900">{t.splitBill}</h2>
-          <p className="text-indigo-700 font-medium leading-relaxed">
-            Divida uma conta entre clientes e acompanhe quem já pagou.
-          </p>
-        </div>
-      </div>
-      <button
-        onClick={() => setIsEventModalOpen(true)}
-        className="w-full md:w-auto flex items-center justify-center gap-2 bg-indigo-600 text-white px-8 py-5 rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 transition-all active:scale-95"
-      >
-        <Plus className="w-6 h-6" /> {t.newEvent}
-      </button>
-    </div>
+  <div className="fp-flow" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <p style={{ margin: 0, fontSize: 13, color: 'var(--fp-muted)', overflowWrap: 'break-word' }}>
+      Divida uma conta entre clientes e acompanhe quem já pagou.
+    </p>
+    <button type="button" className="fp-btn fp-btn-primary fp-btn-block" onClick={() => setIsEventModalOpen(true)}>
+      <Plus size={18} strokeWidth={1.5} /> {t.newEvent}
+    </button>
 
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {events.length === 0 ? (
-        <div className="col-span-full py-20 text-center bg-white rounded-t42xl border border-slate-200">
-          <div className="bg-slate-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Receipt className="w-12 h-12 text-slate-300" />
-          </div>
-          <h3 className="text-xl font-black text-slate-800">{t.noEvents}</h3>
-          <p className="text-slate-500 font-bold mt-2">{t.createFirstEvent}</p>
-        </div>
+        <EmptyState text="Nenhum evento criado ainda." />
       ) : (
         events.map((event: any) => {
           const total = event.items.reduce((sum: number, i: any) => sum + i.price, 0);
@@ -1444,53 +1142,37 @@ const SplitBillView = ({
                   setSelectedEventId(event.id);
                   setActiveView(AppView.EVENT_DETAIL);
                 }}
-                className="bg-white p-8 rounded-t42xl border border-slate-200 hover:border-indigo-400 hover:shadow-xl transition-all cursor-pointer shadow-sm h-full flex flex-col justify-between"
+                className="fp-card"
+                style={{ padding: 16, cursor: 'pointer' }}
               >
-                <div>
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
-                      <Calendar className="w-7 h-7" />
-                    </div>
-                    <div
-                      className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${event.isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                  <strong style={{ fontSize: 15, fontWeight: 600 }}>{event.name}</strong>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span className="fp-chip">{event.isCompleted ? 'Quitado' : 'Aberto'}</span>
+                    <button
+                      type="button"
+                      aria-label="Excluir"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(t.confirmDelete)) {
+                          setEvents((prev: BillEvent[]) =>
+                            prev.filter((ev: BillEvent) => ev.id !== event.id),
+                          );
+                          setTransactions((prev: Transaction[]) =>
+                            prev.filter((tx: Transaction) => tx.eventId !== event.id),
+                          );
+                          setDebts((prev: Debt[]) => prev.filter((d: Debt) => d.eventId !== event.id));
+                        }
+                      }}
+                      style={{ border: 0, background: 'transparent', color: '#B3261E', padding: 4, cursor: 'pointer' }}
                     >
-                      {event.isCompleted ? t.eventPaid : t.eventPending}
-                    </div>
-                  </div>
-                  <h3 className="text-xl font-black text-slate-900 mb-1 group-hover:text-indigo-600 transition-colors">
-                    {event.name}
-                  </h3>
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-6">
-                    {formatBrDate(event.date)}
-                  </p>
+                      <Trash2 size={16} strokeWidth={1.5} />
+                    </button>
+                  </span>
                 </div>
-                <div className="pt-6 border-t border-slate-50 flex justify-between items-end">
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">
-                      {t.totalBill}
-                    </p>
-                    <p className="text-2xl font-black text-slate-900">{formatCurrency(total)}</p>
-                  </div>
-                  <ChevronRight className="w-6 h-6 text-slate-200 group-hover:text-indigo-600 group-hover:translate-x-2 transition-all" />
-                </div>
+                <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--fp-muted)' }}>{formatBrDate(event.date)}</p>
+                <p style={{ margin: '8px 0 0', fontSize: 15, fontWeight: 600 }}>{formatCurrency(total)}</p>
               </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (confirm(t.confirmDelete)) {
-                    setEvents((prev: BillEvent[]) =>
-                      prev.filter((ev: BillEvent) => ev.id !== event.id),
-                    );
-                    setTransactions((prev: Transaction[]) =>
-                      prev.filter((tx: Transaction) => tx.eventId !== event.id),
-                    );
-                    setDebts((prev: Debt[]) => prev.filter((d: Debt) => d.eventId !== event.id));
-                  }
-                }}
-                className="absolute top-6 right-6 p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-500 hover:text-white transition-all shadow-md z-[20]"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
             </div>
           );
         })
@@ -1872,67 +1554,65 @@ const EventDetailView = ({
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+    <div className="fp-flow" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <PageHeader
+        title={event.name}
+        onBack={() => setActiveView(AppView.SPLIT_BILL)}
+        actions={
+          <>
+            <button type="button" aria-label="Baixar PDF" onClick={handlePrintEvent}>
+              <Printer size={18} strokeWidth={1.5} />
+            </button>
+            <button
+              type="button"
+              aria-label="Excluir"
+              onClick={() => {
+                if (confirm(t.confirmDelete)) {
+                  setEvents((prev: any) => prev.filter((ev: any) => ev.id !== event.id));
+                  setActiveView(AppView.SPLIT_BILL);
+                }
+              }}
+            >
+              <Trash2 size={18} strokeWidth={1.5} />
+            </button>
+          </>
+        }
+      />
+      <div>
         <button
-          onClick={() => setActiveView(AppView.SPLIT_BILL)}
-          className="flex items-center gap-2 text-indigo-600 font-black hover:text-indigo-800 transition-colors"
+          type="button"
+          className="fp-chip"
+          onClick={() =>
+            setEvents((prev: BillEvent[]) =>
+              prev.map((e) => (e.id === event.id ? { ...e, isCompleted: !e.isCompleted } : e)),
+            )
+          }
         >
-          <ArrowLeft className="w-5 h-5" /> {t.backToEvents}
+          {event.isCompleted ? 'Quitado' : 'Aberto'}
         </button>
-        <div className="flex gap-2">
-          <button
-            onClick={() =>
-              setEvents((prev: BillEvent[]) =>
-                prev.map((e) => (e.id === event.id ? { ...e, isCompleted: !e.isCompleted } : e)),
-              )
-            }
-            className={`px-4 py-2.5 rounded-xl font-black text-xs uppercase transition-all shadow-sm ${event.isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}
-          >
-            {event.isCompleted ? 'Quitado ✓' : 'Pendente...'}
-          </button>
-          <button
-            onClick={handlePrintEvent}
-            className="bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-indigo-600 font-bold hover:bg-indigo-50 transition-all shadow-sm"
-          >
-            <Printer className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => {
-              if (confirm(t.confirmDelete)) {
-                setEvents((prev: any) => prev.filter((ev: any) => ev.id !== event.id));
-                setActiveView(AppView.SPLIT_BILL);
-              }
-            }}
-            className="p-3 bg-red-50 text-red-500 hover:bg-red-100 rounded-2xl transition-all"
-          >
-            <Trash2 className="w-5 h-5" />
-          </button>
-        </div>
       </div>
 
-      <div className="bg-white p-8 md:p-12 rounded-t42xl border border-slate-200 shadow-sm">
+      <div className="fp-card" style={{ padding: 16 }}>
         <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-12">
           <div>
-            <h2 className="text-3xl font-black text-slate-900 mb-2">{event.name}</h2>
-            <p className="text-slate-400 font-bold text-sm">{formatBrDate(event.date)}</p>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--fp-muted)' }}>{formatBrDate(event.date)}</p>
           </div>
           <div className="md:text-right">
             <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mb-1">
               {t.totalBill}
             </p>
-            <p className="text-4xl font-black text-indigo-600">{formatCurrency(totalBill)}</p>
+            <p style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>{formatCurrency(totalBill)}</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           <div className="space-y-8">
-            <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+            <div className="flex justify-between items-center gap-2 flex-wrap pb-4 border-b border-slate-100">
               <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
                 <Receipt className="w-6 h-6 text-indigo-600" /> {t.itemsList}
               </h3>
-              <div className="flex items-center gap-2">
-                <label className="cursor-pointer bg-amber-50 text-amber-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase hover:bg-amber-100 transition-all flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <label className="fp-btn fp-btn-secondary" style={{ minHeight: 36, fontSize: 13 }}>
                   {isScanning ? (
                     <Loader2 className="w-3 h-3 animate-spin" />
                   ) : (
@@ -1959,7 +1639,7 @@ const EventDetailView = ({
                     }));
                     setLastAddedItemId(newItemId);
                   }}
-                  className="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-100 transition-all"
+                  className="fp-btn fp-btn-secondary" style={{ minHeight: 36, fontSize: 13 }}
                 >
                   {t.addItem}
                 </button>
@@ -2003,7 +1683,7 @@ const EventDetailView = ({
                     </div>
                     <div className="flex gap-3 items-center">
                       <div className="flex flex-col">
-                        <label className="text-[9px] text-slate-400 font-black uppercase mb-1">
+                        <label className="fp-label">
                           {t.quantity}
                         </label>
                         <input
@@ -2036,7 +1716,7 @@ const EventDetailView = ({
                         />
                       </div>
                       <div className="relative flex-1">
-                        <label className="text-[9px] text-slate-400 font-black uppercase mb-1 block">
+                        <label className="fp-label">
                           {t.unitPrice}
                         </label>
                         <CurrencyInput
@@ -2067,7 +1747,7 @@ const EventDetailView = ({
                         />
                       </div>
                       <div className="flex flex-col items-end">
-                        <label className="text-[9px] text-slate-400 font-black uppercase mb-1">
+                        <label className="fp-label">
                           {t.itemTotal}
                         </label>
                         <p className="px-2 py-2 font-black text-sm text-indigo-600 whitespace-nowrap">
@@ -2081,11 +1761,11 @@ const EventDetailView = ({
             </div>
           </div>
           <div className="space-y-8">
-            <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+            <div className="flex justify-between items-center gap-2 flex-wrap pb-4 border-b border-slate-100">
               <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
                 <Users className="w-6 h-6 text-emerald-600" /> {t.participants}
               </h3>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -2152,7 +1832,7 @@ const EventDetailView = ({
                     }));
                     setLastAddedParticipantId(newParticipantId);
                   }}
-                  className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase hover:bg-emerald-100 transition-all"
+                  className="fp-btn fp-btn-secondary" style={{ minHeight: 36, fontSize: 13 }}
                 >
                   {t.addParticipant}
                 </button>
@@ -2174,7 +1854,7 @@ const EventDetailView = ({
                   }));
                 }}
                 disabled={event.items.length === 0 || event.participants.length === 0}
-                className="w-full bg-white border-2 border-emerald-200 text-emerald-700 px-4 py-3 rounded-2xl text-sm font-black hover:bg-emerald-50 transition-all disabled:opacity-40"
+                className="fp-btn fp-btn-secondary fp-btn-block"
               >
                 Dividir igualmente entre todos
               </button>
@@ -2383,22 +2063,22 @@ const EventDetailView = ({
                   ? `Vence em ${formatBrDate(splitDueDate)}`
                   : 'Se ficar em branco, a dívida fica sem vencimento.'}
               </p>
-              <p className="text-indigo-400 font-black uppercase tracking-widest text-[10px] mb-4">
-                CÁLCULO FINAL
+              <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--fp-muted)' }}>
+                Cálculo final
               </p>
               <button
                 onClick={handleConfirmSplit}
                 disabled={totalBill <= 0 || event.isCompleted}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-5 rounded-2xl font-black text-lg transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                className="fp-btn fp-btn-primary fp-btn-block"
               >
                 {event.isCompleted
-                  ? '✓ Divisão já confirmada'
+                  ? 'Divisão já confirmada'
                   : t.confirmSplitBtn || 'Confirmar Divisão'}
               </button>
               {event.splitDirty && (
                 <button
                   onClick={handleConfirmSplit}
-                  className="w-full mt-3 bg-amber-500 hover:bg-amber-600 text-white py-5 rounded-2xl font-black text-lg transition-all shadow-lg active:scale-95"
+                  className="fp-btn fp-btn-primary fp-btn-block" style={{ marginTop: 12 }}
                 >
                   {t.updateSplitBtn || 'Atualizar Divisão'}
                 </button>
@@ -2817,163 +2497,64 @@ const CustomerDetailView = ({
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <PageHeader title={selectedCustomer.name} onBack={() => setActiveView(AppView.CUSTOMERS)} />
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-        <div />
-        <div className="flex gap-2">
-          <button
-            onClick={() => setIsEditCustomerModalOpen()}
-            className="p-3 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-2xl transition-all shadow-sm group"
-          >
-            <Edit3 className="w-5 h-5 transition-transform group-hover:scale-110" />
+    <div className="fp-flow" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <PageHeader
+        title={selectedCustomer.name}
+        onBack={() => setActiveView(AppView.CUSTOMERS)}
+        actions={
+          <>
+            <button type="button" aria-label="Editar" onClick={() => setIsEditCustomerModalOpen()}>
+              <Edit3 size={18} strokeWidth={1.5} />
+            </button>
+            <button
+              type="button"
+              aria-label="Excluir"
+              onClick={() => {
+                if (window.confirm(t.confirmDelete)) deleteCustomer(selectedCustomer.id);
+              }}
+            >
+              <Trash2 size={18} strokeWidth={1.5} />
+            </button>
+          </>
+        }
+      />
+      <CustomerIdentity
+        name={selectedCustomer.name}
+        phone={selectedCustomer.phone}
+        balanceText={balanceDirection(selectedCustomer.rawBalance, formatCurrency).text}
+        balanceColor={balanceDirection(selectedCustomer.rawBalance, formatCurrency).color}
+        score={calculateScore(selectedCustomer, transactions)}
+        scoreLabel={scoreCategory(calculateScore(selectedCustomer, transactions), t).label}
+        trusted={selectedCustomer.trusted}
+        onToggleTrusted={() => {
+          setCustomers((prev: Customer[]) =>
+            prev.map((c) => (c.id === selectedCustomer.id ? { ...c, trusted: !c.trusted } : c)),
+          );
+        }}
+      />
+      {selectedCustomer.email ? <p style={{ margin: 0, fontSize: 13, color: 'var(--fp-muted)' }}>{selectedCustomer.email}</p> : null}
+      {selectedCustomer.counterpartClosed ? (
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--fp-warn-text)' }}>conta encerrada</p>
+      ) : (
+        <div className="fp-shortcuts fp-detail-actions">
+          <button type="button" className="fp-quick" onClick={() => { setTransactionType('DEBT'); setEditTransactionData(null); setIsTransactionModalOpen(true); }}>
+            <span className="fp-quick-pill"><ArrowUpRight size={22} strokeWidth={1.5} color="#fff" /></span>
+            <span className="fp-quick-label">Nova despesa</span>
           </button>
-          <button
-            onClick={() => {
-              if (window.confirm(t.confirmDelete)) deleteCustomer(selectedCustomer.id);
-            }}
-            className="p-3 bg-red-50 text-red-500 hover:bg-red-100 rounded-2xl transition-all shadow-sm group"
-          >
-            <Trash2 className="w-5 h-5 transition-transform group-hover:scale-110" />
+          <button type="button" className="fp-quick" onClick={() => { setTransactionType('PAYMENT'); setEditTransactionData(null); setIsTransactionModalOpen(true); }}>
+            <span className="fp-quick-pill"><ArrowDownLeft size={22} strokeWidth={1.5} color="#fff" /></span>
+            <span className="fp-quick-label">Receber</span>
+          </button>
+          <button type="button" className="fp-quick" onClick={() => { setTransactionType('ABATIMENTO'); setEditTransactionData(null); setIsTransactionModalOpen(true); }}>
+            <span className="fp-quick-pill"><RefreshCcw size={22} strokeWidth={1.5} color="#fff" /></span>
+            <span className="fp-quick-label">Abatimento</span>
+          </button>
+          <button type="button" className="fp-quick" onClick={() => { setTransactionType('REFUND'); setEditTransactionData(null); setIsTransactionModalOpen(true); }}>
+            <span className="fp-quick-pill"><Undo2 size={22} strokeWidth={1.5} color="#fff" /></span>
+            <span className="fp-quick-label">Devolução</span>
           </button>
         </div>
-      </div>
-
-      <div className="bg-white p-5 md:p-12 rounded-t42lg md:rounded-t42xl border border-slate-200 shadow-sm overflow-hidden relative">
-        <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-8 md:mb-12 relative z-10">
-          <div className="flex items-center gap-6">
-            <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl"
-              style={{ background: '#ECEDF7', color: '#2B2F77', fontWeight: 600 }}
-            >
-              {selectedCustomer.name.charAt(0)}
-            </div>
-            <div>
-              <h2 className="text-2xl text-slate-900 mb-1" style={{ fontWeight: 500 }}>
-                {selectedCustomer.name}
-              </h2>
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                {selectedCustomer.phone ? (
-                  <p className="text-slate-400 font-bold flex items-center gap-1.5">
-                    <Phone className="w-4 h-4" /> {selectedCustomer.phone}
-                  </p>
-                ) : (
-                  <p className="text-amber-600 font-bold flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 text-sm">
-                    <Phone className="w-4 h-4" /> Telefone pendente — adicione para não perder este
-                    cadastro
-                  </p>
-                )}
-                {selectedCustomer.email && (
-                  <p className="text-slate-400 font-bold flex items-center gap-1.5">
-                    <Mail className="w-4 h-4" /> {selectedCustomer.email}
-                  </p>
-                )}
-                {selectedCustomer.pixKey && (
-                  <p className="text-indigo-600 font-bold flex items-center gap-1.5 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">
-                    <ZapIcon className="w-3 h-3" /> Pix: {selectedCustomer.pixKey}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="md:text-right p-6 bg-slate-50 rounded-3xl border border-slate-100 w-full md:w-auto md:min-w-[240px]">
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mb-1">
-              {t.currentBalance}
-            </p>
-            {(() => {
-              const sense = balanceDirection(selectedCustomer.rawBalance, formatCurrency);
-              return (
-                <p className="text-3xl font-black" style={{ color: sense.color }}>
-                  {sense.text}
-                </p>
-              );
-            })()}
-            {(() => {
-              const score = calculateScore(selectedCustomer, transactions);
-              const cat = scoreCategory(score, t);
-              return (
-                <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl ${cat.bg} mt-4`}>
-                  <div className="text-center">
-                    <p className={`text-2xl font-black ${cat.color}`}>{score}</p>
-                    <p className={`text-[10px] font-black uppercase ${cat.color}`}>{cat.label}</p>
-                  </div>
-                  <div className="flex-1">
-                    <div className="h-2 bg-white/50 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${cat.bar} rounded-full transition-all`}
-                        style={{ width: `${score / 10}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-[10px] font-bold text-slate-500 mt-1">Score / 1000</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setCustomers((prev: Customer[]) =>
-                        prev.map((c) =>
-                          c.id === selectedCustomer.id ? { ...c, trusted: !c.trusted } : c,
-                        ),
-                      );
-                    }}
-                    className={`flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-black transition-all ${selectedCustomer.trusted ? 'bg-amber-400 text-white' : 'bg-white/50 text-slate-400 hover:bg-amber-100'}`}
-                  >
-                    <Star className="w-4 h-4" /> {selectedCustomer.trusted ? 'Confiável' : 'Marcar'}
-                  </button>
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-
-        {selectedCustomer.counterpartClosed ? (
-          <p className="mb-12 text-sm font-bold text-amber-700">conta encerrada</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-12 relative z-10">
-            <button
-              onClick={() => {
-                setTransactionType('DEBT');
-                setEditTransactionData(null);
-                setIsTransactionModalOpen(true);
-              }}
-              className="md:col-span-2 flex items-center justify-center gap-2.5 text-white py-4 rounded-t42lg font-bold text-base shadow-t42sm hover:brightness-110 transition-all active:scale-95"
-              style={{ background: '#1C2446' }}
-            >
-              <ArrowUpRight className="w-5 h-5" /> {t.newPurchase}
-            </button>
-            <button
-              onClick={() => {
-                setTransactionType('PAYMENT');
-                setEditTransactionData(null);
-                setIsTransactionModalOpen(true);
-              }}
-              className="md:col-span-2 flex items-center justify-center gap-2.5 text-white py-4 rounded-t42lg font-bold text-base shadow-t42sm hover:brightness-110 transition-all active:scale-95"
-              style={{ background: '#2E9D6F' }}
-            >
-              <ArrowDownLeft className="w-5 h-5" /> {t.logPayment}
-            </button>
-            <button
-              onClick={() => {
-                setTransactionType('ABATIMENTO');
-                setEditTransactionData(null);
-                setIsTransactionModalOpen(true);
-              }}
-              className="md:col-span-2 flex items-center justify-center gap-2.5 bg-white text-sm py-3 min-h-[48px] rounded-t42lg font-semibold hover:bg-gray-50 transition-all active:scale-95"
-              style={{ color: '#7252E2', border: '1.5px solid #7252E2' }}
-            >
-              <RefreshCcw className="w-5 h-5" /> Abatimento
-            </button>
-            <button
-              onClick={() => {
-                setTransactionType('REFUND');
-                setEditTransactionData(null);
-                setIsTransactionModalOpen(true);
-              }}
-              className="md:col-span-2 flex items-center justify-center gap-2.5 bg-white text-sm py-3 min-h-[48px] rounded-t42lg font-semibold hover:bg-gray-50 transition-all active:scale-95"
-              style={{ color: '#3D559C', border: '1.5px solid #3D559C' }}
-            >
-              <ArrowDownCircle className="w-5 h-5" /> Devolução
-            </button>
-          </div>
-        )}
+      )}
 
         {selectedCustomer && !selectedCustomer.counterpartClosed && (
           <CreditBalanceNotice
@@ -2984,11 +2565,11 @@ const CustomerDetailView = ({
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
           <div className="lg:col-span-2 space-y-8">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-              <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
-                <History className="w-6 h-6 text-indigo-600" /> {t.transactionLedger}
-              </h3>
-              <div className="flex items-center gap-2 flex-wrap">
+            <div className="fp-card-head">
+              <h2>Extrato</h2>
+              <button type="button" onClick={handlePrintStatement}>Baixar PDF</button>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
                   <CalendarDays className="w-4 h-4 text-slate-400" />
                   <BrDateField
@@ -3016,14 +2597,7 @@ const CustomerDetailView = ({
                     Limpar Filtro
                   </button>
                 )}
-                <button
-                  onClick={handlePrintStatement}
-                  className="p-2 text-slate-400 hover:text-indigo-600 transition-colors border border-slate-100 rounded-lg shadow-sm bg-white"
-                >
-                  <Printer className="w-5 h-5" />
-                </button>
               </div>
-            </div>
             {filteredTransactions.length > 0 && (
               <p className="text-xs text-slate-400 font-bold">
                 Mostrando {filteredTransactions.length} transaç
@@ -3047,12 +2621,15 @@ const CustomerDetailView = ({
                   )}
                 </div>
               ) : (
-                filteredTransactions.map((tx: Transaction) => {
+                filteredTransactions.map((tx: Transaction, index: number) => {
                   const overdue = isOverdueDebt(tx, selectedCustomer.rawBalance);
+                  const day = formatBrDate(tx.timestamp);
+                  const previousDay = index > 0 ? formatBrDate(filteredTransactions[index - 1].timestamp) : '';
                   return (
+                    <div key={tx.id}>
+                    {day !== previousDay ? <p className="fp-day">{day}</p> : null}
                     <div
-                      key={tx.id}
-                      className={`group flex items-center justify-between p-6 rounded-t42lg border transition-all hover:shadow-md ${overdue ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-transparent hover:border-indigo-100 hover:bg-white'}`}
+                      className={`group flex items-center justify-between p-3 rounded-2xl border ${overdue ? 'bg-red-50 border-red-200' : 'bg-white border-[#EAEAE5]'}`}
                     >
                       <div className="flex items-center gap-5">
                         <IconCircle
@@ -3181,6 +2758,7 @@ const CustomerDetailView = ({
                           </button>
                         </div>
                       </div>
+                    </div>
                     </div>
                   );
                 })
@@ -3419,7 +2997,6 @@ const CustomerDetailView = ({
             ))}
           </div>
         )}
-      </div>
     </div>
   );
 };
@@ -5275,17 +4852,25 @@ const App: React.FC = () => {
               customersWithBalance={customersWithBalance}
               onNewDebt={() => {
                 setQuickAddType('DEBT');
-                setQuickAddStep(1);
+                setQuickAddStep(2);
                 setQuickAddSearch('');
                 setIsQuickAddOpen(true);
               }}
               onReceive={() => {
                 setQuickAddType('PAYMENT');
-                setQuickAddStep(1);
+                setQuickAddStep(2);
                 setQuickAddSearch('');
                 setIsQuickAddOpen(true);
               }}
               onNewCustomer={() => setIsCustomerModalOpen(true)}
+              transactions={transactions}
+              onOpenCustomer={navigateToCustomer}
+              canUpgrade={canShowCheckout()}
+              onUpgrade={() => {
+                if (canShowCheckout()) setIsUpgradeModalOpen(true);
+              }}
+              language={language}
+              onLanguage={() => setLanguage(language === 'pt-BR' ? 'en' : 'pt-BR')}
             />
           )}
           {activeView === AppView.CUSTOMERS && (
@@ -5753,7 +5338,7 @@ const App: React.FC = () => {
                                 gap: 14,
                                 padding: '14px 16px',
                                 background: 'white',
-                                border: '1px solid #F1F5F9',
+                                border: '1px solid #EAEAE5',
                                 borderRadius: 16,
                                 cursor: 'pointer',
                                 textAlign: 'left',
@@ -5776,13 +5361,13 @@ const App: React.FC = () => {
                                   width: 44,
                                   height: 44,
                                   borderRadius: 14,
-                                  background: quickAddType === 'DEBT' ? '#FEE2E2' : '#DCFCE7',
+                                  background: '#ECEDF7',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  fontWeight: 900,
-                                  fontSize: 18,
-                                  color: quickAddType === 'DEBT' ? '#DC2626' : '#16A34A',
+                                  fontWeight: 600,
+                                  fontSize: 15,
+                                  color: '#2B2F77',
                                   flexShrink: 0,
                                 }}
                               >
@@ -5791,15 +5376,15 @@ const App: React.FC = () => {
                               <div style={{ flex: 1 }}>
                                 <p
                                   style={{
-                                    fontWeight: 800,
+                                    fontWeight: 600,
                                     fontSize: 15,
-                                    color: '#0F172A',
+                                    color: '#1A1A1A',
                                     margin: 0,
                                   }}
                                 >
                                   {c.name}
                                 </p>
-                                <p style={{ fontSize: 12, color: '#94A3B8', margin: '2px 0 0' }}>
+                                <p style={{ fontSize: 13, color: '#5C5C5C', margin: '2px 0 0' }}>
                                   {c.counterpartClosed
                                     ? 'conta encerrada'
                                     : c.phone || 'Sem telefone'}
@@ -5899,7 +5484,7 @@ const App: React.FC = () => {
                   padding: '0 16px',
                   height: 60,
                   flexShrink: 0,
-                  background: 'linear-gradient(135deg,#0F172A,#1E293B)',
+                  background: '#2B2F77',
                 }}
               >
                 <button
@@ -6184,50 +5769,17 @@ const App: React.FC = () => {
                 flexDirection: 'column',
               }}
             >
-              {/* Header */}
-              <div
-                style={{
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 10,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '0 16px',
-                  height: 60,
-                  flexShrink: 0,
-                  background: 'linear-gradient(135deg,#6366F1,#8B5CF6)',
+              <PageHeader
+                title={isEditCustomerModalOpen ? t.editCustomer : t.addNewCustomer}
+                onBack={() => {
+                  setDuplicateCustomer(null);
+                  setCustomerFormWarning('');
+                  setIsCustomerModalOpen(false);
+                  setIsEditCustomerModalOpen(false);
+                  setPendingTransactionAfterCreate(false);
+                  setPendingNewCustomerName('');
                 }}
-              >
-                <button
-                  onClick={() => {
-                    setDuplicateCustomer(null);
-                    setCustomerFormWarning('');
-                    setIsCustomerModalOpen(false);
-                    setIsEditCustomerModalOpen(false);
-                    setPendingTransactionAfterCreate(false);
-                    setPendingNewCustomerName('');
-                  }}
-                  style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 12,
-                    background: 'rgba(255,255,255,0.2)',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <ArrowLeft style={{ width: 20, height: 20 }} />
-                </button>
-                <p style={{ fontSize: 17, fontWeight: 900, color: 'white', margin: 0 }}>
-                  {isEditCustomerModalOpen ? t.editCustomer : t.addNewCustomer}
-                </p>
-              </div>
+              />
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 <div style={{ maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
                   <form
@@ -6424,43 +5976,29 @@ const App: React.FC = () => {
                       },
                     ].map((field) => (
                       <div key={field.name} style={{ marginBottom: 16 }}>
-                        <label
-                          style={{
-                            display: 'block',
-                            fontSize: 11,
-                            fontWeight: 800,
-                            color: '#94A3B8',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.08em',
-                            marginBottom: 8,
-                          }}
-                        >
+                        <label className="fp-field">
+                          {field.name === 'name' ? <span style={{ display: 'block', fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Dados do cliente</span> : null}
+                          {field.name === 'email' ? <span style={{ display: 'block', fontSize: 15, fontWeight: 600, margin: '8px 0' }}>Contato</span> : null}
                           {field.label}
+                          <input
+                            name={field.name}
+                            aria-label={field.label}
+                            onInput={() => {
+                              if (field.name === 'name') setCustomerNameError('');
+                            }}
+                            type={field.type}
+                            defaultValue={field.defaultValue || ''}
+                            placeholder={field.placeholder}
+                            autoFocus={field.autoFocus}
+                          />
+                          <small>
+                            {field.name === 'name'
+                              ? 'Como você chama este cliente.'
+                              : field.name === 'phone'
+                                ? 'Com DDD, para não perder o cadastro.'
+                                : 'Opcional.'}
+                          </small>
                         </label>
-                        <input
-                          name={field.name}
-                          aria-label={field.label}
-                          onInput={() => {
-                            if (field.name === 'name') setCustomerNameError('');
-                          }}
-                          type={field.type}
-                          defaultValue={field.defaultValue || ''}
-                          placeholder={field.placeholder}
-                          autoFocus={field.autoFocus}
-                          style={{
-                            width: '100%',
-                            padding: '14px 16px',
-                            background: 'white',
-                            border: '1.5px solid #E2E8F0',
-                            borderRadius: 14,
-                            fontSize: 15,
-                            fontWeight: 600,
-                            outline: 'none',
-                            boxSizing: 'border-box',
-                          }}
-                          onFocus={(e) => (e.target.style.borderColor = '#6366F1')}
-                          onBlur={(e) => (e.target.style.borderColor = '#E2E8F0')}
-                        />
                         {field.name === 'name' && customerNameError ? (
                           <p
                             role="alert"
@@ -6485,6 +6023,7 @@ const App: React.FC = () => {
                         onOpen={() => openExistingCustomer(duplicateCustomer.id)}
                       />
                     )}
+                    <div className="fp-save-dock">
                     <SaveButton
                       saving={savingCustomer}
                       label={isEditCustomerModalOpen ? 'Salvar alterações' : 'Salvar'}
@@ -6494,11 +6033,11 @@ const App: React.FC = () => {
                         borderRadius: 16,
                         border: 'none',
                         cursor: savingCustomer ? 'not-allowed' : 'pointer',
-                        fontWeight: 900,
-                        fontSize: 16,
+                        fontWeight: 600,
+                        fontSize: 15,
                         color: 'white',
-                        background: 'linear-gradient(135deg,#6366F1,#8B5CF6)',
-                        boxShadow: '0 4px 20px rgba(99,102,241,0.3)',
+                        background: '#2B2F77',
+                        boxShadow: 'none',
                         marginTop: 8,
                         display: 'flex',
                         alignItems: 'center',
@@ -6507,6 +6046,7 @@ const App: React.FC = () => {
                         opacity: savingCustomer ? 0.7 : 1,
                       }}
                     />
+                    </div>
                   </form>
                 </div>
               </div>
@@ -6555,7 +6095,7 @@ const App: React.FC = () => {
                       formatCurrency={formatCurrency}
                     />
                   )}
-                  <form noValidate onSubmit={addTransaction} className="space-y-6">
+                  <form noValidate onSubmit={addTransaction} className="fp-entry space-y-6">
                     {installmentPreFill && (
                       <div className="flex items-center gap-3 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
                         <svg
@@ -6580,7 +6120,7 @@ const App: React.FC = () => {
                       </div>
                     )}
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">
+                      <label className="fp-label">
                         {t.amount} (R$)
                       </label>
                       <CurrencyInput
@@ -6591,7 +6131,7 @@ const App: React.FC = () => {
                           setCurrentAmountValue(next);
                           if (amountError) setAmountError('');
                         }}
-                        className="w-full px-5 py-4 bg-white border-2 border-[#CCD2E9] rounded-t42md text-4xl font-black focus:outline-none focus:border-[#5967D8]"
+                        className="w-full px-5 py-4 bg-white border border-[#EAEAE5] rounded-xl text-base font-medium focus:outline-none focus:border-[#2B2F77]"
                       />
                       {amountError ? (
                         <p role="alert" className="text-sm font-bold text-red-600 mt-2">
@@ -6609,7 +6149,7 @@ const App: React.FC = () => {
                               setAmountError('');
                             }}
                             className="mt-3 w-full py-3 rounded-2xl font-black text-base text-white"
-                            style={{ background: '#1C2446' }}
+                            style={{ background: '#2B2F77' }}
                           >
                             Quitar
                           </button>
@@ -6629,7 +6169,7 @@ const App: React.FC = () => {
                       )}
                     </div>
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">
+                      <label className="fp-label">
                         {t.description}
                       </label>
                       <input
@@ -6654,7 +6194,7 @@ const App: React.FC = () => {
                       )}
                     </div>
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">
+                      <label className="fp-label">
                         {t.relatedEvent}
                       </label>
                       <select
@@ -6673,7 +6213,7 @@ const App: React.FC = () => {
                     </div>
                     {transactionType === 'DEBT' ? (
                       <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">
+                        <label className="fp-label">
                           {t.dueDate}
                         </label>
                         <BrDateField
@@ -6685,7 +6225,7 @@ const App: React.FC = () => {
                       </div>
                     ) : (
                       <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">
+                        <label className="fp-label">
                           {t.paymentMethod}
                         </label>
                         <select
@@ -6700,7 +6240,7 @@ const App: React.FC = () => {
                       </div>
                     )}
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">
+                      <label className="fp-label">
                         Comprovante (opcional)
                       </label>
                       <div className="grid grid-cols-2 gap-3">
@@ -6748,7 +6288,7 @@ const App: React.FC = () => {
                           <div className="space-y-3">
                             <div className="flex items-center gap-3">
                               <div className="flex-1">
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">
+                                <label className="fp-label">
                                   Parcelas
                                 </label>
                                 <select
@@ -6764,7 +6304,7 @@ const App: React.FC = () => {
                                 </select>
                               </div>
                               <div className="flex-1">
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">
+                                <label className="fp-label">
                                   Valor/parcela
                                 </label>
                                 <p className="px-4 py-3 bg-white rounded-xl font-black text-lg text-indigo-600">
@@ -6831,7 +6371,7 @@ const App: React.FC = () => {
                             {hasInterest && (
                               <div className="flex items-center gap-3">
                                 <div className="flex-1">
-                                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">
+                                  <label className="fp-label">
                                     Taxa % ao mês
                                   </label>
                                   <input
@@ -6852,6 +6392,7 @@ const App: React.FC = () => {
                         )}
                       </div>
                     )}
+                    <div className="fp-save-dock">
                     <SaveButton
                       saving={savingTransaction}
                       label={editTransactionData ? 'Salvar Alterações' : t.confirmTransaction}
@@ -6861,18 +6402,11 @@ const App: React.FC = () => {
                         borderRadius: 14,
                         border: 'none',
                         cursor: savingTransaction ? 'not-allowed' : 'pointer',
-                        fontWeight: 800,
-                        fontSize: 16,
+                        fontWeight: 600,
+                        fontSize: 15,
                         color: 'white',
-                        background:
-                          transactionType === 'DEBT'
-                            ? 'linear-gradient(135deg,#1C2446,#26315B)'
-                            : transactionType === 'ABATIMENTO'
-                              ? 'linear-gradient(135deg,#7252E2,#5F3FD1)'
-                              : transactionType === 'REFUND'
-                                ? 'linear-gradient(135deg,#3D559C,#2F4480)'
-                                : 'linear-gradient(135deg,#2E9D6F,#25835D)',
-                        boxShadow: '0 8px 24px rgba(16,22,47,0.18)',
+                        background: '#2B2F77',
+                        boxShadow: 'none',
                         marginTop: 8,
                         display: 'flex',
                         alignItems: 'center',
@@ -6881,6 +6415,7 @@ const App: React.FC = () => {
                         opacity: savingTransaction ? 0.7 : 1,
                       }}
                     />
+                    </div>
                   </form>
                 </div>
               </div>
@@ -7012,42 +6547,7 @@ const App: React.FC = () => {
                 flexDirection: 'column',
               }}
             >
-              <div
-                style={{
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 10,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '0 16px',
-                  height: 60,
-                  flexShrink: 0,
-                  background: 'linear-gradient(135deg,#0EA5E9,#6366F1)',
-                }}
-              >
-                <button
-                  onClick={() => setIsEventModalOpen(false)}
-                  style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 12,
-                    background: 'rgba(255,255,255,0.2)',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <ArrowLeft style={{ width: 20, height: 20 }} />
-                </button>
-                <p style={{ fontSize: 17, fontWeight: 900, color: 'white', margin: 0 }}>
-                  {t.newEvent}
-                </p>
-              </div>
+              <PageHeader title={t.newEvent} onBack={() => setIsEventModalOpen(false)} />
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 <div style={{ maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
                   <form
@@ -7099,11 +6599,9 @@ const App: React.FC = () => {
                     <label
                       style={{
                         display: 'block',
-                        fontSize: 11,
-                        fontWeight: 800,
-                        color: '#94A3B8',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: '#1A1A1A',
                         marginBottom: 8,
                       }}
                     >
@@ -7127,8 +6625,8 @@ const App: React.FC = () => {
                         boxSizing: 'border-box',
                         marginBottom: 24,
                       }}
-                      onFocus={(e) => (e.target.style.borderColor = '#6366F1')}
-                      onBlur={(e) => (e.target.style.borderColor = '#E2E8F0')}
+                      onFocus={(e) => (e.target.style.borderColor = '#2B2F77')}
+                      onBlur={(e) => (e.target.style.borderColor = '#EAEAE5')}
                     />
                     {eventNameError ? (
                       <p
@@ -7143,20 +6641,21 @@ const App: React.FC = () => {
                         {eventNameError}
                       </p>
                     ) : null}
+                    <div className="fp-save-dock">
                     <SaveButton
                       saving={savingEvent}
-                      label="Criar Evento e Adicionar Participantes"
+                      label="Criar evento"
                       style={{
                         width: '100%',
                         padding: '16px',
                         borderRadius: 16,
                         border: 'none',
                         cursor: savingEvent ? 'not-allowed' : 'pointer',
-                        fontWeight: 900,
-                        fontSize: 16,
+                        fontWeight: 600,
+                        fontSize: 15,
                         color: 'white',
-                        background: 'linear-gradient(135deg,#0EA5E9,#6366F1)',
-                        boxShadow: '0 4px 20px rgba(14,165,233,0.3)',
+                        background: '#2B2F77',
+                        boxShadow: 'none',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -7164,6 +6663,7 @@ const App: React.FC = () => {
                         opacity: savingEvent ? 0.7 : 1,
                       }}
                     />
+                    </div>
                   </form>
                 </div>
               </div>

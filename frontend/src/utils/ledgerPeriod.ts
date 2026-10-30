@@ -47,6 +47,11 @@ export function periodResult(sums: LedgerSums): number {
   return sums.payment + sums.abatement - sums.debt - sums.refund;
 }
 
+/** Quanto do lançado no período ainda não voltou. Nunca negativo. */
+export function periodToReceive(sums: LedgerSums): number {
+  return Math.max(0, sums.debt - sums.payment - sums.refund - sums.abatement);
+}
+
 export function activeDebtorLabel(count: number): string {
   return count === 1 ? '1 devedor ativo' : `${count} devedores ativos`;
 }
