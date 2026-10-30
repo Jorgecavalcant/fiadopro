@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Home, List, Menu, Users, type LucideIcon } from 'lucide-react';
+import { Home, Menu, ReceiptText, SquareSplitHorizontal, Users, type LucideIcon } from 'lucide-react';
 import { AppView, Language, User } from '../types';
 import { translations } from '../translations';
 
@@ -20,16 +20,22 @@ interface LayoutProps {
   isAdmin?: boolean;
 }
 
-const NAV: { id: AppView; labelKey: 'dashboard' | 'customers' | 'statement' | 'menu'; icon: LucideIcon }[] = [
+type NavItem = { id: AppView; labelKey: 'dashboard' | 'customers' | 'splitBill' | 'statement' | 'menu'; icon: LucideIcon };
+
+export const SIDE_NAV: NavItem[] = [
   { id: AppView.DASHBOARD, labelKey: 'dashboard', icon: Home },
   { id: AppView.CUSTOMERS, labelKey: 'customers', icon: Users },
-  { id: AppView.STATEMENT, labelKey: 'statement', icon: List },
+  { id: AppView.SPLIT_BILL, labelKey: 'splitBill', icon: SquareSplitHorizontal },
+  { id: AppView.STATEMENT, labelKey: 'statement', icon: ReceiptText },
   { id: AppView.MENU, labelKey: 'menu', icon: Menu },
 ];
+
+export const TAB_NAV: NavItem[] = SIDE_NAV.filter((item) => item.id !== AppView.SPLIT_BILL);
 
 function activeNav(view: AppView): AppView {
   if (view === AppView.CUSTOMERS || view === AppView.CUSTOMER_DETAIL) return AppView.CUSTOMERS;
   if (view === AppView.STATEMENT) return AppView.STATEMENT;
+  if (view === AppView.SPLIT_BILL) return AppView.SPLIT_BILL;
   if (view === AppView.DASHBOARD) return AppView.DASHBOARD;
   return AppView.MENU;
 }
@@ -45,20 +51,20 @@ const Layout = ({
 }: LayoutProps) => {
   const t = translations[language];
   const current = activeNav(activeView);
-  const item = NAV.find((entry) => entry.id === current);
+  const item = SIDE_NAV.find((entry) => entry.id === current);
   const title = item ? t[item.labelKey] : t.menu;
 
   return (
     <div className="fp-shell">
       <aside className="fp-side">
         <p className="fp-brand">Fiado Pro</p>
-        {NAV.map((item) => {
-          const Icon = item.icon;
-          const on = item.id === current;
+        {SIDE_NAV.map((entry) => {
+          const Icon = entry.icon;
+          const on = entry.id === current;
           return (
-            <button key={item.id} type="button" className={on ? 'on' : ''} onClick={() => setActiveView(item.id)}>
+            <button key={entry.id} type="button" className={on ? 'on' : ''} onClick={() => setActiveView(entry.id)}>
               <Icon size={20} strokeWidth={1.5} />
-              {t[item.labelKey]}
+              {t[entry.labelKey]}
             </button>
           );
         })}
@@ -85,13 +91,13 @@ const Layout = ({
         </main>
       </div>
       <nav className="fp-tabbar" aria-label="Navegação">
-        {NAV.map((item) => {
-          const Icon = item.icon;
-          const on = item.id === current;
+        {TAB_NAV.map((entry) => {
+          const Icon = entry.icon;
+          const on = entry.id === current;
           return (
-            <button key={item.id} type="button" className={on ? 'on' : ''} onClick={() => setActiveView(item.id)}>
+            <button key={entry.id} type="button" className={on ? 'on' : ''} onClick={() => setActiveView(entry.id)}>
               <Icon size={22} strokeWidth={1.5} />
-              {t[item.labelKey]}
+              {t[entry.labelKey]}
             </button>
           );
         })}

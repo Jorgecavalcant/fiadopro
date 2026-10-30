@@ -160,7 +160,7 @@ export const AdminGrantsTab: React.FC = () => {
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-500 font-medium">
-        Cortesia, teste de 14 dias, cupom e promoção saem daqui. Vencido o prazo, a pessoa volta ao
+        Cortesia, teste de 14 dias, cupom e promoção saem daqui. Vencido o prazo, a conta volta ao
         plano pago ou ao Free. A lista mostra o nome só com a inicial.
       </p>
       {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
@@ -173,7 +173,7 @@ export const AdminGrantsTab: React.FC = () => {
               className="text-[10px] font-black text-slate-400 uppercase tracking-widest"
               htmlFor="grant-user"
             >
-              Identificador da pessoa
+              Identificador da conta
             </label>
             <input
               id="grant-user"
@@ -258,7 +258,7 @@ export const AdminGrantsTab: React.FC = () => {
               className="fp-input min-h-24"
               maxLength={500}
               required
-              placeholder="Por que esta pessoa recebe o plano"
+              placeholder="Por que esta conta recebe o plano"
             />
             <p className="text-xs text-amber-700">
               Não cole CPF, senha, e-mail ou chave Pix nesta observação.
@@ -437,7 +437,7 @@ export const AdminGrantsTab: React.FC = () => {
                     <th>Plano</th>
                     <th>Origem</th>
                     <th>Audiência</th>
-                    <th>Pessoas</th>
+                    <th>Contas</th>
                     <th>Validade</th>
                   </tr>
                 </thead>

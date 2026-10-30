@@ -43,6 +43,7 @@ import {
   Star,
   Camera,
   Percent,
+  Undo2,
 } from 'lucide-react';
 import {
   XAxis,
@@ -77,7 +78,6 @@ import {
   UserCredentials,
 } from './types';
 import Layout from './components/Layout';
-import DashboardKpiCards from './components/DashboardKpiCards';
 import AdminPanel from './components/AdminPanel';
 import UpgradePlano from './components/UpgradePlano';
 import FullScreenModal from './components/FullScreenModal';
@@ -92,6 +92,11 @@ import { translations, Translation } from './translations';
 import HelpView from './components/HelpView';
 import { MenuView } from './components/MenuView';
 import { StatementView } from './components/StatementView';
+import { HomePanel } from './components/HomePanel';
+import { PageHeader } from './components/ui/PageHeader';
+import { IconCircle } from './components/ui/IconCircle';
+import { esc } from './utils/escapeHtml';
+import { cumulativeThrough } from './utils/ledgerPeriod';
 import { SearchField } from './components/ui/SearchField';
 import CurrencyInput from './components/CurrencyInput';
 import BrDateField from './components/BrDateField';
@@ -167,17 +172,6 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://www.fiadopro.com.br/api
 const GOOGLE_CLIENT_ID = '488168583801-r8pvtmis98qq12bonh2h1pkrp0rmt2v5.apps.googleusercontent.com';
 
 const generateId = (): string => crypto.randomUUID();
-
-// HTML escaping — prevents XSS when interpolating user data into innerHTML/document.write
-const esc = (s: unknown): string => {
-  const str = String(s ?? '');
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-};
 
 // Password hashing — PBKDF2 with per-user random salt (100 000 iterations, SHA-256)
 // Plan definitions
@@ -349,58 +343,43 @@ const MyExpensesView = ({
 
 // --- Sub-components ---
 
-const DashboardView = ({ stats, formatCurrency, setActiveView, isPro, t }: any) => {
+const DashboardView = ({
+  stats,
+  formatCurrency,
+  setActiveView,
+  isPro,
+  t,
+  userName,
+  customersWithBalance,
+  onNewDebt,
+  onReceive,
+  onNewCustomer,
+}: any) => {
+  const payable = (customersWithBalance || [])
+    .filter((c: { rawBalance: number; overpaymentStrategy?: string }) => c.rawBalance < 0 && c.overpaymentStrategy === 'RETURN')
+    .reduce((sum: number, c: { rawBalance: number }) => sum + Math.abs(c.rawBalance), 0);
   const pieData = [
-    { name: t.overdueAmount || 'Em Atraso', value: stats.totalOverdue || 0, color: '#EF4444' },
-    { name: t.futureAmount || 'A Vencer', value: stats.totalFuture || 0, color: '#4F46E5' },
-  ];
-
-  const kpis = [
-    {
-      label: t.totalReceivableLabel || 'A Receber',
-      value: formatCurrency(stats.totalReceivable || 0),
-      sub: `${stats.activeDebtors || 0} ${t.activeDebtors || 'devedores ativos'}`,
-      icon: <ArrowUpRight size={20} />,
-      iconBg: '#EEF2FF',
-      iconColor: '#4F46E5',
-      accent: 'primary',
-      onClick: () => setActiveView(AppView.RECEIVABLES_LIST),
-    },
-    {
-      label: t.overdueAmount || 'Em Atraso',
-      value: formatCurrency(stats.totalOverdue || 0),
-      sub: `${(stats.defaultRate || 0).toFixed(1)}% ${t.defaultRate || 'inadimplência'}`,
-      icon: <AlertTriangle size={20} />,
-      iconBg: '#FEE2E2',
-      iconColor: '#EF4444',
-      accent: 'danger',
-      onClick: () => setActiveView(AppView.RECEIVABLES_LIST),
-    },
-    {
-      label: t.totalPaidLabel || 'Total Recebido',
-      value: formatCurrency(stats.totalPaid || 0),
-      sub: t.confirmedPayments || 'Pagamentos confirmados',
-      icon: <CheckCircle2 size={20} />,
-      iconBg: '#DCFCE7',
-      iconColor: '#10B981',
-      accent: 'success',
-      onClick: undefined,
-    },
-    {
-      label: 'Insights IA',
-      value: isPro ? 'PRO' : 'FREE',
-      sub: t.aiDescription || 'Análise inteligente do negócio',
-      icon: <Sparkles size={20} />,
-      iconBg: '#F3E8FF',
-      iconColor: '#7C3AED',
-      accent: 'warning',
-      onClick: () => setActiveView(AppView.INSIGHTS),
-    },
+    { name: t.overdueAmount || 'Em Atraso', value: stats.totalOverdue || 0, color: '#B3261E' },
+    { name: t.futureAmount || 'A Vencer', value: stats.totalFuture || 0, color: '#2B2F77' },
   ];
 
   return (
     <div className="fp-view-enter" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <DashboardKpiCards items={kpis} />
+      <HomePanel
+        userName={userName}
+        formatCurrency={formatCurrency}
+        receivable={stats.totalReceivable || 0}
+        payable={payable}
+        overdue={stats.totalOverdue || 0}
+        overdueCustomers={stats.overdueCustomerCount || 0}
+        activeDebtors={stats.activeDebtors || 0}
+        onNewDebt={onNewDebt}
+        onReceive={onReceive}
+        onSplit={() => setActiveView(AppView.SPLIT_BILL)}
+        onNewCustomer={onNewCustomer}
+        onOverdue={() => setActiveView(AppView.RECEIVABLES_LIST)}
+        onPayable={() => setActiveView(AppView.TO_PAY)}
+      />
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -415,7 +394,7 @@ const DashboardView = ({ stats, formatCurrency, setActiveView, isPro, t }: any) 
             }}
           >
             <div>
-              <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--fp-text)', margin: 0 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--fp-text)', margin: 0 }}>
                 {t.evolution || 'Evolução'}
               </h3>
               <p style={{ fontSize: 12, color: 'var(--fp-muted)', marginTop: 2 }}>
@@ -425,7 +404,7 @@ const DashboardView = ({ stats, formatCurrency, setActiveView, isPro, t }: any) 
             <div style={{ display: 'flex', gap: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div
-                  style={{ width: 10, height: 10, borderRadius: '50%', background: '#4F46E5' }}
+                  style={{ width: 10, height: 10, borderRadius: '50%', background: '#2B2F77' }}
                 />
                 <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fp-muted)' }}>
                   Fiado
@@ -433,7 +412,7 @@ const DashboardView = ({ stats, formatCurrency, setActiveView, isPro, t }: any) 
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div
-                  style={{ width: 10, height: 10, borderRadius: '50%', background: '#10B981' }}
+                  style={{ width: 10, height: 10, borderRadius: '50%', background: '#1F7A4D' }}
                 />
                 <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fp-muted)' }}>
                   Recebido
@@ -445,24 +424,15 @@ const DashboardView = ({ stats, formatCurrency, setActiveView, isPro, t }: any) 
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={stats.evolutionData || []}
-                margin={{ top: 4, right: 4, bottom: 0, left: -20 }}
+                margin={{ top: 4, right: 8, bottom: 0, left: -12 }}
               >
-                <defs>
-                  <linearGradient id="gOffered" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#4F46E5" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="gReceived" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--fp-border)" />
                 <XAxis
                   dataKey="date"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: 'var(--fp-muted)', fontSize: 10, fontWeight: 600 }}
+                  tick={{ fill: 'var(--fp-muted)', fontSize: 10, fontWeight: 500 }}
+                  tickFormatter={(value: string) => value.slice(0, 5)}
                   dy={8}
                   interval={2}
                 />
@@ -485,19 +455,19 @@ const DashboardView = ({ stats, formatCurrency, setActiveView, isPro, t }: any) 
                 <Area
                   type="monotone"
                   dataKey="Offered"
-                  stroke="#4F46E5"
+                  stroke="#2B2F77"
                   strokeWidth={2.5}
                   fillOpacity={1}
-                  fill="url(#gOffered)"
+                  fill="transparent"
                   dot={false}
                 />
                 <Area
                   type="monotone"
                   dataKey="Received"
-                  stroke="#10B981"
+                  stroke="#1F7A4D"
                   strokeWidth={2.5}
                   fillOpacity={1}
-                  fill="url(#gReceived)"
+                  fill="transparent"
                   dot={false}
                 />
               </AreaChart>
@@ -508,14 +478,14 @@ const DashboardView = ({ stats, formatCurrency, setActiveView, isPro, t }: any) 
         {/* Pie + Totals */}
         <div className="fp-card lg:col-span-2" style={{ padding: 28 }}>
           <h3
-            style={{ fontSize: 15, fontWeight: 800, color: 'var(--fp-text)', margin: '0 0 4px 0' }}
+            style={{ fontSize: 15, fontWeight: 600, color: 'var(--fp-text)', margin: '0 0 4px 0' }}
           >
             {t.overview || 'Distribuição'}
           </h3>
           <p style={{ fontSize: 12, color: 'var(--fp-muted)', marginBottom: 16 }}>
             Saldo por situação
           </p>
-          <div style={{ height: 140 }}>
+          <div className="fp-pie" style={{ height: 140 }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -605,6 +575,17 @@ const DashboardView = ({ stats, formatCurrency, setActiveView, isPro, t }: any) 
         </div>
       </div>
 
+      <button
+        type="button"
+        className="fp-card"
+        onClick={() => setActiveView(AppView.INSIGHTS)}
+        style={{ padding: 16, textAlign: 'left', cursor: 'pointer', width: '100%' }}
+      >
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--fp-muted)' }}>Insights</p>
+        <p style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 600 }}>{isPro ? 'Pro' : 'Free'}</p>
+        <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--fp-muted)' }}>{t.aiDescription}</p>
+      </button>
+
       {/* Recent Transactions */}
       {stats.recentTransactions?.length > 0 && (
         <div className="fp-card" style={{ padding: 28 }}>
@@ -622,7 +603,7 @@ const DashboardView = ({ stats, formatCurrency, setActiveView, isPro, t }: any) 
             <button
               className="fp-btn fp-btn-ghost"
               style={{ padding: '6px 14px', fontSize: 12 }}
-              onClick={() => setActiveView(AppView.AUDIT_LOG)}
+              onClick={() => setActiveView(AppView.STATEMENT)}
             >
               Ver todos
             </button>
@@ -786,7 +767,7 @@ const CustomerManagementView = ({
   );
 
   const tabs: { id: 'todos' | RankingType; label: string; badge?: number }[] = [
-    { id: 'todos', label: 'Todas as pessoas', badge: customersWithBalance.length },
+    { id: 'todos', label: 'Todos os clientes', badge: customersWithBalance.length },
     {
       id: 'maiores_devedores',
       label: 'Maiores Devedores',
@@ -935,7 +916,7 @@ const CustomerManagementView = ({
         }}
       >
         {[
-          { label: 'Pessoas', value: stats.total, color: '#2B2F77', bg: '#ECEDF7' },
+          { label: 'Clientes', value: stats.total, color: '#2B2F77', bg: '#ECEDF7' },
           {
             label: 'A Receber',
             value: formatCurrency(stats.totalReceivable),
@@ -1065,7 +1046,7 @@ const CustomerManagementView = ({
               }}
             >
               <Users style={{ width: 48, height: 48, color: '#CBD5E1', margin: '0 auto 12px' }} />
-              <p style={{ fontWeight: 800, color: '#5C5C5C' }}>Nenhuma pessoa encontrada</p>
+              <p style={{ fontWeight: 800, color: '#5C5C5C' }}>Nenhum cliente encontrado</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -1181,7 +1162,7 @@ const CustomerManagementView = ({
             <TrendingUp
               style={{ width: 48, height: 48, color: '#CBD5E1', margin: '0 auto 12px' }}
             />
-            <p style={{ fontWeight: 800, color: '#5C5C5C' }}>Nenhuma pessoa neste ranking ainda</p>
+            <p style={{ fontWeight: 800, color: '#5C5C5C' }}>Nenhum cliente neste ranking ainda</p>
             <p style={{ fontSize: 13, color: '#94A3B8', marginTop: 4 }}>
               Registre transações para ver os rankings
             </p>
@@ -1432,7 +1413,9 @@ const SplitBillView = ({
         </div>
         <div>
           <h2 className="text-2xl font-black text-indigo-900">{t.splitBill}</h2>
-          <p className="text-indigo-700 font-medium leading-relaxed">{t.aiBusinessDescription}</p>
+          <p className="text-indigo-700 font-medium leading-relaxed">
+            Divida uma conta entre clientes e acompanhe quem já pagou.
+          </p>
         </div>
       </div>
       <button
@@ -1685,7 +1668,7 @@ const EventDetailView = ({
       .join('');
 
     const statusColor = event.isCompleted ? '#10b981' : '#f59e0b';
-    const content = `<html><head><title>${esc(event.name)}</title><style>body { font-family: sans-serif; padding: 40px; color: #334155; } table { width: 100%; border-collapse: collapse; margin-bottom: 30px; } th, td { padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left; } th { font-size: 12px; text-transform: uppercase; color: #94a3b8; } .status { font-weight: bold; color: ${statusColor}; }</style></head><body><h1>${esc(event.name)} <span class="status">[${event.isCompleted ? 'QUITADO' : 'PENDENTE'}]</span></h1><p>Data: ${esc(formatBrDate(event.date))} | Total: ${formatCurrency(totalBill)}</p><h3>Itens Consumidos</h3><table><thead><tr><th>Item</th><th style="text-align:right">Qtd</th><th style="text-align:right">Valor Unit.</th><th style="text-align:right">Total</th></tr></thead><tbody>${itemsList}</tbody></table><h3>Divisão por Pessoa</h3><table><thead><tr><th>Nome</th><th>Itens</th><th style="text-align:right">Parte</th></tr></thead><tbody>${participantsList}</tbody></table><script>window.onload = () => window.print();</script></body></html>`;
+    const content = `<html><head><title>${esc(event.name)}</title><style>body { font-family: sans-serif; padding: 40px; color: #334155; } table { width: 100%; border-collapse: collapse; margin-bottom: 30px; } th, td { padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left; } th { font-size: 12px; text-transform: uppercase; color: #94a3b8; } .status { font-weight: bold; color: ${statusColor}; }</style></head><body><h1>${esc(event.name)} <span class="status">[${event.isCompleted ? 'QUITADO' : 'PENDENTE'}]</span></h1><p>Data: ${esc(formatBrDate(event.date))} | Total: ${formatCurrency(totalBill)}</p><h3>Itens Consumidos</h3><table><thead><tr><th>Item</th><th style="text-align:right">Qtd</th><th style="text-align:right">Valor Unit.</th><th style="text-align:right">Total</th></tr></thead><tbody>${itemsList}</tbody></table><h3>Divisão por cliente</h3><table><thead><tr><th>Nome</th><th>Itens</th><th style="text-align:right">Parte</th></tr></thead><tbody>${participantsList}</tbody></table><script>window.onload = () => window.print();</script></body></html>`;
     printWindow.document.write(content);
     printWindow.document.close();
   };
@@ -2197,8 +2180,8 @@ const EventDetailView = ({
                 Dividir igualmente entre todos
               </button>
               <p className="text-xs text-slate-500 font-bold leading-relaxed">
-                Toque no nome de cada item, embaixo da pessoa, para marcar o que ela consumiu. O
-                botão acima marca todos os itens para todas as pessoas. Cada item continua dividido
+                Toque no nome de cada item, embaixo do cliente, para marcar o que ela consumiu. O
+                botão acima marca todos os itens para todos os clientes. Cada item continua dividido
                 só entre quem está marcado.
               </p>
             </div>
@@ -2375,7 +2358,7 @@ const EventDetailView = ({
                   </div>
                   {p.itemIds.length === 0 && event.items.length > 0 && (
                     <p className="text-[11px] text-slate-400 font-bold mt-3">
-                      Nenhum item marcado para esta pessoa.
+                      Nenhum item marcado para este cliente.
                     </p>
                   )}
                 </div>
@@ -2836,13 +2819,9 @@ const CustomerDetailView = ({
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <PageHeader title={selectedCustomer.name} onBack={() => setActiveView(AppView.CUSTOMERS)} />
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-        <button
-          onClick={() => setActiveView(AppView.CUSTOMERS)}
-          className="flex items-center gap-2 text-indigo-600 font-black hover:text-indigo-800 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" /> {t.viewAllCustomers}
-        </button>
+        <div />
         <div className="flex gap-2">
           <button
             onClick={() => setIsEditCustomerModalOpen()}
@@ -2864,11 +2843,16 @@ const CustomerDetailView = ({
       <div className="bg-white p-5 md:p-12 rounded-t42lg md:rounded-t42xl border border-slate-200 shadow-sm overflow-hidden relative">
         <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-8 md:mb-12 relative z-10">
           <div className="flex items-center gap-6">
-            <div className="w-20 h-20 bg-indigo-600 rounded-t42lg flex items-center justify-center text-white font-black text-3xl shadow-lg shadow-indigo-200">
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl"
+              style={{ background: '#ECEDF7', color: '#2B2F77', fontWeight: 600 }}
+            >
               {selectedCustomer.name.charAt(0)}
             </div>
             <div>
-              <h2 className="text-3xl font-black text-slate-900 mb-1">{selectedCustomer.name}</h2>
+              <h2 className="text-2xl text-slate-900 mb-1" style={{ fontWeight: 500 }}>
+                {selectedCustomer.name}
+              </h2>
               <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                 {selectedCustomer.phone ? (
                   <p className="text-slate-400 font-bold flex items-center gap-1.5">
@@ -3056,7 +3040,7 @@ const CustomerDetailView = ({
                   {transactions.some((tx: Transaction) => tx.customerId !== selectedCustomer.id) &&
                   !transactions.some((tx: Transaction) => tx.customerId === selectedCustomer.id) ? (
                     <p className="text-slate-500 font-bold px-4">
-                      Nenhuma transação registrada para esta pessoa ainda. Clique em &quot;Nova
+                      Nenhuma transação registrada para este cliente ainda. Clique em &quot;Nova
                       Despesa&quot; ou &quot;Registrar Pagamento&quot; para começar.
                     </p>
                   ) : (
@@ -3072,17 +3056,17 @@ const CustomerDetailView = ({
                       className={`group flex items-center justify-between p-6 rounded-t42lg border transition-all hover:shadow-md ${overdue ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-transparent hover:border-indigo-100 hover:bg-white'}`}
                     >
                       <div className="flex items-center gap-5">
-                        <div
-                          className={`p-3 rounded-2xl ${tx.type === 'DEBT' ? 'bg-orange-100 text-orange-600' : tx.type === 'PAYMENT' ? 'bg-emerald-100 text-emerald-600' : tx.type === 'ABATIMENTO' ? 'bg-purple-100 text-purple-600' : 'bg-indigo-100 text-indigo-600'}`}
-                        >
-                          {tx.type === 'DEBT' ? (
-                            <ArrowUpRight className="w-5 h-5" />
-                          ) : tx.type === 'ABATIMENTO' ? (
-                            <RefreshCcw className="w-5 h-5" />
-                          ) : (
-                            <ArrowDownLeft className="w-5 h-5" />
-                          )}
-                        </div>
+                        <IconCircle
+                          icon={
+                            tx.type === 'DEBT'
+                              ? ArrowUpRight
+                              : tx.type === 'ABATIMENTO'
+                                ? RefreshCcw
+                                : tx.type === 'REFUND'
+                                  ? Undo2
+                                  : ArrowDownLeft
+                          }
+                        />
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-black text-slate-900 line-clamp-1">
@@ -3169,7 +3153,12 @@ const CustomerDetailView = ({
                             </a>
                           )}
                         <p
-                          className={`text-lg font-black whitespace-nowrap ${tx.type === 'DEBT' ? 'text-slate-900' : tx.type === 'PAYMENT' ? 'text-emerald-600' : tx.type === 'ABATIMENTO' ? 'text-purple-600' : 'text-indigo-600'}`}
+                          className="text-lg whitespace-nowrap"
+                          style={{
+                            fontWeight: 600,
+                            color:
+                              tx.type === 'PAYMENT' || tx.type === 'ABATIMENTO' ? '#1F7A4D' : '#B3261E',
+                          }}
                         >
                           {balanceSign(tx.type) < 0 ? '−' : '+'}
                           {formatCurrency(tx.amount)}
@@ -4079,7 +4068,7 @@ const App: React.FC = () => {
         const owed = Math.max(0, balance);
         const extra = Math.max(0, Math.round((tx.amount - owed) * 100) / 100);
         const confirmed = window.confirm(
-          `${customer?.name ?? 'Esta pessoa'} devia ${formatCurrency(owed)}. Os ${formatCurrency(extra)} a mais vão ficar como crédito (você vai dever). Confirmar?`,
+          `${customer?.name ?? 'Este cliente'} devia ${formatCurrency(owed)}. Os ${formatCurrency(extra)} a mais vão ficar como crédito (você vai dever). Confirmar?`,
         );
         if (!confirmed) {
           showToast('O pagamento continua neste aparelho até você confirmar o crédito.');
@@ -4340,7 +4329,7 @@ const App: React.FC = () => {
   const showPlanLimit = (kind: 'clientes' | 'eventos' | 'participantes', max: number) => {
     if (!Number.isFinite(max)) return;
     const planName = plan.type === 'FREE' ? 'Grátis' : plan.type === 'PRO' ? 'Pro' : 'Enterprise';
-    const kindLabel = kind === 'clientes' ? 'pessoas' : kind;
+    const kindLabel = kind === 'clientes' ? 'clientes' : kind;
     const message = `Você atingiu o limite de ${max} ${kindLabel} do plano ${planName}`;
     if (!canShowCheckout()) {
       showToast(message);
@@ -4374,7 +4363,8 @@ const App: React.FC = () => {
     );
     // Mudança Crítica: Contar como devedor ativo qualquer pessoa com saldo positivo no extrato
     const activeDebtors = customersWithBalance.filter((c) => c.rawBalance > 0).length;
-    const totalOverdue = summarizeOverdue(transactions, customersWithBalance).amount;
+    const overdueSummary = summarizeOverdue(transactions, customersWithBalance);
+    const totalOverdue = overdueSummary.amount;
     const totalFuture = Math.max(0, totalReceivable - totalOverdue);
     const totalPaid = transactions
       .filter((t) => t.type === 'PAYMENT' && t.status === 'CONFIRMED')
@@ -4392,13 +4382,11 @@ const App: React.FC = () => {
     const evolutionData = Array.from({ length: 14 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (13 - i));
-      const tillNow = transactions.filter(
-        (t) => t.timestamp <= d.getTime() && t.status === 'CONFIRMED',
-      );
+      const point = cumulativeThrough(transactions, d.getTime());
       return {
         date: formatBrDate(d),
-        Offered: tillNow.filter((t) => t.type === 'DEBT').reduce((a, b) => a + b.amount, 0),
-        Received: tillNow.filter((t) => t.type === 'PAYMENT').reduce((a, b) => a + b.amount, 0),
+        Offered: point.Offered,
+        Received: point.Received,
       };
     });
 
@@ -4407,6 +4395,7 @@ const App: React.FC = () => {
       totalFuture,
       activeDebtors,
       totalOverdue,
+      overdueCustomerCount: overdueSummary.customerIds.length,
       totalPaid,
       recentTransactions,
       evolutionData,
@@ -5283,6 +5272,21 @@ const App: React.FC = () => {
               setActiveView={setActiveView}
               isPro={isPro}
               t={t}
+              userName={user?.name}
+              customersWithBalance={customersWithBalance}
+              onNewDebt={() => {
+                setQuickAddType('DEBT');
+                setQuickAddStep(1);
+                setQuickAddSearch('');
+                setIsQuickAddOpen(true);
+              }}
+              onReceive={() => {
+                setQuickAddType('PAYMENT');
+                setQuickAddStep(1);
+                setQuickAddSearch('');
+                setIsQuickAddOpen(true);
+              }}
+              onNewCustomer={() => setIsCustomerModalOpen(true)}
             />
           )}
           {activeView === AppView.CUSTOMERS && (
@@ -5609,60 +5613,24 @@ const App: React.FC = () => {
                 flexDirection: 'column',
               }}
             >
-              {/* Header */}
-              <div
-                style={{
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 10,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '0 16px',
-                  height: 60,
-                  flexShrink: 0,
-                  background:
-                    quickAddStep === 1
-                      ? 'linear-gradient(135deg,#6366F1,#8B5CF6)'
-                      : quickAddType === 'DEBT'
-                        ? 'linear-gradient(135deg,#F97316,#EF4444)'
-                        : 'linear-gradient(135deg,#10B981,#059669)',
-                }}
-              >
-                <button
-                  onClick={() => {
-                    if (quickAddStep === 2) {
-                      setQuickAddStep(1);
-                    } else {
-                      setIsQuickAddOpen(false);
-                      setQuickAddSearch('');
-                      setQuickAddStep(1);
-                    }
-                  }}
-                  style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 12,
-                    background: 'rgba(255,255,255,0.2)',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <ArrowLeft style={{ width: 20, height: 20 }} />
-                </button>
-                <p style={{ fontSize: 17, fontWeight: 900, color: 'white', margin: 0 }}>
-                  {quickAddStep === 1
-                    ? '⚡ Acesso Rápido'
+              <PageHeader
+                title={
+                  quickAddStep === 1
+                    ? 'Acesso rápido'
                     : quickAddType === 'DEBT'
-                      ? 'Lançar dívida — selecione a pessoa'
-                      : 'Receber — selecione a pessoa'}
-                </p>
-              </div>
+                      ? 'Nova dívida — selecione o cliente'
+                      : 'Receber — selecione o cliente'
+                }
+                onBack={() => {
+                  if (quickAddStep === 2) {
+                    setQuickAddStep(1);
+                  } else {
+                    setIsQuickAddOpen(false);
+                    setQuickAddSearch('');
+                    setQuickAddStep(1);
+                  }
+                }}
+              />
               {/* Content */}
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 <div style={{ maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
@@ -5737,7 +5705,7 @@ const App: React.FC = () => {
                         <input
                           autoFocus
                           type="text"
-                          placeholder="Buscar pessoa pelo nome..."
+                          placeholder="Buscar cliente pelo nome..."
                           value={quickAddSearch}
                           onChange={(e) => setQuickAddSearch(e.target.value)}
                           style={{
@@ -5887,7 +5855,7 @@ const App: React.FC = () => {
                                   Cadastrar &quot;{quickAddSearch}&quot;
                                 </p>
                                 <p style={{ fontSize: 12, color: '#6366F1', margin: '2px 0 0' }}>
-                                  Nova pessoa
+                                  Novo cliente
                                 </p>
                               </div>
                             </button>
@@ -5895,7 +5863,7 @@ const App: React.FC = () => {
                         {!quickAddSearch.trim() && customers.length === 0 && (
                           <div style={{ textAlign: 'center', padding: '40px 0', color: '#94A3B8' }}>
                             <Users style={{ width: 40, height: 40, margin: '0 auto 8px' }} />
-                            <p style={{ fontWeight: 700 }}>Nenhuma pessoa cadastrada ainda</p>
+                            <p style={{ fontWeight: 700 }}>Nenhum cliente cadastrado ainda</p>
                           </div>
                         )}
                       </div>
@@ -6560,78 +6528,26 @@ const App: React.FC = () => {
                 flexDirection: 'column',
               }}
             >
-              {/* Header */}
-              <div
-                style={{
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 10,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '0 16px',
-                  height: 60,
-                  flexShrink: 0,
-                  background:
-                    transactionType === 'DEBT'
-                      ? 'linear-gradient(135deg,#1C2446,#26315B)'
+              <PageHeader
+                title={
+                  editTransactionData
+                    ? 'Editar lançamento'
+                    : transactionType === 'DEBT'
+                      ? t.addDebt
                       : transactionType === 'PAYMENT'
-                        ? 'linear-gradient(135deg,#2E9D6F,#25835D)'
+                        ? t.addPayment
                         : transactionType === 'ABATIMENTO'
-                          ? 'linear-gradient(135deg,#7252E2,#5F3FD1)'
+                          ? 'Registrar Abatimento'
                           : transactionType === 'REFUND'
-                            ? 'linear-gradient(135deg,#3D559C,#2F4480)'
-                            : 'linear-gradient(135deg,#5967D8,#4654C4)',
+                            ? 'Registrar Devolução'
+                            : t.addPayment
+                }
+                subtitle={selectedCustomer?.name || ''}
+                onBack={() => {
+                  setIsTransactionModalOpen(false);
+                  setInstallmentPreFill(null);
                 }}
-              >
-                <button
-                  onClick={() => {
-                    setIsTransactionModalOpen(false);
-                    setInstallmentPreFill(null);
-                  }}
-                  style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 12,
-                    background: 'rgba(255,255,255,0.2)',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <ArrowLeft style={{ width: 20, height: 20 }} />
-                </button>
-                <div style={{ flex: 1 }}>
-                  <p
-                    style={{
-                      fontSize: 17,
-                      fontWeight: 900,
-                      color: 'white',
-                      margin: 0,
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {editTransactionData
-                      ? 'Editar Lançamento'
-                      : transactionType === 'DEBT'
-                        ? t.addDebt
-                        : transactionType === 'PAYMENT'
-                          ? t.addPayment
-                          : transactionType === 'ABATIMENTO'
-                            ? 'Registrar Abatimento'
-                            : transactionType === 'REFUND'
-                              ? 'Registrar Devolução'
-                              : t.addPayment}
-                  </p>
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', margin: 0 }}>
-                    {selectedCustomer?.name || ''}
-                  </p>
-                </div>
-              </div>
+              />
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 <div style={{ maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
                   {selectedCustomer && (
@@ -6996,13 +6912,13 @@ const App: React.FC = () => {
                   {[
                     {
                       planData: PLANS.FREE,
-                      features: ['20 pessoas', '15 eventos', 'Sem IA', 'Com anúncios'],
+                      features: ['20 clientes', '15 eventos', 'Sem IA', 'Com anúncios'],
                       popular: false,
                     },
                     {
                       planData: PLANS.PRO,
                       features: [
-                        '500 pessoas',
+                        '500 clientes',
                         'Eventos ilimitados',
                         'IA habilitada',
                         'Sem anúncios',
@@ -7012,7 +6928,7 @@ const App: React.FC = () => {
                     {
                       planData: PLANS.ENTERPRISE,
                       features: [
-                        'Pessoas ilimitadas',
+                        'Clientes ilimitados',
                         'Eventos ilimitados',
                         'IA habilitada',
                         'Sem anúncios',

@@ -57,7 +57,7 @@ const DeleteAccount: React.FC = () => {
         </p>
         <p>
           Os lançamentos desta conta são apagados depois desse prazo.
-          Durante esses 30 dias, dá para consultar o histórico se a outra pessoa ainda
+          Durante esses 30 dias, dá para consultar o histórico se a outra conta ainda
           entra no sistema, mas não fazer um lançamento novo.
         </p>
         <p>
