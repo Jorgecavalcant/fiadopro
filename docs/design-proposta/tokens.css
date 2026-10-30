@@ -1,0 +1,23 @@
+/* Fiado Pro — tokens aprovados em 29/10/2026.
+   Ainda não entram no app. Contraste medido neste dia (WCAG, texto normal 4,5:1). */
+
+:root {
+  --fp-navy: #2b2f77;
+  --fp-navy-soft: #ecedf7;
+  --fp-bg: #f6f6f4;
+  --fp-surface: #ffffff;
+  --fp-tile: #efefec;
+  --fp-line: #e6e6e2;
+  --fp-text: #1a1a1a;
+  --fp-muted: #5c5c5c;
+  --fp-in: #1f7a4d;
+  --fp-danger: #b3261e;
+  --fp-warn-bg: #fff6e5;
+  --fp-warn-text: #5a3a00;
+  --fp-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --fp-radius: 10px;
+  --fp-font: -apple-system, Inter, Roboto, "Segoe UI", sans-serif;
+  --fp-value: 28px;
+  --fp-title: 22px;
+  --fp-body: 15px;
+}

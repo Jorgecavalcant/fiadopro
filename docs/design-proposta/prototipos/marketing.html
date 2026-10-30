@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Patrocínios — protótipo</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="side-desk">
+      <p class="brand">Admin</p>
+      <a href="admin.html">Contas</a>
+      <a href="marketing.html" class="on">Patrocínios</a>
+      <a href="anuncios.html">Como aparece</a>
+      <a href="painel.html">Voltar ao app</a>
+    </aside>
+    <div class="main admin-main">
+      <header class="top"><div><h1>Patrocínios</h1><p class="sub">Fase 3 · só o admin</p></div></header>
+      <div class="content stack">
+        <nav class="admin-links chips">
+          <a class="chip" href="admin.html">Contas</a>
+          <a class="chip on" href="marketing.html">Patrocínios</a>
+          <a class="chip" href="anuncios.html">Como aparece</a>
+        </nav>
+        <div class="list">
+          <a href="#contrato">
+            <span class="grow"><strong>Padaria TESTE</strong><span>Ativo · até 31/12/2026</span></span>
+            <span class="amt">R$ 400,00</span>
+            <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 6l6 6-6 6"/></svg>
+          </a>
+          <a href="#contrato">
+            <span class="grow"><strong>Mercado TESTE</strong><span>Rascunho</span></span>
+            <span class="amt">R$ 0,00</span>
+            <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 6l6 6-6 6"/></svg>
+          </a>
+        </div>
+        <article class="card" id="contrato">
+          <p class="kicker">Contrato</p>
+          <h2 class="h2" style="margin-top:4px">Padaria TESTE</h2>
+          <div class="pair">
+            <div><span>Vigência</span><strong>01/11/2026 a 31/12/2026</strong></div>
+            <div><span>Valor</span><strong>R$ 400,00</strong></div>
+            <div><span>Status</span><strong>Ativo</strong></div>
+            <div><span>Onde aparece</span><strong>Cartão no Free</strong></div>
+          </div>
+        </article>
+        <form class="card">
+          <p class="kicker">Criar ou editar</p>
+          <div class="field" style="margin-top:12px">
+            <label for="nome">Nome do patrocinador</label>
+            <input id="nome" type="text" value="Padaria TESTE" readonly />
+          </div>
+          <div class="field">
+            <label for="vig">Vigência</label>
+            <input id="vig" type="text" value="01/11/2026 a 31/12/2026" readonly />
+          </div>
+          <div class="field">
+            <label for="preco">Valor</label>
+            <input id="preco" type="text" value="R$ 400,00" readonly />
+          </div>
+          <button class="btn btn-primary" type="button">Salvar contrato</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

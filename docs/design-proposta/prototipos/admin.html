@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin — protótipo</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="side-desk">
+      <p class="brand">Admin</p>
+      <a href="admin.html" class="on">Contas</a>
+      <a href="marketing.html">Patrocínios</a>
+      <a href="painel.html">Voltar ao app</a>
+    </aside>
+    <div class="main admin-main">
+      <header class="top"><div><h1>Contas</h1><p class="sub">Exemplos TESTE</p></div></header>
+      <div class="content">
+        <nav class="admin-links chips">
+          <a class="chip on" href="admin.html">Contas</a>
+          <a class="chip" href="marketing.html">Patrocínios</a>
+          <a class="chip" href="painel.html">App</a>
+        </nav>
+        <div class="card" style="overflow:auto">
+          <table>
+            <thead>
+              <tr><th>Conta</th><th>Plano</th><th>Situação</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>TESTE Ana</td>
+                <td>Free</td>
+                <td>Ativa</td>
+                <td><button class="chip" type="button">Ver</button></td>
+              </tr>
+              <tr>
+                <td>TESTE Oficina</td>
+                <td>Pro</td>
+                <td>Ativa</td>
+                <td><button class="chip" type="button">Ver</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -182,6 +182,8 @@
 | 29/10/2026 | Implement | Salvar cliente no teste local levou 21, 4 e 4 ms antes e 38, 6 e 9 ms depois, com 20 clientes. O clique faz uma chamada. A sincronização não reenvia o que não mudou. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 29/10/2026 | Implement | Valor vazio ou zero e descrição vazia avisam em português junto ao campo. A data aparece em dd/mm/aaaa. O botão mostra Salvando... com o spinner. A máscara de moeda é só visual; o servidor continua recebendo número. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 | 29/10/2026 | Implement | Devolução e Abatimento mostram o saldo atual. Devolver tudo e Abater tudo preenchem o valor que zera. Valor além disso pede confirmação. O aviso de saldo credor não tem botão. Acerto de lucro saiu da tela; o que já foi gravado continua. Pendência: corrigir o acerto de lucro numa PR própria, sem apagar o que já existe. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
+| 29/10/2026 | Proposta | Visual único e simulação da Fase 3 em docs/design-proposta. Nenhum arquivo de produção foi alterado. | PR aberta, sem merge. | Jorge: aprovar ou ajustar a proposta antes de qualquer tela nova. |
+| 29/10/2026 | Proposta | A proposta do PR #60 foi refeita no padrão sóbrio aprovado: azul-marinho #2B2F77, fundo claro, ícone de linha, sem gradiente e sem emoji. A interface fala em Minha conta e Pessoas. No Free o patrocínio é um cartão com o rótulo Patrocinado. No Pro não há anúncio. Continua só documentação. Produção não foi alterada. | PR #60 atualizada, sem merge. | Jorge: revisar os protótipos em 360px e 1280px. |
 
 ---
 
