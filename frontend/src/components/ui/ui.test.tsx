@@ -38,7 +38,7 @@ describe('componentes da base visual', () => {
       <div>
         <Button>Salvar</Button>
         <ListRow icon={Users} title="TESTE Ana" subtitle="Te deve" amount="R$ 10,00" />
-        <Notice title="Você deve R$ 10,00 a esta pessoa">Use Devolver ou Abater.</Notice>
+        <Notice title="Você deve R$ 10,00 a este cliente">Use Devolver ou Abater.</Notice>
         <Chip label="30 dias" selected />
         <SearchField value="" onChange={() => undefined} label="Buscar" />
         <QuickAction icon={ArrowDownLeft} label="Receber" />
@@ -61,7 +61,7 @@ describe('componentes da base visual', () => {
     expect(document.querySelectorAll('.fp-quick-label').length).toBe(3);
   });
 
-  it('a navegação tem Início, Pessoas, Extrato e Menu', () => {
+  it('a navegação tem Clientes e Dividir conta, com ícones diferentes', () => {
     render(
       <Layout
         activeView={AppView.DASHBOARD}
@@ -77,7 +77,42 @@ describe('componentes da base visual', () => {
       </Layout>,
     );
 
-    const labels = [...document.querySelectorAll('.fp-tabbar button')].map((button) => button.textContent);
-    expect(labels).toEqual(['Início', 'Pessoas', 'Extrato', 'Menu']);
+    const tabs = [...document.querySelectorAll('.fp-tabbar button')].map((button) => button.textContent);
+    const side = [...document.querySelectorAll('.fp-side button')].map((button) => button.textContent);
+    expect(tabs).toEqual(['Início', 'Clientes', 'Extrato', 'Menu']);
+    expect(side).toEqual(['Início', 'Clientes', 'Dividir conta', 'Extrato', 'Menu']);
+    const icons = [...document.querySelectorAll('.fp-side button svg')].map((icon) => icon.innerHTML);
+    expect(new Set(icons).size).toBe(icons.length);
+    const split = [...document.querySelectorAll('.fp-side button')].find((button) => button.textContent === 'Dividir conta') as HTMLButtonElement;
+    let opened: string | undefined;
+    root?.unmount();
+    document.body.innerHTML = '';
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => {
+      root?.render(
+        <Layout
+          activeView={AppView.DASHBOARD}
+          setActiveView={(view) => {
+            opened = view;
+          }}
+          language="pt-BR"
+          setLanguage={() => undefined}
+          isPro={false}
+          onUpgrade={() => undefined}
+          user={{ id: '1', name: 'TESTE Ana', email: 'teste.ana@example.test' }}
+          onLogout={() => undefined}
+        >
+          <p>conteúdo</p>
+        </Layout>,
+      );
+    });
+    const again = [...document.querySelectorAll('.fp-side button')].find((button) => button.textContent === 'Dividir conta') as HTMLButtonElement;
+    act(() => {
+      again.click();
+    });
+    expect(opened).toBe(AppView.SPLIT_BILL);
+    expect(split).toBeTruthy();
   });
 });

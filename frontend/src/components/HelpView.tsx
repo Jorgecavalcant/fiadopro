@@ -8,12 +8,12 @@ const HelpView = () => {
     {
       title: 'Menu',
       content:
-        'O menu de baixo mostra Início, Pessoas, Extrato e Menu. No Menu ficam Dividir conta, Aprovações, Minhas dívidas, Lembretes, A pagar, Minhas despesas, Gestão, Insights e Ajuda.',
+        'No celular, a barra de baixo mostra Início, Clientes, Extrato e Menu. No computador, a lateral também tem Dividir conta. No Menu ficam Dividir conta, Aprovações, Minhas dívidas, Lembretes, A pagar, Minhas despesas, Gestão, Insights e Ajuda.',
     },
     {
-      title: 'Nova pessoa',
+      title: 'Novo cliente',
       content:
-        'Abra Pessoas e toque em Nova pessoa. Preencha nome e telefone. O cadastro fica salvo neste aparelho.',
+        'Abra Clientes e toque em Novo cliente. Preencha nome e telefone. O cadastro fica salvo neste aparelho.',
     },
     {
       title: 'Nova Despesa',
@@ -23,7 +23,7 @@ const HelpView = () => {
     {
       title: 'Registrar Pagamento',
       content:
-        'Quando a pessoa pagar, abra o perfil e toque em Registrar Pagamento. Informe o valor e a forma: Pix, cartão de crédito, cartão de débito ou compensação.',
+        'Quando o cliente pagar, abra o perfil e toque em Registrar Pagamento. Informe o valor e a forma: Pix, cartão de crédito, cartão de débito ou compensação.',
     },
     {
       title: 'Abatimento',
@@ -33,7 +33,7 @@ const HelpView = () => {
     {
       title: 'Devolução',
       content:
-        'No perfil, toque em Devolução e informe o valor. Se você deve a esta pessoa, o aviso pede para usar Devolução ou Abatimento. Devolver tudo e Abater tudo preenchem o valor que zera o saldo. Essa pessoa aparece em A pagar.',
+        'No perfil, toque em Devolução e informe o valor. Se você deve a este cliente, o aviso pede para usar Devolução ou Abatimento. Devolver tudo e Abater tudo preenchem o valor que zera o saldo. Esse cliente aparece em A pagar.',
     },
     {
       title: 'Pontualidade do cliente',
@@ -48,7 +48,7 @@ const HelpView = () => {
     {
       title: 'Dividir Conta',
       content:
-        'Abra Dividir Conta e toque em Novo Evento. Use Adicionar Item e Adicionar Pessoa. Toque no nome do item, embaixo de cada pessoa, para marcar o que ela consumiu. Dividir igualmente entre todos marca todos os itens para todas as pessoas. O vencimento é opcional. Se ficar em branco, a dívida fica sem vencimento. Toque em Confirmar Divisão para lançar.',
+        'Abra Dividir conta e toque em Novo Evento. Use Adicionar Item e Adicionar cliente. Toque no nome do item, embaixo de cada cliente, para marcar o que ele consumiu. Dividir igualmente entre todos marca todos os itens para todos os clientes. O vencimento é opcional. Se ficar em branco, a dívida fica sem vencimento. Toque em Confirmar Divisão para lançar.',
     },
     {
       title: 'Minhas Despesas',
@@ -78,7 +78,7 @@ const HelpView = () => {
     {
       title: 'Notificações e Aprovações',
       content:
-        'Notificações mostra o que ainda precisa da sua decisão. Os botões são Aprovar e Recusar. Aprovações mostra o que outra pessoa lançou e espera confirmação.',
+        'Notificações mostra o que ainda precisa da sua decisão. Os botões são Aprovar e Recusar. Aprovações mostra o que outra conta lançou e espera confirmação.',
     },
     {
       title: 'Meu Perfil',
@@ -104,7 +104,7 @@ const HelpView = () => {
     },
     {
       q: 'Como funciona a pontualidade do cliente?',
-      a: 'A pontualidade nesta conta é baseada no histórico de pagamento em dia. Quanto mais a pessoa paga em dia, melhor aparece.',
+      a: 'A pontualidade nesta conta é baseada no histórico de pagamento em dia. Quanto mais o cliente paga em dia, melhor aparece.',
     },
     {
       q: 'O que é "Abatimento"?',
@@ -112,7 +112,7 @@ const HelpView = () => {
     },
     {
       q: 'Como registrar uma devolução de mercadoria?',
-      a: 'No perfil do cliente, toque em Devolução e informe o valor. Se ficar saldo a favor, a pessoa aparece em A Pagar (Devoluções). Lá os botões são Devolver e Abater.',
+      a: 'No perfil do cliente, toque em Devolução e informe o valor. Se ficar saldo a favor, o cliente aparece em A Pagar (Devoluções). Lá os botões são Devolver e Abater.',
     },
     {
       q: 'Consigo imprimir o extrato do cliente?',

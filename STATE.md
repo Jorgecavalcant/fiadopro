@@ -185,6 +185,7 @@
 | 29/10/2026 | Proposta | Visual único e simulação da Fase 3 em docs/design-proposta. Nenhum arquivo de produção foi alterado. | PR aberta, sem merge. | Jorge: aprovar ou ajustar a proposta antes de qualquer tela nova. |
 | 29/10/2026 | Proposta | A proposta do PR #60 foi refeita no padrão sóbrio aprovado: azul-marinho #2B2F77, fundo claro, ícone de linha, sem gradiente e sem emoji. A interface fala em Minha conta e Pessoas. No Free o patrocínio é um cartão com o rótulo Patrocinado. No Pro não há anúncio. Continua só documentação. Produção não foi alterada. | PR #60 atualizada, sem merge. | Jorge: revisar os protótipos em 360px e 1280px. |
 | 29/10/2026 | Implement | Base visual: cores, componentes e navegação de Início, Pessoas, Extrato e Menu. A tela passa a dizer Minha conta e Pessoas. Rotas, saldo e lançamentos continuam iguais. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. As telas inteiras ficam para os próximos PRs. |
+| 30/10/2026 | Implement | Início no estilo de app de banco, extrato geral do período e a volta do termo Clientes. Dividir conta fica na lateral do computador e como atalho no Início do celular. Os números não mudaram. Produção não foi alterada. | PR aberta, sem merge. | Jorge: revisar a PR. |
 
 ---
 

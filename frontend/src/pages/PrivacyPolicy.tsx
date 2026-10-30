@@ -41,9 +41,9 @@ const PrivacyPolicy: React.FC = () => {
           1. Dados que usamos
         </h2>
         <p>
-          Usamos os dados necessários para a conta do lojista e para os registros que ele
-          escolhe fazer no caderno: nome, e-mail e, se informado, telefone e foto do lojista;
-          nome, telefone, valores de fiados e pagamentos dos clientes cadastrados pelo lojista.
+          Usamos os dados necessários para a sua conta e para os registros que você
+          escolhe fazer no caderno: nome, e-mail e, se informado, telefone e foto de quem usa a conta;
+          nome, telefone, valores de fiados e pagamentos dos clientes cadastrados nesta conta.
           Para entrar com Google e enviar notificações, também podem ser usados dados de login
           e o identificador do aparelho. CPF ou CNPJ é usado somente para assinar no site.
         </p>
@@ -54,15 +54,15 @@ const PrivacyPolicy: React.FC = () => {
           2. Para que usamos os dados
         </h2>
         <p>
-          O serviço existe para cumprir o contrato com o lojista: permitir que ele organize
+          O serviço existe para cumprir o contrato com quem usa a conta: permitir organizar
           clientes, fiados e pagamentos. Os dados dos clientes são registrados porque o
-          lojista pediu que o caderno guardasse essas informações. Também usamos dados para
+          titular da conta pediu que o caderno guardasse essas informações. Também usamos dados para
           manter a conta, enviar notificações solicitadas, prestar atendimento e proteger o
           serviço.
         </p>
         <p>
-          A pontualidade do cliente é um índice interno daquela loja, calculado a partir do
-          histórico de pagamentos registrado pelo lojista. Não é consulta de crédito.
+          A pontualidade do cliente é um índice interno desta conta, calculado a partir do
+          histórico de pagamentos registrado nesta conta. Não é consulta de crédito.
         </p>
       </section>
 
@@ -76,7 +76,7 @@ const PrivacyPolicy: React.FC = () => {
         </p>
         <ul style={{ paddingLeft: 20, marginTop: 8 }}>
           <li style={{ marginBottom: 6 }}>
-            <strong>OpenRouter:</strong> nome e saldo do cliente, somente quando o lojista usa
+            <strong>OpenRouter:</strong> nome e saldo do cliente, somente quando você usa
             a análise com inteligência artificial.
           </li>
           <li style={{ marginBottom: 6 }}>
@@ -101,9 +101,9 @@ const PrivacyPolicy: React.FC = () => {
           4. Exclusão e prazo de retenção
         </h2>
         <p>
-          Ao cancelar, a conta do lojista é desativada na hora. Os clientes, fiados e pagamentos
-          daquela loja são apagados em até 30 dias. Durante esse período, esses registros
-          permanecem no servidor e o lojista não consegue usar a conta.
+          Ao cancelar, a conta é desativada na hora. Os clientes, fiados e pagamentos
+          desta conta são apagados em até 30 dias. Durante esse período, esses registros
+          permanecem no servidor e não dá para usar a conta.
         </p>
         <p>
           Para excluir a conta, use Meu Perfil → Zona de Perigo → Cancelar Conta no app.

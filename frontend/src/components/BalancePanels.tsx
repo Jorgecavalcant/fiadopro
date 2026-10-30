@@ -61,7 +61,7 @@ export function CreditBalanceNotice({
     <Notice
       data-credit-notice=""
       role="status"
-      title={`Você deve ${money} a esta pessoa`}
+      title={`Você deve ${money} a este cliente`}
     >
       Use Devolução para devolver o dinheiro ou Abatimento para descontar em compras futuras.
     </Notice>

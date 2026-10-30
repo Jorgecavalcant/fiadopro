@@ -54,7 +54,7 @@ export default function DeleteAccountPanels({ googleOnly, onDelete }: Props) {
           Zona de Perigo
         </h3>
         <p className="text-sm text-red-600 font-medium">
-          A conta fica desativada. CPF e Pix saem agora. Dá para voltar em até 30 dias com o mesmo e-mail. As pessoas, os fiados e os pagamentos desta conta são apagados depois desse prazo.
+          A conta fica desativada. CPF e Pix saem agora. Dá para voltar em até 30 dias com o mesmo e-mail. Os clientes, os fiados e os pagamentos desta conta são apagados depois desse prazo.
         </p>
         <button
           type="button"
@@ -74,7 +74,7 @@ export default function DeleteAccountPanels({ googleOnly, onDelete }: Props) {
                   <div className="text-center">
                     <h3 className="text-xl font-black text-slate-900">Cancelar sua conta?</h3>
                     <p className="text-slate-500 mt-2 font-medium leading-relaxed">
-                      A conta fica desativada. CPF e Pix saem agora. Dá para voltar em até 30 dias com o mesmo e-mail. As pessoas, os fiados e os pagamentos desta conta são apagados depois desse prazo.
+                      A conta fica desativada. CPF e Pix saem agora. Dá para voltar em até 30 dias com o mesmo e-mail. Os clientes, os fiados e os pagamentos desta conta são apagados depois desse prazo.
                     </p>
                   </div>
                   <div className="flex gap-3">
@@ -132,7 +132,7 @@ export default function DeleteAccountPanels({ googleOnly, onDelete }: Props) {
                   <div className="text-center">
                     <h3 className="text-xl font-black text-red-700">Última confirmação</h3>
                     <p className="text-slate-500 mt-2 font-medium leading-relaxed">
-                      A conta fica desativada. CPF e Pix saem agora. Dá para voltar em até 30 dias com o mesmo e-mail. As pessoas, os fiados e os pagamentos desta conta são apagados depois desse prazo.{' '}
+                      A conta fica desativada. CPF e Pix saem agora. Dá para voltar em até 30 dias com o mesmo e-mail. Os clientes, os fiados e os pagamentos desta conta são apagados depois desse prazo.{' '}
                       {googleOnly
                         ? 'O próximo passo pede que você digite CANCELAR uma vez.'
                         : 'O próximo passo pede a sua senha.'}

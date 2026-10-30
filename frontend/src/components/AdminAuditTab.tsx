@@ -82,7 +82,7 @@ function describeState(state: AuditState | null) {
   }
   if ('audience' in state || 'user_count' in state) {
     const until = state.expires_at ? formatWhen(state.expires_at) : '—';
-    const who = state.audience === 'all' ? 'base inteira' : `${state.user_count ?? 0} pessoas`;
+    const who = state.audience === 'all' ? 'base inteira' : `${state.user_count ?? 0} contas`;
     return `${state.plan ?? '—'}, ${who}, até ${until}`;
   }
   const access = state.is_active ? 'livre' : 'bloqueado';
