@@ -53,6 +53,8 @@ const Layout = ({
   const current = activeNav(activeView);
   const item = SIDE_NAV.find((entry) => entry.id === current);
   const title = item ? t[item.labelKey] : t.menu;
+  const internal =
+    activeView === AppView.CUSTOMER_DETAIL || activeView === AppView.EVENT_DETAIL;
 
   return (
     <div className="fp-shell">
@@ -70,7 +72,7 @@ const Layout = ({
         })}
       </aside>
       <div className="fp-main">
-        <header className="fp-top" hidden={activeView === AppView.DASHBOARD}>
+        <header className="fp-top" hidden={activeView === AppView.DASHBOARD || internal}>
           <h1>{title}</h1>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
             {isPro ? <span style={{ color: 'var(--fp-navy)', fontWeight: 600, fontSize: 13 }}>Pro</span> : null}
@@ -87,7 +89,7 @@ const Layout = ({
           </div>
         </header>
         <main className="fp-scroll">
-          <div style={{ maxWidth: 880, margin: '0 auto', padding: '8px 16px 24px' }}>{children}</div>
+          <div className="fp-content">{children}</div>
         </main>
       </div>
       <nav className="fp-tabbar" aria-label="Navegação">

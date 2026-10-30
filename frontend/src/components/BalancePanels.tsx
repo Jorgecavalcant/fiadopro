@@ -24,25 +24,10 @@ export function CurrentBalanceBanner({
   formatCurrency: (value: number) => string;
 }) {
   const sense = balanceDirection(rawBalance, formatCurrency);
-  const background = rawBalance > 0 ? '#FEF2F2' : rawBalance < 0 ? '#ECFDF5' : '#F8FAFC';
   return (
-    <div
-      role="status"
-      aria-label="Saldo atual"
-      style={{
-        marginBottom: 20,
-        padding: '18px 20px',
-        borderRadius: 18,
-        background,
-        border: '1px solid #E2E8F0',
-      }}
-    >
-      <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--fp-muted)', margin: 0 }}>
-        Saldo atual
-      </p>
-      <p style={{ fontSize: 28, fontWeight: 600, margin: '6px 0 0', color: sense.color }}>
-        {sense.text}
-      </p>
+    <div className="fp-card fp-balance-now" role="status" aria-label="Saldo atual">
+      <p>Saldo atual</p>
+      <strong style={{ color: sense.color }}>{sense.text}</strong>
     </div>
   );
 }

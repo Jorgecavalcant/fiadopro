@@ -30,7 +30,6 @@ import {
   Mail,
   Filter,
   MessageCircle,
-  CalendarDays,
   Bell,
   Download,
   Upload,
@@ -81,8 +80,12 @@ import { CustomerIdentity } from './components/CustomerIdentity';
 import { EmptyState } from './components/ui/EmptyState';
 import { PageHeader } from './components/ui/PageHeader';
 import { IconCircle } from './components/ui/IconCircle';
+import { Chip } from './components/ui/Chip';
+import { LedgerTitle } from './components/ui/LedgerTitle';
 import { esc } from './utils/escapeHtml';
-import { cumulativeThrough, periodRange, periodToReceive, sumConfirmed } from './utils/ledgerPeriod';
+import { cumulativeThrough, periodRange, periodToReceive, sumConfirmed, type PeriodPreset } from './utils/ledgerPeriod';
+import { showQuickFab } from './utils/quickFab';
+import { formatPhoneDisplay } from './utils/formatPhoneDisplay';
 import { attentionItems } from './utils/attention';
 import { SearchField } from './components/ui/SearchField';
 import CurrencyInput from './components/CurrencyInput';
@@ -822,7 +825,7 @@ const CustomerManagementView = ({
                       </div>
                       <div style={{ display: 'flex', gap: 14, marginTop: 4, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600 }}>
-                          {c.phone || 'Sem telefone'}
+                          {c.phone ? formatPhoneDisplay(c.phone) : 'Sem telefone'}
                         </span>
                         <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600 }}>
                           {txQty} transaç{txQty === 1 ? 'ão' : 'ões'}
@@ -975,7 +978,7 @@ const CustomerManagementView = ({
                       {c.name}
                     </p>
                     <p style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600 }}>
-                      {c.phone || '—'}
+                      {c.phone ? formatPhoneDisplay(c.phone) : '—'}
                     </p>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -1142,13 +1145,16 @@ const SplitBillView = ({
                   setSelectedEventId(event.id);
                   setActiveView(AppView.EVENT_DETAIL);
                 }}
-                className="fp-card"
-                style={{ padding: 16, cursor: 'pointer' }}
+                className="fp-list-row"
+                style={{ cursor: 'pointer', width: '100%', background: '#fff', border: '1px solid #eaeae5', borderRadius: 16, padding: 12 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                  <strong style={{ fontSize: 15, fontWeight: 600 }}>{event.name}</strong>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span className="fp-chip">{event.isCompleted ? 'Quitado' : 'Aberto'}</span>
+                <span className="fp-list-grow">
+                  <strong>{event.name}</strong>
+                  <span>{formatBrDate(event.date)}</span>
+                </span>
+                <span className="fp-chip">{event.isCompleted ? 'Quitado' : 'Aberto'}</span>
+                <strong style={{ fontSize: 15, fontWeight: 600 }}>{formatCurrency(total)}</strong>
+                <span style={{ display: 'flex', alignItems: 'center' }}>
                     <button
                       type="button"
                       aria-label="Excluir"
@@ -1169,9 +1175,6 @@ const SplitBillView = ({
                       <Trash2 size={16} strokeWidth={1.5} />
                     </button>
                   </span>
-                </div>
-                <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--fp-muted)' }}>{formatBrDate(event.date)}</p>
-                <p style={{ margin: '8px 0 0', fontSize: 15, fontWeight: 600 }}>{formatCurrency(total)}</p>
               </div>
             </div>
           );
@@ -1557,6 +1560,19 @@ const EventDetailView = ({
     <div className="fp-flow" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader
         title={event.name}
+        badge={
+          <button
+            type="button"
+            className="fp-chip"
+            onClick={() =>
+              setEvents((prev: BillEvent[]) =>
+                prev.map((e) => (e.id === event.id ? { ...e, isCompleted: !e.isCompleted } : e)),
+              )
+            }
+          >
+            {event.isCompleted ? 'Quitado' : 'Aberto'}
+          </button>
+        }
         onBack={() => setActiveView(AppView.SPLIT_BILL)}
         actions={
           <>
@@ -1578,27 +1594,13 @@ const EventDetailView = ({
           </>
         }
       />
-      <div>
-        <button
-          type="button"
-          className="fp-chip"
-          onClick={() =>
-            setEvents((prev: BillEvent[]) =>
-              prev.map((e) => (e.id === event.id ? { ...e, isCompleted: !e.isCompleted } : e)),
-            )
-          }
-        >
-          {event.isCompleted ? 'Quitado' : 'Aberto'}
-        </button>
-      </div>
-
       <div className="fp-card" style={{ padding: 16 }}>
         <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-12">
           <div>
             <p style={{ margin: 0, fontSize: 13, color: 'var(--fp-muted)' }}>{formatBrDate(event.date)}</p>
           </div>
           <div className="md:text-right">
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mb-1">
+            <p style={{ margin: '0 0 4px', fontSize: 13, color: 'var(--fp-muted)' }}>
               {t.totalBill}
             </p>
             <p style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>{formatCurrency(totalBill)}</p>
@@ -1612,7 +1614,7 @@ const EventDetailView = ({
                 <Receipt className="w-6 h-6 text-indigo-600" /> {t.itemsList}
               </h3>
               <div className="flex items-center gap-2 flex-wrap">
-                <label className="fp-btn fp-btn-secondary" style={{ minHeight: 36, fontSize: 13 }}>
+                <label className="fp-btn fp-btn-secondary">
                   {isScanning ? (
                     <Loader2 className="w-3 h-3 animate-spin" />
                   ) : (
@@ -1639,7 +1641,7 @@ const EventDetailView = ({
                     }));
                     setLastAddedItemId(newItemId);
                   }}
-                  className="fp-btn fp-btn-secondary" style={{ minHeight: 36, fontSize: 13 }}
+                  className="fp-btn fp-btn-secondary"
                 >
                   {t.addItem}
                 </button>
@@ -1650,7 +1652,7 @@ const EventDetailView = ({
                 const quantity = getItemQuantity(item);
                 const unitPrice = getItemUnitPrice(item);
                 return (
-                  <div key={item.id} className="flex flex-col gap-2 bg-slate-50 rounded-2xl p-3">
+                  <div key={item.id} className="fp-item-row">
                     <div className="flex gap-3">
                       <input
                         ref={(el) => {
@@ -1766,9 +1768,10 @@ const EventDetailView = ({
                 <Users className="w-6 h-6 text-emerald-600" /> {t.participants}
               </h3>
               <div className="flex items-center gap-4 flex-wrap">
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2 cursor-pointer" style={{ fontSize: 13 }}>
                   <input
                     type="checkbox"
+                    className="fp-switch"
                     checked={event.ownerParticipating}
                     onChange={(e) => {
                       const isChecked = e.target.checked;
@@ -1805,9 +1808,8 @@ const EventDetailView = ({
                         };
                       });
                     }}
-                    className="w-4 h-4 rounded text-indigo-600"
                   />
-                  <span className="text-[10px] font-black uppercase text-slate-500">
+                  <span style={{ fontSize: 13, fontWeight: 400 }}>
                     {t.ownerParticipating}
                   </span>
                 </label>
@@ -1832,7 +1834,7 @@ const EventDetailView = ({
                     }));
                     setLastAddedParticipantId(newParticipantId);
                   }}
-                  className="fp-btn fp-btn-secondary" style={{ minHeight: 36, fontSize: 13 }}
+                  className="fp-btn fp-btn-secondary"
                 >
                   {t.addParticipant}
                 </button>
@@ -1982,7 +1984,7 @@ const EventDetailView = ({
                                   {c.name}
                                   {c.phone && (
                                     <span style={{ fontSize: 11, color: '#94A3B8', marginLeft: 8 }}>
-                                      {c.phone}
+                                      {formatPhoneDisplay(c.phone)}
                                     </span>
                                   )}
                                 </button>
@@ -2343,6 +2345,7 @@ const CustomerDetailView = ({
 }: any) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [ledgerPreset, setLedgerPreset] = useState<'all' | PeriodPreset>('all');
   const [noteText, setNoteText] = useState('');
 
   // Hooks precisam rodar sempre, na mesma ordem — o early return fica
@@ -2350,16 +2353,21 @@ const CustomerDetailView = ({
   // selectedCustomer aqui dentro é feito com optional chaining.
   const filteredTransactions = useMemo(() => {
     let list = transactions.filter((tx: Transaction) => tx.customerId === selectedCustomer?.id);
-    if (startDate) {
-      const start = new Date(startDate).setHours(0, 0, 0, 0);
-      list = list.filter((tx) => tx.timestamp >= start);
-    }
-    if (endDate) {
-      const end = new Date(endDate).setHours(23, 59, 59, 999);
-      list = list.filter((tx) => tx.timestamp <= end);
+    if (ledgerPreset === 'custom') {
+      if (startDate) {
+        const start = new Date(startDate).setHours(0, 0, 0, 0);
+        list = list.filter((tx) => tx.timestamp >= start);
+      }
+      if (endDate) {
+        const end = new Date(endDate).setHours(23, 59, 59, 999);
+        list = list.filter((tx) => tx.timestamp <= end);
+      }
+    } else if (ledgerPreset !== 'all') {
+      const range = periodRange(ledgerPreset, Date.now());
+      list = list.filter((tx) => tx.timestamp >= range.from && tx.timestamp <= range.to);
     }
     return list.sort((a: Transaction, b: Transaction) => b.timestamp - a.timestamp);
-  }, [transactions, selectedCustomer?.id, startDate, endDate]);
+  }, [transactions, selectedCustomer?.id, startDate, endDate, ledgerPreset]);
 
   const installmentGroups = useMemo((): InstallmentGroup[] => {
     const installmentTxs = transactions.filter(
@@ -2569,23 +2577,30 @@ const CustomerDetailView = ({
               <h2>Extrato</h2>
               <button type="button" onClick={handlePrintStatement}>Baixar PDF</button>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-                  <CalendarDays className="w-4 h-4 text-slate-400" />
-                  <BrDateField
-                    value={startDate}
-                    onChange={setStartDate}
-                    ariaLabel={t.startDate}
-                    className="bg-transparent border-none text-xs font-bold text-slate-700 p-0 focus:ring-0 w-28"
+            <div className="fp-chips">
+                {(
+                  [
+                    { id: 'all', label: 'Tudo' },
+                    { id: '7', label: '7 dias' },
+                    { id: '30', label: '30 dias' },
+                    { id: 'month', label: 'Este mês' },
+                    { id: 'lastMonth', label: 'Mês passado' },
+                    { id: 'custom', label: 'Personalizado' },
+                  ] as const
+                ).map((item) => (
+                  <Chip
+                    key={item.id}
+                    label={item.label}
+                    selected={ledgerPreset === item.id}
+                    onClick={() => setLedgerPreset(item.id)}
                   />
-                  <span className="text-slate-300">|</span>
-                  <BrDateField
-                    value={endDate}
-                    onChange={setEndDate}
-                    ariaLabel={t.endDate}
-                    className="bg-transparent border-none text-xs font-bold text-slate-700 p-0 focus:ring-0 w-28"
-                  />
-                </div>
+                ))}
+                {ledgerPreset === 'custom' ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <BrDateField value={startDate} onChange={setStartDate} ariaLabel={t.startDate} />
+                    <BrDateField value={endDate} onChange={setEndDate} ariaLabel={t.endDate} />
+                  </div>
+                ) : null}
                 {(startDate || endDate) && (
                   <button
                     onClick={() => {
@@ -2594,7 +2609,7 @@ const CustomerDetailView = ({
                     }}
                     className="text-xs font-black text-indigo-600 uppercase hover:underline"
                   >
-                    Limpar Filtro
+                    Limpar filtro
                   </button>
                 )}
               </div>
@@ -2628,9 +2643,7 @@ const CustomerDetailView = ({
                   return (
                     <div key={tx.id}>
                     {day !== previousDay ? <p className="fp-day">{day}</p> : null}
-                    <div
-                      className={`group flex items-center justify-between p-3 rounded-2xl border ${overdue ? 'bg-red-50 border-red-200' : 'bg-white border-[#EAEAE5]'}`}
-                    >
+                    <div className="fp-list-row fp-ledger">
                       <div className="flex items-center gap-5">
                         <IconCircle
                           icon={
@@ -2645,9 +2658,8 @@ const CustomerDetailView = ({
                         />
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-black text-slate-900 line-clamp-1">
-                              {tx.description}
-                            </p>
+                            <LedgerTitle text={tx.description || 'Lançamento'} />
+                            {overdue ? <span className="fp-chip danger">Vencido</span> : null}
                             {tx.status !== 'CONFIRMED' && (
                               <span
                                 className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${tx.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}
@@ -2707,7 +2719,6 @@ const CustomerDetailView = ({
                             {tx.dueDate
                               ? `Vencimento ${formatBrDate(tx.dueDate)}`
                               : 'Sem vencimento'}
-                            {overdue ? ' · Em atraso' : ''}
                           </p>
                         </div>
                       </div>
@@ -2739,7 +2750,7 @@ const CustomerDetailView = ({
                           {balanceSign(tx.type) < 0 ? '−' : '+'}
                           {formatCurrency(tx.amount)}
                         </p>
-                        <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex">
                           <button
                             onClick={() => {
                               setEditTransactionData(tx);
@@ -2845,7 +2856,7 @@ const CustomerDetailView = ({
 
               <div className="space-y-3">
                 {(selectedCustomer.notes || []).length === 0 ? (
-                  <div className="py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                  <div className="py-8 text-center">
                     <p className="text-xs text-slate-400 font-bold italic px-4">{t.noNotes}</p>
                   </div>
                 ) : (
@@ -2939,19 +2950,20 @@ const CustomerDetailView = ({
               </div>
             </div>
 
-            <div className="bg-emerald-50 p-8 rounded-t42lg border border-emerald-100 shadow-sm group">
-              <h3 className="text-lg font-black text-emerald-900 mb-4 flex items-center gap-3">
-                <Phone className="w-5 h-5" /> {t.notifyCustomer}
+            <div className="fp-card" style={{ padding: 16 }}>
+              <h3>
+                <Phone size={16} strokeWidth={1.5} /> {t.notifyCustomer}
               </h3>
-              <p className="text-sm text-emerald-700 font-medium mb-6 leading-relaxed">
+              <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--fp-muted)' }}>
                 Envie um lembrete gentil com o resumo atualizado da conta diretamente para o
                 WhatsApp.
               </p>
               <button
+                type="button"
                 onClick={() => handleShareWhatsApp('GENTLE')}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-3 active:scale-95 shadow-emerald-100/50"
+                className="fp-btn fp-btn-primary fp-btn-block"
               >
-                <Share2 className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                <Share2 size={18} strokeWidth={1.5} />
                 {t.sendSummary}
               </button>
             </div>
@@ -3218,7 +3230,7 @@ const ToPayView: React.FC<{
                 <h3 className="text-lg font-black text-slate-900 group-hover:text-indigo-600 transition-colors">
                   {c.name}
                 </h3>
-                <p className="text-xs text-slate-400 font-bold">{c.phone}</p>
+                <p className="text-xs text-slate-400 font-bold">{c.phone ? formatPhoneDisplay(c.phone) : ''}</p>
               </div>
             </div>
             <div className="pt-6 border-t border-slate-50 mb-6">
@@ -4905,7 +4917,7 @@ const App: React.FC = () => {
                           <h3 className="text-lg font-black text-slate-900 group-hover:text-indigo-600 transition-colors">
                             {c.name}
                           </h3>
-                          <p className="text-xs text-slate-400 font-bold">{c.phone}</p>
+                          <p className="text-xs text-slate-400 font-bold">{c.phone ? formatPhoneDisplay(c.phone) : ''}</p>
                           {c.counterpartClosed && (
                             <p className="text-xs font-bold text-amber-700">conta encerrada</p>
                           )}
@@ -5173,7 +5185,7 @@ const App: React.FC = () => {
             <AdminPanel currentUserId={user.id} />
           )}
         </Layout>
-        {activeView !== AppView.MENU && (
+        {showQuickFab(activeView) && (
           <button
             onClick={() => setIsQuickAddOpen(true)}
             className="fp-fab"
@@ -5387,7 +5399,7 @@ const App: React.FC = () => {
                                 <p style={{ fontSize: 13, color: '#5C5C5C', margin: '2px 0 0' }}>
                                   {c.counterpartClosed
                                     ? 'conta encerrada'
-                                    : c.phone || 'Sem telefone'}
+                                    : c.phone ? formatPhoneDisplay(c.phone) : 'Sem telefone'}
                                 </p>
                               </div>
                               <ChevronRight
@@ -5798,9 +5810,17 @@ const App: React.FC = () => {
                       setSavingCustomer(true);
                       try {
                         setCustomerFormWarning('');
+                        const typedPhone = (fd.get('phone') as string).trim();
+                        const typedDigits = typedPhone.replace(/\D/g, '');
+                        const previousPhone =
+                          (isEditCustomerModalOpen
+                            ? customers.find((c) => c.id === selectedCustomerId)?.phone
+                            : '') || '';
+                        const phone =
+                          previousPhone.replace(/\D/g, '') === typedDigits ? previousPhone : typedDigits;
                         const cData = {
                           name,
-                          phone: (fd.get('phone') as string).trim(),
+                          phone,
                           email: fd.get('email') as string,
                           pixKey: fd.get('pixKey') as string,
                         };
@@ -5950,7 +5970,7 @@ const App: React.FC = () => {
                         type: 'tel',
                         required: false,
                         defaultValue: isEditCustomerModalOpen
-                          ? customers.find((c) => c.id === selectedCustomerId)?.phone
+                          ? formatPhoneDisplay(customers.find((c) => c.id === selectedCustomerId)?.phone)
                           : '',
                         placeholder: '(00) 00000-0000',
                       },
@@ -5975,10 +5995,15 @@ const App: React.FC = () => {
                         placeholder: t.pixKeyPlaceholder,
                       },
                     ].map((field) => (
-                      <div key={field.name} style={{ marginBottom: 16 }}>
+                      <div
+                        key={field.name}
+                        className={
+                          field.name === 'name' || field.name === 'email' ? 'fp-card-top' : 'fp-card-bottom'
+                        }
+                      >
                         <label className="fp-field">
                           {field.name === 'name' ? <span style={{ display: 'block', fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Dados do cliente</span> : null}
-                          {field.name === 'email' ? <span style={{ display: 'block', fontSize: 15, fontWeight: 600, margin: '8px 0' }}>Contato</span> : null}
+                          {field.name === 'email' ? <span style={{ display: 'block', fontSize: 15, fontWeight: 600, margin: '8px 0' }}>Contato e Pix</span> : null}
                           {field.label}
                           <input
                             name={field.name}
@@ -6076,9 +6101,9 @@ const App: React.FC = () => {
                       : transactionType === 'PAYMENT'
                         ? t.addPayment
                         : transactionType === 'ABATIMENTO'
-                          ? 'Registrar Abatimento'
+                          ? 'Abatimento'
                           : transactionType === 'REFUND'
-                            ? 'Registrar Devolução'
+                            ? 'Devolução'
                             : t.addPayment
                 }
                 subtitle={selectedCustomer?.name || ''}
@@ -6119,7 +6144,8 @@ const App: React.FC = () => {
                         </p>
                       </div>
                     )}
-                    <div>
+                    <div className="fp-form-card">
+                      <h2>Valor e descrição</h2>
                       <label className="fp-label">
                         {t.amount} (R$)
                       </label>
@@ -6167,7 +6193,6 @@ const App: React.FC = () => {
                           }}
                         />
                       )}
-                    </div>
                     <div>
                       <label className="fp-label">
                         {t.description}
@@ -6193,7 +6218,9 @@ const App: React.FC = () => {
                         </p>
                       )}
                     </div>
-                    <div>
+                    </div>
+                    <div className="fp-form-card">
+                      <h2>Vencimento e evento</h2>
                       <label className="fp-label">
                         {t.relatedEvent}
                       </label>
@@ -6210,7 +6237,6 @@ const App: React.FC = () => {
                           </option>
                         ))}
                       </select>
-                    </div>
                     {transactionType === 'DEBT' ? (
                       <div>
                         <label className="fp-label">
@@ -6239,16 +6265,16 @@ const App: React.FC = () => {
                         </select>
                       </div>
                     )}
-                    <div>
+                    </div>
+                    <div className="fp-form-card">
+                      <h2>Comprovante</h2>
                       <label className="fp-label">
                         Comprovante (opcional)
                       </label>
                       <div className="grid grid-cols-2 gap-3">
-                        <label className="flex flex-col items-center justify-center gap-2 p-4 bg-slate-50 rounded-2xl cursor-pointer hover:bg-indigo-50 border-2 border-dashed border-slate-200 hover:border-indigo-300 transition-all min-h-[80px]">
-                          <Camera className="w-6 h-6 text-slate-400" />
-                          <span className="text-xs font-bold text-slate-500 text-center">
-                            Tirar Foto
-                          </span>
+                        <label className="fp-file-btn">
+                          <Camera className="w-4 h-4" />
+                          <span>Tirar foto</span>
                           <input
                             type="file"
                             accept="image/*"
@@ -6257,11 +6283,9 @@ const App: React.FC = () => {
                             className="hidden"
                           />
                         </label>
-                        <label className="flex flex-col items-center justify-center gap-2 p-4 bg-slate-50 rounded-2xl cursor-pointer hover:bg-indigo-50 border-2 border-dashed border-slate-200 hover:border-indigo-300 transition-all min-h-[80px]">
-                          <Upload className="w-6 h-6 text-slate-400" />
-                          <span className="text-xs font-bold text-slate-500 text-center">
-                            Escolher Arquivo
-                          </span>
+                        <label className="fp-file-btn">
+                          <Upload className="w-4 h-4" />
+                          <span>Escolher arquivo</span>
                           <input
                             type="file"
                             accept="image/*,application/pdf"
@@ -6272,15 +6296,16 @@ const App: React.FC = () => {
                       </div>
                     </div>
                     {transactionType === 'DEBT' && !editTransactionData && (
-                      <div className="space-y-4 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                      <div className="fp-form-card">
+                        <h2>Parcelamento</h2>
                         <label className="flex items-center gap-3 cursor-pointer">
                           <input
                             type="checkbox"
                             checked={isInstallment}
                             onChange={(e) => setIsInstallment(e.target.checked)}
-                            className="w-4 h-4 rounded text-indigo-600"
+                            className="fp-switch"
                           />
-                          <span className="font-black text-slate-700 text-sm">
+                          <span style={{ fontSize: 13 }}>
                             Compra parcelada
                           </span>
                         </label>
@@ -6362,7 +6387,7 @@ const App: React.FC = () => {
                                 type="checkbox"
                                 checked={hasInterest}
                                 onChange={(e) => setHasInterest(e.target.checked)}
-                                className="w-4 h-4 rounded text-indigo-600"
+                                className="fp-switch"
                               />
                               <span className="font-bold text-slate-600 text-sm">
                                 Cobrar juros compostos
@@ -6395,7 +6420,7 @@ const App: React.FC = () => {
                     <div className="fp-save-dock">
                     <SaveButton
                       saving={savingTransaction}
-                      label={editTransactionData ? 'Salvar Alterações' : t.confirmTransaction}
+                      label={editTransactionData ? 'Salvar alterações' : t.confirmTransaction}
                       style={{
                         width: '100%',
                         padding: '16px',
@@ -6557,11 +6582,13 @@ const App: React.FC = () => {
                       if (savingEventRef.current) return;
                       const fd = new FormData(e.currentTarget);
                       const eventName = String(fd.get('name') ?? '').trim();
+                      const eventDate = String(fd.get('eventDate') ?? '');
                       if (!eventName) {
                         setEventNameError('Informe o nome do evento');
                         return;
                       }
                       setEventNameError('');
+                      const parsedDate = eventDate ? new Date(`${eventDate}T12:00:00-03:00`).getTime() : Date.now();
                       savingEventRef.current = true;
                       setSavingEvent(true);
                       try {
@@ -6572,7 +6599,7 @@ const App: React.FC = () => {
                         const event: BillEvent = {
                           id: generateId(),
                           name: eventName,
-                          date: Date.now(),
+                          date: Number.isFinite(parsedDate) ? parsedDate : Date.now(),
                           items: [],
                           participants: [
                             {
@@ -6596,38 +6623,23 @@ const App: React.FC = () => {
                       }
                     }}
                   >
-                    <label
-                      style={{
-                        display: 'block',
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: '#1A1A1A',
-                        marginBottom: 8,
-                      }}
-                    >
-                      {t.eventName}
-                    </label>
-                    <input
-                      name="name"
-                      aria-label={t.eventName}
-                      placeholder="Ex: Churrasco no Final de Semana"
-                      onInput={() => setEventNameError('')}
-                      autoFocus
-                      style={{
-                        width: '100%',
-                        padding: '14px 16px',
-                        background: 'white',
-                        border: '1.5px solid #E2E8F0',
-                        borderRadius: 14,
-                        fontSize: 15,
-                        fontWeight: 600,
-                        outline: 'none',
-                        boxSizing: 'border-box',
-                        marginBottom: 24,
-                      }}
-                      onFocus={(e) => (e.target.style.borderColor = '#2B2F77')}
-                      onBlur={(e) => (e.target.style.borderColor = '#EAEAE5')}
-                    />
+                    <div className="fp-form-card">
+                      <h2>Dados do evento</h2>
+                      <label className="fp-field">
+                        {t.eventName}
+                        <input
+                          name="name"
+                          aria-label={t.eventName}
+                          placeholder="Ex: Churrasco no final de semana"
+                          onInput={() => setEventNameError('')}
+                          autoFocus
+                        />
+                      </label>
+                      <label className="fp-field">
+                        {t.eventDate}
+                        <input name="eventDate" type="date" aria-label={t.eventDate} />
+                      </label>
+                    </div>
                     {eventNameError ? (
                       <p
                         role="alert"

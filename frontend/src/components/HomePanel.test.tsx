@@ -110,7 +110,12 @@ describe('início', () => {
     );
     expect(document.body.textContent).toContain('Precisa da sua atenção');
     expect(document.body.textContent).toContain('TESTE Ana');
-    expect(document.body.textContent).toContain('Patrocinado');
+    expect(document.body.textContent).toContain('Patrocinado · Espaço do patrocinador');
+    expect(document.querySelector('[aria-label="Acesso rápido"]')).toBeNull();
+    document.querySelectorAll('.fp-sponsor').forEach((node) => {
+      expect(node.textContent).toBe('Patrocinado · Espaço do patrocinador');
+      expect(node.querySelector('div')).toBeNull();
+    });
     expect(document.querySelectorAll('.fp-attention-row')).toHaveLength(3);
   });
 });
