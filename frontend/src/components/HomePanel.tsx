@@ -30,12 +30,8 @@ function Chart({ data }: { data: Point[] }) {
 function Sponsor() {
   return (
     <div className="fp-sponsor">
-      <span />
-      <div>
-        <strong>Patrocinado</strong>
-        <p>Espaço do patrocinador</p>
-      </div>
-      <ChevronRight size={16} strokeWidth={1.5} />
+      <span>Patrocinado · Espaço do patrocinador</span>
+      <ChevronRight size={16} strokeWidth={1.5} aria-hidden="true" />
     </div>
   );
 }
@@ -208,7 +204,7 @@ export function HomePanel({
       </div>
 
       {!isPro ? (
-        <div className="fp-sponsor desk">
+        <div className="fp-sponsor-slot desk">
           <Sponsor />
         </div>
       ) : null}
@@ -242,6 +238,30 @@ export function HomePanel({
             <p className="fp-legend">Fiado e Recebido · últimos 14 dias</p>
             <Chart data={evolution} />
           </div>
+          <div className="fp-month-fill">
+            <div className="fp-month-nums">
+              <div>
+                <p>Em atraso</p>
+                <strong className="danger">{money(overdue)}</strong>
+              </div>
+              <div>
+                <p>Devedores</p>
+                <strong>{hidden ? '••••' : activeDebtorLabel(activeDebtors)}</strong>
+              </div>
+            </div>
+            <div
+              className="fp-progress"
+              role="img"
+              aria-label="Recebido sobre o lançado"
+            >
+              <span
+                style={{
+                  width: `${launched > 0 ? Math.min(100, (received / launched) * 100) : 0}%`,
+                }}
+              />
+            </div>
+            <p className="fp-legend">Recebido sobre o lançado</p>
+          </div>
         </article>
         <article className="fp-card fp-chart-desk">
           <div className="fp-card-head">
@@ -253,7 +273,7 @@ export function HomePanel({
       </div>
 
       {!isPro ? (
-        <div className="fp-sponsor mob">
+        <div className="fp-sponsor-slot mob">
           <Sponsor />
         </div>
       ) : null}

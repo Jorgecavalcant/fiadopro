@@ -48,7 +48,7 @@ const HelpView = () => {
     {
       title: 'Dividir Conta',
       content:
-        'Abra Dividir conta e toque em Novo Evento. Use Adicionar Item e Adicionar cliente. Toque no nome do item, embaixo de cada cliente, para marcar o que ele consumiu. Dividir igualmente entre todos marca todos os itens para todos os clientes. O vencimento é opcional. Se ficar em branco, a dívida fica sem vencimento. Toque em Confirmar Divisão para lançar.',
+        'Abra Dividir conta e toque em Novo evento. Use Adicionar Item e Adicionar cliente. Toque no nome do item, embaixo de cada cliente, para marcar o que ele consumiu. Dividir igualmente entre todos marca todos os itens para todos os clientes. O vencimento é opcional. Se ficar em branco, a dívida fica sem vencimento. Toque em Confirmar Divisão para lançar.',
     },
     {
       title: 'Minhas Despesas',

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { formatPhoneDisplay } from '../utils/formatPhoneDisplay';
 
 /** Cartão do cliente sem repetir o nome, que fica só no cabeçalho. */
 export function CustomerIdentity({
@@ -30,7 +31,7 @@ export function CustomerIdentity({
         </span>
         <div>
           {phone ? (
-            <p>{phone}</p>
+            <p>{formatPhoneDisplay(phone)}</p>
           ) : (
             <p>Telefone pendente — adicione para não perder este cadastro</p>
           )}
@@ -41,16 +42,13 @@ export function CustomerIdentity({
         {balanceText}
       </p>
       <div className="fp-score">
-        <div>
-          <strong>{score}</strong>
-          <span>{scoreLabel}</span>
-        </div>
+        <span>Pontualidade</span>
         <div className="fp-score-track" aria-hidden="true">
           <span style={{ width: `${Math.min(100, score / 10)}%` }} />
         </div>
-        <span>Pontualidade</span>
+        <strong aria-label={`${score} ${scoreLabel}`}>{score}</strong>
         {onToggleTrusted ? (
-          <button type="button" onClick={onToggleTrusted}>
+          <button type="button" className="fp-text-link" onClick={onToggleTrusted}>
             {trusted ? 'Confiável' : 'Marcar'}
           </button>
         ) : null}

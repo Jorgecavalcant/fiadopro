@@ -4,8 +4,12 @@
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { translations } from '../translations';
+import { showQuickFab } from '../utils/quickFab';
+import { AppView } from '../types';
 import { AiAsk } from './AiAsk';
 import { CustomerIdentity } from './CustomerIdentity';
+import { LedgerTitle } from './ui/LedgerTitle';
 import { PageHeader } from './ui/PageHeader';
 
 let root: Root | undefined;
@@ -41,7 +45,7 @@ describe('detalhe do cliente', () => {
     );
     const times = document.body.textContent?.match(/TESTE Bruno/g) ?? [];
     expect(times).toHaveLength(1);
-    expect(document.body.textContent).toContain('11900000000');
+    expect(document.body.textContent).toContain('(11) 90000-0000');
   });
 });
 
@@ -86,5 +90,30 @@ describe('pergunta à IA', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(document.body.textContent).toContain('Em breve');
     vi.unstubAllGlobals();
+  });
+});
+
+describe('acabamento', () => {
+  it('não mostra o botão flutuante no Início', () => {
+    expect(showQuickFab(AppView.DASHBOARD)).toBe(false);
+    expect(showQuickFab(AppView.CUSTOMERS)).toBe(true);
+  });
+
+  it('não corta o nome do lançamento', () => {
+    render(<LedgerTitle text="TESTE Cliente com nome longo demais para uma linha" />);
+    expect(document.body.textContent).toContain('TESTE Cliente com nome longo demais para uma linha');
+    expect(document.body.textContent).not.toContain('...');
+    expect(document.querySelector('.fp-ledger-title')?.className).not.toContain('line-clamp');
+  });
+
+  it('usa frase normal nos rótulos dos formulários', () => {
+    const pt = translations['pt-BR'];
+    expect(pt.fullName).toBe('Nome completo');
+    expect(pt.pixKeyLabel).toBe('Chave Pix');
+    expect(pt.dueDate).toBe('Data de vencimento');
+    expect(pt.relatedEvent).toBe('Evento relacionado (opcional)');
+    expect(pt.confirmTransaction).toBe('Confirmar');
+    expect(pt.saveChanges).toBe('Salvar alterações');
+    expect(pt.newEvent).toBe('Novo evento');
   });
 });

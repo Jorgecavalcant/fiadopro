@@ -1,6 +1,7 @@
  import React from 'react';
 import { ArrowUpRight, CheckCircle2, ChevronRight } from 'lucide-react';
 import { CustomerWithBalance } from '../types';
+import { formatPhoneDisplay } from '../utils/formatPhoneDisplay';
 import { Translation } from '../translations';
 
 interface ReceivablesListViewProps {
@@ -53,7 +54,7 @@ const ReceivablesListView = ({
                   {c.name}
                 </h3>
                 {c.phone ? (
-                  <p className="text-xs text-slate-400 font-bold">{c.phone}</p>
+                  <p className="text-xs text-slate-400 font-bold">{formatPhoneDisplay(c.phone)}</p>
                 ) : (
                   <p className="text-xs text-amber-600 font-bold">Telefone pendente</p>
                 )}
