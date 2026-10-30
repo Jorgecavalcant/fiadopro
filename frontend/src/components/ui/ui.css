@@ -541,16 +541,28 @@ body:has(.fp-fab) .fp-scroll { padding-bottom: 168px; }
   font-weight: 500;
   cursor: pointer;
 }
+.fp-switch-hit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 44px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: var(--fp-text);
+  font: inherit;
+  text-align: left;
+}
 .fp-switch {
-  appearance: none;
   width: 44px;
   height: 26px;
   border-radius: 999px;
   background: #d9d9d4;
   position: relative;
   flex: none;
-  cursor: pointer;
-  border: 0;
+  display: block;
 }
 .fp-switch::after {
   content: '';
@@ -562,8 +574,43 @@ body:has(.fp-fab) .fp-scroll { padding-bottom: 168px; }
   border-radius: 50%;
   background: #fff;
 }
-.fp-switch:checked { background: var(--fp-navy); }
-.fp-switch:checked::after { left: 20px; }
+.fp-switch.on { background: #2b2f77; }
+.fp-switch.on::after { left: 20px; }
+.fp-switch-label { font-size: 13px; font-weight: 400; line-height: 1.3; }
+.fp-ledger-when { margin: 2px 0 0; font-size: 13px; font-weight: 400; color: var(--fp-muted); }
+.fp-participant {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: start;
+}
+.fp-participant-name {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  max-height: 72px;
+  resize: none;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-sizing: border-box;
+  border: 1px solid #eaeae5;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--fp-text);
+  background: #fff;
+}
+.fp-participant-share { text-align: right; }
+.fp-participant-share p { margin: 0; font-size: 13px; font-weight: 400; color: var(--fp-muted); }
+.fp-participant-share strong { display: block; margin-top: 2px; font-size: 15px; font-weight: 600; color: var(--fp-text); white-space: nowrap; }
+.fp-help { margin: 8px 0 0; font-size: 13px; font-weight: 400; color: var(--fp-muted); }
+.fp-customer-form { display: flex; flex-direction: column; gap: 12px; }
+.fp-customer-form .fp-form-card { margin-bottom: 0; }
+.fp-customer-form .fp-field { margin-bottom: 12px; }
+.fp-customer-form .fp-field:last-child { margin-bottom: 0; }
 .fp-ledger { border: 0; background: transparent; width: 100%; padding: 8px 0; }
 .fp-ledger-title {
   display: block;

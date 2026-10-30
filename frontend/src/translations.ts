@@ -366,7 +366,7 @@ export const translations = {
     quantity: 'Qtd',
     unitPrice: 'Valor unitário',
     itemTotal: 'Total',
-    updateSplitBtn: 'Atualizar Divisão',
+    updateSplitBtn: 'Atualizar divisão',
     participants: 'Participantes',
     addParticipant: 'Adicionar cliente',
     participation: 'Participação',

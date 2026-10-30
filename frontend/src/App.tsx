@@ -82,6 +82,8 @@ import { PageHeader } from './components/ui/PageHeader';
 import { IconCircle } from './components/ui/IconCircle';
 import { Chip } from './components/ui/Chip';
 import { LedgerTitle } from './components/ui/LedgerTitle';
+import { ledgerDueText } from './components/ui/ledgerDue';
+import { Switch } from './components/ui/Switch';
 import { esc } from './utils/escapeHtml';
 import { cumulativeThrough, periodRange, periodToReceive, sumConfirmed, type PeriodPreset } from './utils/ledgerPeriod';
 import { showQuickFab } from './utils/quickFab';
@@ -1207,7 +1209,7 @@ const EventDetailView = ({
   const [participantDropdown, setParticipantDropdown] = useState<string | null>(null);
   const [participantSearch, setParticipantSearch] = useState<Record<string, string>>({});
   const [lastAddedParticipantId, setLastAddedParticipantId] = useState<string | null>(null);
-  const participantRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+  const participantRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
   const [lastAddedItemId, setLastAddedItemId] = useState<string | null>(null);
   const [splitDueDate, setSplitDueDate] = useState('');
   const itemRefs = useRef<Map<string, HTMLInputElement>>(new Map());
@@ -1768,13 +1770,10 @@ const EventDetailView = ({
                 <Users className="w-6 h-6 text-emerald-600" /> {t.participants}
               </h3>
               <div className="flex items-center gap-4 flex-wrap">
-                <label className="flex items-center gap-2 cursor-pointer" style={{ fontSize: 13 }}>
-                  <input
-                    type="checkbox"
-                    className="fp-switch"
-                    checked={event.ownerParticipating}
-                    onChange={(e) => {
-                      const isChecked = e.target.checked;
+                <Switch
+                  checked={event.ownerParticipating}
+                  label={t.ownerParticipating}
+                  onChange={(isChecked) => {
                       const participantCeiling = Number(maxParticipantsPerEvent);
                       if (
                         isChecked &&
@@ -1808,11 +1807,7 @@ const EventDetailView = ({
                         };
                       });
                     }}
-                  />
-                  <span style={{ fontSize: 13, fontWeight: 400 }}>
-                    {t.ownerParticipating}
-                  </span>
-                </label>
+                />
                 <button
                   onClick={() => {
                     const participantCeiling = Number(maxParticipantsPerEvent);
@@ -1860,7 +1855,7 @@ const EventDetailView = ({
               >
                 Dividir igualmente entre todos
               </button>
-              <p className="text-xs text-slate-500 font-bold leading-relaxed">
+              <p className="fp-help">
                 Toque no nome de cada item, embaixo do cliente, para marcar o que ela consumiu. O
                 botão acima marca todos os itens para todos os clientes. Cada item continua dividido
                 só entre quem está marcado.
@@ -1873,9 +1868,10 @@ const EventDetailView = ({
                   key={p.id}
                   className="bg-slate-50 p-6 rounded-t42lg border border-slate-100 animate-in fade-in slide-in-from-right-4 duration-200"
                 >
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="flex-1 relative">
-                      <input
+                  <div className="fp-participant">
+                    <div className="relative" style={{ minWidth: 0 }}>
+                      <textarea
+                        rows={2}
                         ref={(el) => {
                           if (el) participantRefs.current.set(p.id, el);
                           else participantRefs.current.delete(p.id);
@@ -1910,7 +1906,7 @@ const EventDetailView = ({
                         }}
                         onBlur={() => setTimeout(() => setParticipantDropdown(null), 150)}
                         placeholder={t.fullName}
-                        className="w-full px-5 py-3 bg-white border-none rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="fp-participant-name"
                         disabled={p.isOwner}
                       />
                       {participantDropdown === p.id &&
@@ -1993,13 +1989,9 @@ const EventDetailView = ({
                           );
                         })()}
                     </div>
-                    <div className="text-right">
-                      <p className="text-[9px] text-slate-400 font-black uppercase">
-                        {t.sharePerPerson}
-                      </p>
-                      <p className="text-sm font-black text-indigo-600">
-                        {formatCurrency(shares[p.id] || 0)}
-                      </p>
+                    <div className="fp-participant-share">
+                      <p>{t.sharePerPerson}</p>
+                      <strong>{formatCurrency(shares[p.id] || 0)}</strong>
                     </div>
                     {!p.isOwner && (
                       <button
@@ -2038,7 +2030,7 @@ const EventDetailView = ({
                     ))}
                   </div>
                   {p.itemIds.length === 0 && event.items.length > 0 && (
-                    <p className="text-[11px] text-slate-400 font-bold mt-3">
+                    <p className="fp-help">
                       Nenhum item marcado para este cliente.
                     </p>
                   )}
@@ -2046,11 +2038,9 @@ const EventDetailView = ({
               ))}
             </div>
 
-            <div className="bg-indigo-50 border-2 border-indigo-200 rounded-t42lg p-8 shadow-sm">
-              <label
-                htmlFor="split-due-date"
-                className="block text-indigo-400 font-black uppercase tracking-widest text-[10px] mb-2"
-              >
+            <div className="fp-form-card">
+              <h2>Vencimento e confirmação</h2>
+              <label htmlFor="split-due-date" className="fp-label">
                 Vencimento das dívidas (opcional)
               </label>
               <BrDateField
@@ -2058,9 +2048,9 @@ const EventDetailView = ({
                 ariaLabel="Vencimento das dívidas"
                 value={splitDueDate}
                 onChange={setSplitDueDate}
-                className="w-full px-4 py-3 bg-white border-2 border-indigo-100 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-indigo-400"
+                className="fp-participant-name"
               />
-              <p className="text-xs font-bold text-indigo-700 mt-2 mb-6">
+              <p className="fp-help">
                 {splitDueDate
                   ? `Vence em ${formatBrDate(splitDueDate)}`
                   : 'Se ficar em branco, a dívida fica sem vencimento.'}
@@ -2710,16 +2700,10 @@ const CustomerDetailView = ({
                               </button>
                             )}
                           </div>
-                          <p className="text-xs text-slate-400 font-bold">
-                            {formatBrDateTime(tx.timestamp)}
-                          </p>
-                          <p
-                            className={`text-xs font-bold ${overdue ? 'text-red-700' : 'text-slate-500'}`}
-                          >
-                            {tx.dueDate
-                              ? `Vencimento ${formatBrDate(tx.dueDate)}`
-                              : 'Sem vencimento'}
-                          </p>
+                          <p className="fp-ledger-when">{formatBrDateTime(tx.timestamp)}</p>
+                          {ledgerDueText(overdue, tx.dueDate) ? (
+                            <p className="fp-ledger-when">{ledgerDueText(overdue, tx.dueDate)}</p>
+                          ) : null}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 sm:gap-4">
@@ -2778,55 +2762,55 @@ const CustomerDetailView = ({
           </div>
 
           <div className="space-y-8">
-            <div className="bg-indigo-900 rounded-t42lg p-8 text-white shadow-xl relative overflow-hidden group">
-              <div className="relative z-10">
-                <h3 className="text-xl font-black mb-4 flex items-center gap-3">
-                  <Sparkles className="w-6 h-6 text-amber-400" /> {t.aiAnalysis}
-                </h3>
-                {!isPro && canShowCheckout() && (
-                  <div className="mb-6 p-5 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-sm">
-                    <p className="text-[10px] font-black text-amber-300 uppercase mb-3 tracking-widest flex items-center gap-2">
-                      <Crown className="w-3 h-3" /> {t.proFeatureTitle}
-                    </p>
-                    <button
-                      onClick={setIsUpgradeModalOpen}
-                      className="w-full flex items-center justify-center gap-2 bg-white text-indigo-900 font-black py-3 rounded-xl hover:bg-indigo-50 transition-all active:scale-95 shadow-lg"
-                    >
-                      {t.upgradeToPro}
-                    </button>
-                  </div>
-                )}
-                {isPro && (
-                  <button
-                    onClick={handleGetAdvice}
-                    disabled={isAILoading}
-                    className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white font-black py-4 rounded-2xl transition-all flex items-center justify-center gap-3 border border-white/10 active:scale-95 disabled:opacity-50"
-                  >
-                    {isAILoading ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-5 h-5" />
-                    )}
-                    {t.aiAnalysis}
-                  </button>
-                )}
-                {aiAdvice && (
-                  <div className="mt-6 p-6 bg-white/5 rounded-2xl border border-white/10 text-sm leading-relaxed text-indigo-50 whitespace-pre-wrap animate-in fade-in slide-in-from-top-4">
-                    {aiAdvice}
-                  </div>
-                )}
-              </div>
-              <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/5 rounded-full blur-3xl group-hover:bg-white/10 transition-colors duration-500"></div>
+            <div className="fp-card" style={{ padding: 16 }}>
+              <h3>
+                <Sparkles size={16} strokeWidth={1.5} /> {t.aiAnalysis}
+              </h3>
+              <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--fp-muted)' }}>
+                {t.proFeatureTitle}
+              </p>
+              {!isPro && canShowCheckout() && (
+                <button
+                  type="button"
+                  onClick={setIsUpgradeModalOpen}
+                  className="fp-btn fp-btn-secondary"
+                >
+                  Conhecer o Pro
+                </button>
+              )}
+              {isPro && (
+                <button
+                  type="button"
+                  onClick={handleGetAdvice}
+                  disabled={isAILoading}
+                  className="fp-btn fp-btn-secondary"
+                >
+                  {isAILoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles size={16} strokeWidth={1.5} />
+                  )}
+                  {t.aiAnalysis}
+                </button>
+              )}
+              {aiAdvice && (
+                <p style={{ marginTop: 12, fontSize: 13, whiteSpace: 'pre-wrap', color: 'var(--fp-text)' }}>
+                  {aiAdvice}
+                </p>
+              )}
             </div>
 
-            <div className="bg-white p-8 rounded-t42lg border border-slate-200 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
+            <div className="fp-card" style={{ padding: 16 }}>
+              <div className="flex items-center justify-between">
                 <button
+                  type="button"
                   onClick={() => setIsNotesModalOpen(true)}
-                  className="flex items-center gap-3 hover:text-indigo-600 transition-colors"
+                  className="flex items-center gap-3"
+                  style={{ background: 'none', border: 0, padding: 0, color: 'inherit' }}
                 >
-                  <FileText className="w-5 h-5 text-indigo-600" />
-                  <h3 className="text-lg font-black text-slate-800">{t.customerNotes}</h3>
+                  <h3>
+                    <FileText size={16} strokeWidth={1.5} /> {t.customerNotes}
+                  </h3>
                 </button>
                 <button
                   onClick={() => setIsNotesModalOpen(true)}
@@ -2842,7 +2826,8 @@ const CustomerDetailView = ({
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
                     placeholder={t.anyDetails}
-                    className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500 h-24 resize-none"
+                    className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 h-24 resize-none"
+                    style={{ fontSize: 13, fontWeight: 400 }}
                   />
                   <button
                     onClick={handleAddNote}
@@ -2857,7 +2842,7 @@ const CustomerDetailView = ({
               <div className="space-y-3">
                 {(selectedCustomer.notes || []).length === 0 ? (
                   <div className="py-8 text-center">
-                    <p className="text-xs text-slate-400 font-bold italic px-4">{t.noNotes}</p>
+                    <p className="fp-help">{t.noNotes}</p>
                   </div>
                 ) : (
                   selectedCustomer.notes
@@ -2893,12 +2878,10 @@ const CustomerDetailView = ({
                           </div>
                         ) : (
                           <>
-                            <p className="text-sm font-bold text-slate-700 leading-relaxed pr-28">
+                            <p style={{ margin: 0, fontSize: 13, fontWeight: 400, lineHeight: 1.4, paddingRight: 112 }}>
                               {note.text}
                             </p>
-                            <p className="text-[10px] text-slate-400 mt-3 font-black uppercase tracking-wider">
-                              {formatBrDateTime(note.createdAt)}
-                            </p>
+                            <p className="fp-help">{formatBrDateTime(note.createdAt)}</p>
                             <div className="absolute top-4 right-4 flex gap-1">
                               <button
                                 type="button"
@@ -2942,7 +2925,8 @@ const CustomerDetailView = ({
                 {(selectedCustomer.notes || []).length > 3 && (
                   <button
                     onClick={() => setIsNotesModalOpen(true)}
-                    className="w-full text-center text-xs font-black text-indigo-600 uppercase tracking-widest pt-2 hover:underline"
+                    className="fp-help"
+                    style={{ background: 'none', border: 0, width: '100%', cursor: 'pointer' }}
                   >
                     {t.viewAllNotes}
                   </button>
@@ -5948,90 +5932,90 @@ const App: React.FC = () => {
                         setSavingCustomer(false);
                       }
                     }}
-                    className="space-y-6"
+                    className="fp-customer-form"
                   >
                     {[
                       {
-                        label: t.fullName,
-                        name: 'name',
-                        type: 'text',
-                        required: true,
-                        defaultValue: isEditCustomerModalOpen
-                          ? customers.find((c) => c.id === selectedCustomerId)?.name
-                          : pendingTransactionAfterCreate
-                            ? pendingNewCustomerName
-                            : '',
-                        placeholder: 'Nome completo',
-                        autoFocus: true,
+                        title: 'Dados do cliente',
+                        fields: [
+                          {
+                            label: t.fullName,
+                            name: 'name',
+                            type: 'text',
+                            defaultValue: isEditCustomerModalOpen
+                              ? customers.find((c) => c.id === selectedCustomerId)?.name
+                              : pendingTransactionAfterCreate
+                                ? pendingNewCustomerName
+                                : '',
+                            placeholder: 'Nome completo',
+                            autoFocus: true,
+                            help: 'Como você chama este cliente.',
+                          },
+                          {
+                            label: t.phoneNumber,
+                            name: 'phone',
+                            type: 'tel',
+                            defaultValue: isEditCustomerModalOpen
+                              ? formatPhoneDisplay(customers.find((c) => c.id === selectedCustomerId)?.phone)
+                              : '',
+                            placeholder: '(00) 00000-0000',
+                            autoFocus: false,
+                            help: 'Com DDD, para não perder o cadastro.',
+                          },
+                        ],
                       },
                       {
-                        label: t.phoneNumber,
-                        name: 'phone',
-                        type: 'tel',
-                        required: false,
-                        defaultValue: isEditCustomerModalOpen
-                          ? formatPhoneDisplay(customers.find((c) => c.id === selectedCustomerId)?.phone)
-                          : '',
-                        placeholder: '(00) 00000-0000',
+                        title: 'Contato e Pix',
+                        fields: [
+                          {
+                            label: t.email,
+                            name: 'email',
+                            type: 'email',
+                            defaultValue: isEditCustomerModalOpen
+                              ? customers.find((c) => c.id === selectedCustomerId)?.email
+                              : '',
+                            placeholder: 'email@exemplo.com',
+                            autoFocus: false,
+                            help: 'Opcional.',
+                          },
+                          {
+                            label: t.pixKeyLabel,
+                            name: 'pixKey',
+                            type: 'text',
+                            defaultValue: isEditCustomerModalOpen
+                              ? customers.find((c) => c.id === selectedCustomerId)?.pixKey
+                              : '',
+                            placeholder: t.pixKeyPlaceholder,
+                            autoFocus: false,
+                            help: 'Opcional.',
+                          },
+                        ],
                       },
-                      {
-                        label: t.email,
-                        name: 'email',
-                        type: 'email',
-                        required: false,
-                        defaultValue: isEditCustomerModalOpen
-                          ? customers.find((c) => c.id === selectedCustomerId)?.email
-                          : '',
-                        placeholder: 'email@exemplo.com',
-                      },
-                      {
-                        label: t.pixKeyLabel,
-                        name: 'pixKey',
-                        type: 'text',
-                        required: false,
-                        defaultValue: isEditCustomerModalOpen
-                          ? customers.find((c) => c.id === selectedCustomerId)?.pixKey
-                          : '',
-                        placeholder: t.pixKeyPlaceholder,
-                      },
-                    ].map((field) => (
-                      <div
-                        key={field.name}
-                        className={
-                          field.name === 'name' || field.name === 'email' ? 'fp-card-top' : 'fp-card-bottom'
-                        }
-                      >
-                        <label className="fp-field">
-                          {field.name === 'name' ? <span style={{ display: 'block', fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Dados do cliente</span> : null}
-                          {field.name === 'email' ? <span style={{ display: 'block', fontSize: 15, fontWeight: 600, margin: '8px 0' }}>Contato e Pix</span> : null}
-                          {field.label}
-                          <input
-                            name={field.name}
-                            aria-label={field.label}
-                            onInput={() => {
-                              if (field.name === 'name') setCustomerNameError('');
-                            }}
-                            type={field.type}
-                            defaultValue={field.defaultValue || ''}
-                            placeholder={field.placeholder}
-                            autoFocus={field.autoFocus}
-                          />
-                          <small>
-                            {field.name === 'name'
-                              ? 'Como você chama este cliente.'
-                              : field.name === 'phone'
-                                ? 'Com DDD, para não perder o cadastro.'
-                                : 'Opcional.'}
-                          </small>
-                        </label>
-                        {field.name === 'name' && customerNameError ? (
-                          <p
-                            role="alert"
-                            style={{ color: '#DC2626', fontWeight: 700, marginTop: 8 }}
-                          >
-                            {customerNameError}
-                          </p>
-                        ) : null}
+                    ].map((section) => (
+                      <div key={section.title} className="fp-form-card">
+                        <h2>{section.title}</h2>
+                        {section.fields.map((field) => (
+                          <label key={field.name} className="fp-field">
+                            {field.label}
+                            <input
+                              name={field.name}
+                              aria-label={field.label}
+                              onInput={() => {
+                                if (field.name === 'name') setCustomerNameError('');
+                              }}
+                              type={field.type}
+                              defaultValue={field.defaultValue || ''}
+                              placeholder={field.placeholder}
+                              autoFocus={field.autoFocus}
+                            />
+                            <small>{field.help}</small>
+                            {field.name === 'name' && customerNameError ? (
+                              <p role="alert" style={{ color: '#DC2626', fontWeight: 700, marginTop: 8 }}>
+                                {customerNameError}
+                              </p>
+                            ) : null}
+                          </label>
+                        ))}
                       </div>
                     ))}
                     {customerFormWarning && (
@@ -6298,17 +6282,11 @@ const App: React.FC = () => {
                     {transactionType === 'DEBT' && !editTransactionData && (
                       <div className="fp-form-card">
                         <h2>Parcelamento</h2>
-                        <label className="flex items-center gap-3 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={isInstallment}
-                            onChange={(e) => setIsInstallment(e.target.checked)}
-                            className="fp-switch"
-                          />
-                          <span style={{ fontSize: 13 }}>
-                            Compra parcelada
-                          </span>
-                        </label>
+                        <Switch
+                          checked={isInstallment}
+                          onChange={setIsInstallment}
+                          label="Compra parcelada"
+                        />
                         {isInstallment && (
                           <div className="space-y-3">
                             <div className="flex items-center gap-3">
@@ -6382,17 +6360,11 @@ const App: React.FC = () => {
                                   </div>
                                 );
                               })()}
-                            <label className="flex items-center gap-3 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={hasInterest}
-                                onChange={(e) => setHasInterest(e.target.checked)}
-                                className="fp-switch"
-                              />
-                              <span className="font-bold text-slate-600 text-sm">
-                                Cobrar juros compostos
-                              </span>
-                            </label>
+                            <Switch
+                              checked={hasInterest}
+                              onChange={setHasInterest}
+                              label="Cobrar juros compostos"
+                            />
                             {hasInterest && (
                               <div className="flex items-center gap-3">
                                 <div className="flex-1">

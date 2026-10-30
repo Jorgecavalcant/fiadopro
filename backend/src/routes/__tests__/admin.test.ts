@@ -29,6 +29,7 @@ import adminRouter from '../admin.js';
 import { query } from '../../config/database.js';
 import { sendPasswordResetEmail } from '../../services/email.js';
 import { resolveOverviewRange } from '../../services/adminOverview.js';
+import ExcelJS from 'exceljs';
 
 const mockedQuery = query as unknown as ReturnType<typeof vi.fn>;
 const mockedSendResetEmail = sendPasswordResetEmail as unknown as ReturnType<typeof vi.fn>;
@@ -401,6 +402,32 @@ function assertNoPii(text: string) {
   expect(text).not.toMatch(/\b[1-9]{2}9\d{8}\b/);
 }
 
+async function xlsxCellText(buffer: Buffer): Promise<string> {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer as unknown as Parameters<ExcelJS.Xlsx['load']>[0]);
+  const parts: string[] = [];
+  workbook.eachSheet((sheet) => {
+    sheet.eachRow((row) => {
+      row.eachCell((cell) => {
+        const value = cell.value;
+        if (value == null) return;
+        if (typeof value === 'object' && value !== null && 'richText' in value) {
+          parts.push(
+            (value as { richText: { text: string }[] }).richText.map((part) => part.text).join(''),
+          );
+          return;
+        }
+        if (typeof value === 'object' && value !== null && 'text' in value) {
+          parts.push(String((value as { text: unknown }).text));
+          return;
+        }
+        parts.push(String(value));
+      });
+    });
+  });
+  return parts.join('\n');
+}
+
 function pdfContentText(buffer: Buffer): string {
   const raw = buffer.toString('latin1');
   const streams = [...raw.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)].map((match) => match[1]);
@@ -501,7 +528,7 @@ describe('GET /api/admin/overview/export', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('content-disposition')).toBe('attachment; filename="visao-geral.xlsx"');
     expect(buffer.subarray(0, 2).toString()).toBe('PK');
-    const text = buffer.toString('latin1');
+    const text = await xlsxCellText(buffer);
     assertNoPii(text);
     expect(text).toContain('usuariosAtivos: 17');
     expect(text).toContain('clientes: 23');
