@@ -133,17 +133,27 @@ async function confirmEmail(req: Request, res: Response, next: NextFunction) {
       return next(new ApiError(400, EMAIL_CONFIRM_LINK_INVALID, 'INVALID_TOKEN'));
     }
     const confirmedUserId = result.rows[0].id as string;
-    await query(
-      `UPDATE users
-          SET phone_verified_at = CASE
-                WHEN phone IS NOT NULL AND btrim(phone) <> '' THEN COALESCE(phone_verified_at, NOW())
-                ELSE phone_verified_at
-              END
-        WHERE id = $1`,
-      [confirmedUserId],
-    );
-    const { relinkCustomersForUser } = await import('../services/linking.js');
-    await relinkCustomersForUser(confirmedUserId);
+    try {
+      await query(
+        `UPDATE users
+            SET phone_verified_at = CASE
+                  WHEN phone IS NOT NULL AND btrim(phone) <> '' THEN COALESCE(phone_verified_at, NOW())
+                  ELSE phone_verified_at
+                END
+          WHERE id = $1`,
+        [confirmedUserId],
+      );
+    } catch (verifyErr) {
+      const message = verifyErr instanceof Error ? verifyErr.message : String(verifyErr);
+      console.warn('[auth] phone_verified_at skip:', message);
+    }
+    try {
+      const { relinkCustomersForUser } = await import('../services/linking.js');
+      await relinkCustomersForUser(confirmedUserId);
+    } catch (linkErr) {
+      const message = linkErr instanceof Error ? linkErr.message : String(linkErr);
+      console.warn('[auth] relink after confirm skip:', message);
+    }
     return res.json({ success: true, message: EMAIL_CONFIRMED_MESSAGE });
   } catch (err) {
     return next(err);
