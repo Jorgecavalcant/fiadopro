@@ -65,7 +65,7 @@ export async function linkCustomer(customerId: string): Promise<string | null> {
           'email_phone_user_conflict',
         ],
       );
-    } catch (err) {
+    } catch {
       console.warn('[linking] conflict queue unavailable', customer.id);
     }
     await query('UPDATE customers SET linked_user_id = NULL WHERE id = $1', [customer.id]);
