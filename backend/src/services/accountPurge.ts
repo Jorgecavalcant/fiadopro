@@ -1,4 +1,4 @@
-import { query } from '../config/database.js';
+import { getClient, query } from '../config/database.js';
 import { expireAdminAuditLogs } from './adminAudit.js';
 
 export type AccountDeletionUser = {
@@ -17,29 +17,60 @@ export function confirmAccountDeletion(
   return confirmation.trim() === 'CANCELAR' ? null : 'INVALID_CONFIRMATION';
 }
 
-export async function purgeExpiredAccounts(): Promise<void> {
-  const result = await query(
-    `SELECT id
-       FROM users
-      WHERE purge_after <= NOW()
-        AND purge_completed_at IS NULL
-        AND deleted_at IS NOT NULL
-        AND legal_hold IS NOT TRUE`,
+export function confirmImmediateDeletion(
+  user: AccountDeletionUser,
+  confirmationWord: string,
+  passwordMatches: boolean,
+): string | null {
+  if (confirmationWord.trim() !== 'EXCLUIR') {
+    return 'INVALID_CONFIRMATION';
+  }
+
+  if (user.password_hash && !passwordMatches) {
+    return 'INVALID_PASSWORD';
+  }
+
+  return null;
+}
+
+export async function unlinkCustomersForUser(userId: string): Promise<void> {
+  await query(
+    'UPDATE customers SET linked_user_id = NULL WHERE linked_user_id = $1',
+    [userId],
   );
+}
 
-  for (const row of result.rows as Array<{ id: string }>) {
-    const userId = row.id;
+export async function purgeUserDataNow(userId: string): Promise<void> {
+  const client = await getClient();
 
-    await query(
+  try {
+    await client.query('BEGIN');
+
+    const result = await client.query(
+      'SELECT legal_hold FROM users WHERE id = $1 FOR UPDATE',
+      [userId],
+    );
+
+    if ((result.rows as Array<{ legal_hold: boolean | null }>)[0]?.legal_hold === true) {
+      await client.query('ROLLBACK');
+      return;
+    }
+
+    await client.query(
+      'UPDATE customers SET linked_user_id = NULL WHERE linked_user_id = $1',
+      [userId],
+    );
+
+    await client.query(
       `DELETE FROM payments
         WHERE debt_id IN (SELECT id FROM debts WHERE user_id = $1)`,
       [userId],
     );
-    await query('DELETE FROM debts WHERE user_id = $1', [userId]);
-    await query('DELETE FROM transactions WHERE owner_user_id = $1', [userId]);
-    await query('DELETE FROM customers WHERE owner_user_id = $1', [userId]);
-    await query('DELETE FROM ai_interactions WHERE user_id = $1', [userId]);
-    await query(
+    await client.query('DELETE FROM debts WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM transactions WHERE owner_user_id = $1', [userId]);
+    await client.query('DELETE FROM customers WHERE owner_user_id = $1', [userId]);
+    await client.query('DELETE FROM ai_interactions WHERE user_id = $1', [userId]);
+    await client.query(
       `UPDATE users
           SET purge_completed_at = NOW(),
               deleted_reason = NULL,
@@ -54,10 +85,35 @@ export async function purgeExpiredAccounts(): Promise<void> {
               login_retained = false,
               is_active = false
         WHERE id = $1
-          AND purge_after <= NOW()
-          AND purge_completed_at IS NULL`,
+          AND legal_hold IS NOT TRUE`,
       [userId],
     );
+
+    await client.query('COMMIT');
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      // Preserve the original error.
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function purgeExpiredAccounts(): Promise<void> {
+  const result = await query(
+    `SELECT id
+       FROM users
+      WHERE purge_after <= NOW()
+        AND purge_completed_at IS NULL
+        AND deleted_at IS NOT NULL
+        AND legal_hold IS NOT TRUE`,
+  );
+
+  for (const row of result.rows as Array<{ id: string }>) {
+    await purgeUserDataNow(row.id);
   }
 }
 

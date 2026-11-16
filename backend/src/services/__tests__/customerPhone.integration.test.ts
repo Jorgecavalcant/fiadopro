@@ -92,6 +92,7 @@ async function createSchema() {
       email TEXT NOT NULL UNIQUE,
       full_name TEXT,
       phone TEXT,
+      phone_verified_at TIMESTAMPTZ,
       is_active BOOLEAN DEFAULT TRUE,
       role TEXT NOT NULL DEFAULT 'user',
       deleted_at TIMESTAMPTZ,
@@ -114,6 +115,21 @@ async function createSchema() {
       deleted_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS link_review_queue (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      customer_id UUID,
+      owner_user_id UUID,
+      email_user_id UUID,
+      phone_user_id UUID,
+      customer_email TEXT,
+      customer_phone TEXT,
+      reason TEXT NOT NULL DEFAULT 'email_phone_user_conflict',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      resolved_at TIMESTAMPTZ
     )
   `);
   await query(`

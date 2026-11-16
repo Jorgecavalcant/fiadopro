@@ -27,12 +27,16 @@ function typeIn(label: string, value: string) {
   });
 }
 
-async function renderPanel(googleOnly: boolean, onDelete: (confirmation: string) => Promise<string | null>) {
+async function renderPanel(
+  googleOnly: boolean,
+  onDelete: (confirmation: string) => Promise<string | null>,
+  onDeleteNow = vi.fn(),
+) {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root: Root = createRoot(host);
   await act(async () => {
-    root.render(<DeleteAccountPanels googleOnly={googleOnly} onDelete={onDelete} />);
+    root.render(<DeleteAccountPanels googleOnly={googleOnly} onDelete={onDelete} onDeleteNow={onDeleteNow} />);
   });
   return () => {
     act(() => root.unmount());
@@ -127,6 +131,28 @@ describe('exclusão de conta', () => {
       clickText('Excluir conta');
     });
     expect(document.querySelector('[role="alert"]')?.textContent).toBe('Senha incorreta');
+    cleanup();
+  });
+
+  it('chama a exclusão imediata com EXCLUIR', async () => {
+    const onDeleteNow = vi.fn(async () => null);
+    // googleOnly=true: só a palavra EXCLUIR basta (sem senha)
+    const cleanup = await renderPanel(true, vi.fn(async () => null), onDeleteNow);
+
+    clickText('Excluir agora');
+    typeIn('Digite EXCLUIR', 'EXCLUIR');
+
+    const dialog = document.querySelector('[aria-label="Excluir conta agora"]');
+    const confirmButton = Array.from(dialog?.querySelectorAll('button') ?? []).find((button) =>
+      (button.textContent ?? '').trim() === 'Excluir agora',
+    );
+    expect(confirmButton).toBeDefined();
+
+    await act(async () => {
+      confirmButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(onDeleteNow).toHaveBeenCalledWith({ confirmationWord: 'EXCLUIR' });
     cleanup();
   });
 });

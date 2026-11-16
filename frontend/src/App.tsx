@@ -66,7 +66,7 @@ import { adminPanelFor } from './utils/adminAccess';
 import UpgradePlano from './components/UpgradePlano';
 import FullScreenModal from './components/FullScreenModal';
 import DeleteAccountPanels from './components/DeleteAccountPanels';
-import { requestAccountDeletion } from './utils/deleteAccountFlow';
+import { requestAccountDeletion, requestImmediateAccountDeletion } from './utils/deleteAccountFlow';
 import {
   getFinancialAdvice,
   getGeneralBusinessAdvice,
@@ -3011,6 +3011,7 @@ const ProfileView = ({
   onExport,
   onImport,
   onDeleteAccount,
+  onDeleteAccountNow,
 }: any) => {
   const [editUser, setEditUser] = useState({ ...user });
   const [savingProfile, setSavingProfile] = useState(false);
@@ -3179,7 +3180,7 @@ const ProfileView = ({
 
       <UpgradePlano />
 
-      <DeleteAccountPanels googleOnly={user?.hasPassword === false} onDelete={onDeleteAccount} />
+      <DeleteAccountPanels googleOnly={user?.hasPassword === false} onDelete={onDeleteAccount} onDeleteNow={onDeleteAccountNow} />
     </div>
   );
 };
@@ -4070,6 +4071,29 @@ const App: React.FC = () => {
   const handleDeleteAccount = async (confirmation: string): Promise<string | null> => {
     try {
       const message = await requestAccountDeletion(`${API_URL}/users/me`, confirmation);
+      if (message) return message;
+      setCustomers([]);
+      setTransactions([]);
+      setEvents([]);
+      setDebts([]);
+      setAuditLog([]);
+      setOwnerExpenses([]);
+      setPlan(PLANS.FREE);
+      setCredentials(null);
+      localStorage.removeItem(STORAGE_KEY);
+      setUser(null);
+      return null;
+    } catch {
+      return 'Erro de conexão. Tente novamente.';
+    }
+  };
+
+  const handleDeleteAccountNow = async (payload: {
+    confirmationWord: string;
+    password?: string;
+  }): Promise<string | null> => {
+    try {
+      const message = await requestImmediateAccountDeletion(`${API_URL}/users/me`, payload);
       if (message) return message;
       setCustomers([]);
       setTransactions([]);
@@ -5147,6 +5171,7 @@ const App: React.FC = () => {
               onExport={handleExportData}
               onImport={handleImportData}
               onDeleteAccount={handleDeleteAccount}
+              onDeleteAccountNow={handleDeleteAccountNow}
             />
           )}
 
