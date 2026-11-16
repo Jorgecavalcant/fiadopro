@@ -15,6 +15,10 @@ export function canConfirmDeletion(googleOnly: boolean, value: string): boolean 
   return value.length > 0;
 }
 
+export function canConfirmImmediateDeletion(value: string): boolean {
+  return value.trim() === 'EXCLUIR';
+}
+
 export async function requestAccountDeletion(
   url: string,
   confirmation: string,
@@ -25,6 +29,38 @@ export async function requestAccountDeletion(
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify({ password: confirmation }),
+  });
+  let data: unknown = {};
+  try {
+    data = await res.json();
+  } catch {
+    data = {};
+  }
+  const success =
+    typeof data === 'object' &&
+    data !== null &&
+    (data as { success?: boolean }).success === true;
+  if (!res.ok || !success) return deletionErrorMessage(data);
+  return null;
+}
+
+export async function requestImmediateAccountDeletion(
+  url: string,
+  {
+    confirmationWord,
+    password,
+  }: { confirmationWord: string; password?: string },
+  request: typeof fetch = fetch,
+): Promise<string | null> {
+  const res = await request(url, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({
+      mode: 'immediate',
+      confirmation: confirmationWord,
+      password,
+    }),
   });
   let data: unknown = {};
   try {

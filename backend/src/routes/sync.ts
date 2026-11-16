@@ -5,7 +5,7 @@ import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { linkCustomer } from '../services/linking.js';
 import { assertCanAddCustomers } from '../services/planLimits.js';
-import { activeCustomerWithSamePhone, duplicatePhoneError } from './customers.js';
+import { activeCustomerWithSamePhone, activeCustomerWithSameEmail, duplicatePhoneError, duplicateEmailError } from './customers.js';
 import { confirmedBalanceExpr, paymentLeavesCredit } from '../domain/balance.js';
 
 const router = Router();
@@ -87,6 +87,17 @@ router.post('/import', async (req: AuthRequest, res: Response, next: NextFunctio
     const creditConfirmationRequired: string[] = [];
 
     for (const c of body.customers) {
+      const duplicateEmail = await activeCustomerWithSameEmail(userId, c.email, c.id);
+      if (duplicateEmail) {
+        rejected.push({
+          id: c.id,
+          code: 'DUPLICATE_EMAIL',
+          message: duplicateEmailError(duplicateEmail).message,
+          existingCustomerId: duplicateEmail.id,
+        });
+        continue;
+      }
+
       const duplicate = await activeCustomerWithSamePhone(userId, c.phone, c.id);
       if (duplicate) {
         const error = duplicatePhoneError(duplicate);

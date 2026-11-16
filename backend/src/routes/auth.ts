@@ -132,6 +132,18 @@ async function confirmEmail(req: Request, res: Response, next: NextFunction) {
     if (result.rows.length === 0) {
       return next(new ApiError(400, EMAIL_CONFIRM_LINK_INVALID, 'INVALID_TOKEN'));
     }
+    const confirmedUserId = result.rows[0].id as string;
+    await query(
+      `UPDATE users
+          SET phone_verified_at = CASE
+                WHEN phone IS NOT NULL AND btrim(phone) <> '' THEN COALESCE(phone_verified_at, NOW())
+                ELSE phone_verified_at
+              END
+        WHERE id = $1`,
+      [confirmedUserId],
+    );
+    const { relinkCustomersForUser } = await import('../services/linking.js');
+    await relinkCustomersForUser(confirmedUserId);
     return res.json({ success: true, message: EMAIL_CONFIRMED_MESSAGE });
   } catch (err) {
     return next(err);

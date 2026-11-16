@@ -29,11 +29,12 @@ services:
       timeout: 5s
       retries: 5
     ports:
-      - "5434:5432"
+      - "127.0.0.1:5434:5432"
 
   # ---------------------------------------------------------------
   # BACKEND — Node.js Express API
   # Porta externa: 10004 | Caddy roteia /api/*
+  # fiado_user permanece para migrations/manutenção; o runtime da aplicação usa fiado_app.
   # ---------------------------------------------------------------
   api:
     build:
@@ -47,7 +48,7 @@ services:
       DB_HOST: fiado-pro-db
       DB_PORT: 5432
       DB_NAME: fiado_pro
-      DB_USER: fiado_user
+      DB_USER: ${DB_USER:-fiado_app}
       DB_PASSWORD: ${DB_PASSWORD}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
       GOOGLE_PROJECT_ID: 66011111598
@@ -62,7 +63,7 @@ services:
       ASAAS_API_KEY: ${ASAAS_API_KEY:-}
       ASAAS_WEBHOOK_TOKEN: ${ASAAS_WEBHOOK_TOKEN:-}
       ASAAS_BASE_URL: ${ASAAS_BASE_URL:-https://api.asaas.com/v3}
-      ASAAS_PRO_PRICE: ${ASAAS_PRO_PRICE:-30.00}
+      ASAAS_PRO_PRICE: ${ASAAS_PRO_PRICE:-19.90}
     ports:
       - "10004:4000"
     depends_on:

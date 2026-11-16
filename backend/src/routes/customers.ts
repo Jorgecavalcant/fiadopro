@@ -68,8 +68,40 @@ export async function activeCustomerWithSamePhone(
   return null;
 }
 
+/**
+ * Outro cliente ativo da mesma loja com o mesmo e-mail, comparado após normalização.
+ */
+export async function activeCustomerWithSameEmail(
+  ownerId: string,
+  email: string | null | undefined,
+  excludeId?: string | null,
+): Promise<{ id: string; name: string } | null> {
+  const normalized = normalizeEmail(email ?? '');
+  if (normalized === '') return null;
+  const result = await query(
+    `SELECT id, name, email
+       FROM customers
+      WHERE owner_user_id = $1
+        AND deleted_at IS NULL
+        AND ($2::uuid IS NULL OR id <> $2::uuid)`,
+    [ownerId, excludeId ?? null],
+  );
+  for (const row of result.rows) {
+    if (normalizeEmail(String(row.email ?? '')) === normalized) {
+      return { id: String(row.id), name: String(row.name ?? '') };
+    }
+  }
+  return null;
+}
+
 export function duplicatePhoneError(found: { id: string; name: string }): ApiError {
   return new ApiError(409, `Já existe ${found.name} com esse número`, 'DUPLICATE_PHONE', {
+    existingCustomerId: found.id,
+  });
+}
+
+export function duplicateEmailError(found: { id: string; name: string }): ApiError {
+  return new ApiError(409, `Já existe ${found.name} com esse e-mail`, 'DUPLICATE_EMAIL', {
     existingCustomerId: found.id,
   });
 }
@@ -98,6 +130,44 @@ async function ownContactError(
   return null;
 }
 
+function isUniqueViolation(err: unknown): err is { code: string; constraint?: string; detail?: string } {
+  return typeof err === 'object' && err !== null && 'code' in err && err.code === '23505';
+}
+
+async function uniqueViolationError(
+  err: unknown,
+  ownerId: string,
+  phone?: string | null,
+  email?: string | null,
+  excludeId?: string | null,
+): Promise<ApiError | null> {
+  if (!isUniqueViolation(err)) return null;
+
+  const constraint = String(err.constraint ?? '').toLowerCase();
+  const detail = String(err.detail ?? '').toLowerCase();
+  const emailConstraint = constraint.includes('email') || detail.includes('email');
+  const phoneConstraint = constraint.includes('phone') || detail.includes('phone');
+
+  if (emailConstraint) {
+    const found = await activeCustomerWithSameEmail(ownerId, email, excludeId);
+    if (found) return duplicateEmailError(found);
+  }
+  if (phoneConstraint) {
+    const found = await activeCustomerWithSamePhone(ownerId, phone, excludeId);
+    if (found) return duplicatePhoneError(found);
+  }
+
+  if (!emailConstraint && email) {
+    const found = await activeCustomerWithSameEmail(ownerId, email, excludeId);
+    if (found) return duplicateEmailError(found);
+  }
+  if (!phoneConstraint && phone) {
+    const found = await activeCustomerWithSamePhone(ownerId, phone, excludeId);
+    if (found) return duplicatePhoneError(found);
+  }
+  return null;
+}
+
 // GET /api/customers — todos os clientes do dono (com contagem de pendências)
 router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -119,12 +189,24 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
 
 // POST /api/customers — cria (aceita id do cliente para sync offline-first)
 router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  let body: z.infer<typeof CustomerSchema> | undefined;
   try {
-    const body = CustomerSchema.parse(req.body);
+    body = CustomerSchema.parse(req.body);
     const own = await ownContactError(req.user!.sub, body.phone, body.email);
     if (own) return next(new ApiError(400, own, 'OWN_CONTACT'));
-    const duplicate = await activeCustomerWithSamePhone(req.user!.sub, body.phone, body.id ?? null);
-    if (duplicate) return next(duplicatePhoneError(duplicate));
+    const duplicatePhone = await activeCustomerWithSamePhone(
+      req.user!.sub,
+      body.phone,
+      body.id ?? null,
+    );
+    if (duplicatePhone) return next(duplicatePhoneError(duplicatePhone));
+    const duplicateEmail = await activeCustomerWithSameEmail(
+      req.user!.sub,
+      body.email,
+      body.id ?? null,
+    );
+    if (duplicateEmail) return next(duplicateEmailError(duplicateEmail));
+
     const userId = req.user!.sub;
     let adding = 1;
     if (body.id) {
@@ -145,7 +227,7 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
         req.user!.sub,
         body.name,
         body.phone,
-        body.email ?? null,
+        body.email ? normalizeEmail(body.email) : body.email ?? null,
         body.pix_key ?? null,
         body.trusted ?? null,
         body.overpayment_strategy ?? null,
@@ -160,6 +242,14 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
   } catch (err) {
     if (err instanceof z.ZodError)
       return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    const uniqueError = await uniqueViolationError(
+      err,
+      req.user!.sub,
+      body?.phone,
+      body?.email,
+      body?.id ?? null,
+    );
+    if (uniqueError) return next(uniqueError);
     next(err);
   }
 });
@@ -181,8 +271,12 @@ router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
 
 // PATCH /api/customers/:id
 router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  let phoneForDup: string | null | undefined;
+  let emailForDup: string | null | undefined;
   try {
     const body = CustomerSchema.partial().omit({ id: true }).parse(req.body);
+    phoneForDup = body.phone;
+    emailForDup = body.email;
     const fields = Object.entries(body).filter(([, v]) => v !== undefined);
     if (fields.length === 0)
       return next(new ApiError(400, 'Nenhum campo para atualizar', 'EMPTY_UPDATE'));
@@ -193,18 +287,22 @@ router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction)
     );
     if (own) return next(new ApiError(400, own, 'OWN_CONTACT'));
     if (body.phone !== undefined) {
-      const duplicate = await activeCustomerWithSamePhone(
-        req.user!.sub,
-        body.phone,
-        req.params.id,
-      );
+      const duplicate = await activeCustomerWithSamePhone(req.user!.sub, body.phone, req.params.id);
       if (duplicate) return next(duplicatePhoneError(duplicate));
+    }
+    if (body.email !== undefined) {
+      const duplicate = await activeCustomerWithSameEmail(req.user!.sub, body.email, req.params.id);
+      if (duplicate) return next(duplicateEmailError(duplicate));
     }
 
     const setClause = fields
       .map(([k], i) => (k === 'notes' ? `${k} = $${i + 3}::jsonb` : `${k} = $${i + 3}`))
       .join(', ');
-    const values = fields.map(([k, v]) => (k === 'notes' ? JSON.stringify(v) : v));
+    const values = fields.map(([k, v]) => {
+      if (k === 'notes') return JSON.stringify(v);
+      if (k === 'email' && typeof v === 'string') return normalizeEmail(v);
+      return v;
+    });
 
     const result = await query(
       `UPDATE customers SET ${setClause}
@@ -221,6 +319,14 @@ router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction)
   } catch (err) {
     if (err instanceof z.ZodError)
       return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    const uniqueError = await uniqueViolationError(
+      err,
+      req.user!.sub,
+      phoneForDup,
+      emailForDup,
+      req.params.id,
+    );
+    if (uniqueError) return next(uniqueError);
     next(err);
   }
 });

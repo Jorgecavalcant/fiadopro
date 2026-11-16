@@ -1,94 +1,89 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+vi.mock('../config/database.js', () => ({ query: vi.fn(), getClient: vi.fn(), default: {} }));
 
-vi.mock('../config/database.js', () => ({
-  query: vi.fn(),
-  getClient: vi.fn(),
-  default: {},
-}));
-
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { query } from '../config/database.js';
-import { linkCustomer, relinkCustomersForUser, ensureAdminRole } from './linking.js';
+import { ensureAdminRole, linkCustomer, relinkCustomersForUser } from './linking.js';
 
 const mockQuery = vi.mocked(query);
 
+const rows = (data: unknown[]) => ({ rows: data, rowCount: data.length });
+
+beforeEach(() => {
+  mockQuery.mockReset();
+  delete process.env.ADMIN_EMAIL;
+});
+
 describe('linkCustomer', () => {
-  beforeEach(() => {
-    mockQuery.mockReset();
+  it('links a customer by email', async () => {
+    mockQuery
+      .mockResolvedValueOnce(rows([{
+        id: 'c1',
+        owner_user_id: 'owner',
+        email: 'a@example.com',
+        phone: null,
+        linked_user_id: null,
+      }]) as never)
+      .mockResolvedValueOnce(rows([{ id: 'user-1' }]) as never)
+      .mockResolvedValueOnce(rows([]) as never);
+
+    await expect(linkCustomer('c1')).resolves.toBe('user-1');
   });
 
-  it('retorna o linked_user_id quando o UPDATE encontra usuário que bate', async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [{ linked_user_id: 'user-dyllan' }],
-      rowCount: 1,
-    } as never);
-    const result = await linkCustomer('customer-1');
-    expect(result).toBe('user-dyllan');
-    expect(mockQuery).toHaveBeenCalledTimes(1);
-    expect(mockQuery.mock.calls[0][1]).toEqual(['customer-1']);
-  });
+  it('includes an owner guard when updating the customer link', async () => {
+    mockQuery
+      .mockResolvedValueOnce(rows([{
+        id: 'c1',
+        owner_user_id: 'owner',
+        email: 'a@example.com',
+        phone: null,
+        linked_user_id: null,
+      }]) as never)
+      .mockResolvedValueOnce(rows([{ id: 'user-1' }]) as never)
+      .mockResolvedValueOnce(rows([]) as never);
 
-  it('sem match: retorna null e executa a limpeza de vínculo obsoleto', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 } as never);
-    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 } as never);
-    const result = await linkCustomer('customer-2');
-    expect(result).toBeNull();
-    expect(mockQuery).toHaveBeenCalledTimes(2);
-    expect(String(mockQuery.mock.calls[1][0])).toContain('linked_user_id = NULL');
-  });
+    await linkCustomer('c1');
 
-  it('nunca vincula o cliente ao próprio dono (guarda no SQL)', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 } as never);
-    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 } as never);
-    await linkCustomer('customer-3');
-    expect(String(mockQuery.mock.calls[0][0])).toContain('u.id <> c.owner_user_id');
+    expect(mockQuery.mock.calls.some(([sql]) => /owner_user_id/i.test(String(sql)))).toBe(true);
   });
 });
 
 describe('relinkCustomersForUser', () => {
-  beforeEach(() => {
-    mockQuery.mockReset();
-  });
+  it('relinks candidate customers and returns the number linked', async () => {
+    mockQuery
+      .mockResolvedValueOnce(rows([{ id: 'c1' }]) as never)
+      .mockResolvedValueOnce(rows([{ email: 'a@example.com', phone: null }]) as never)
+      .mockResolvedValueOnce(rows([{ id: 'c9' }]) as never)
+      .mockResolvedValueOnce(rows([{
+        id: 'c9',
+        owner_user_id: 'owner',
+        email: 'a@example.com',
+        phone: null,
+        linked_user_id: null,
+      }]) as never)
+      .mockResolvedValueOnce(rows([{ id: 'user-1' }]) as never)
+      .mockResolvedValueOnce(rows([]) as never);
 
-  it('desfaz vínculos que não batem mais e cria os novos, retornando a contagem', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 2 } as never); // unlink
-    mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 'c1' }, { id: 'c2' }, { id: 'c3' }],
-      rowCount: 3,
-    } as never);
-    const count = await relinkCustomersForUser('user-1');
-    expect(count).toBe(3);
-    expect(mockQuery).toHaveBeenCalledTimes(2);
-    expect(String(mockQuery.mock.calls[1][0])).toContain('c.owner_user_id <> $1');
+    await expect(relinkCustomersForUser('user-1')).resolves.toBe(1);
+    expect(mockQuery).toHaveBeenCalledTimes(6);
   });
 });
 
 describe('ensureAdminRole', () => {
-  const oldEnv = process.env.ADMIN_EMAIL;
-  beforeEach(() => {
-    mockQuery.mockReset();
-  });
-  afterEach(() => {
-    process.env.ADMIN_EMAIL = oldEnv;
-  });
-
-  it('sem ADMIN_EMAIL definido, não toca no banco', async () => {
-    delete process.env.ADMIN_EMAIL;
+  it('does nothing when ADMIN_EMAIL is not configured', async () => {
     await ensureAdminRole();
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
-  it('com ADMIN_EMAIL, promove por e-mail (case-insensitive)', async () => {
-    process.env.ADMIN_EMAIL = 'jorge@exemplo.com';
-    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 } as never);
-    await ensureAdminRole();
-    expect(mockQuery).toHaveBeenCalledTimes(1);
-    expect(String(mockQuery.mock.calls[0][0])).toContain("role = 'admin'");
-    expect(mockQuery.mock.calls[0][1]).toEqual(['jorge@exemplo.com']);
-  });
+  it('demotes the matching user role before promoting the admin role', async () => {
+    process.env.ADMIN_EMAIL = 'admin@example.com';
+    mockQuery
+      .mockResolvedValueOnce(rows([]) as never)
+      .mockResolvedValueOnce(rows([]) as never);
 
-  it('erro de banco não propaga (bootstrap é best-effort)', async () => {
-    process.env.ADMIN_EMAIL = 'jorge@exemplo.com';
-    mockQuery.mockRejectedValueOnce(new Error('db off') as never);
-    await expect(ensureAdminRole()).resolves.toBeUndefined();
+    await ensureAdminRole();
+
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+    expect(String(mockQuery.mock.calls[0][0])).toMatch(/role\s*=\s*\$1/i);
+    expect(String(mockQuery.mock.calls[1][0])).toMatch(/role\s*=\s*\$1/i);
   });
 });

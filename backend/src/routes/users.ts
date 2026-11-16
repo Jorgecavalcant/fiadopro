@@ -6,7 +6,12 @@ import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { clearAuthCookie } from '../utils/jwt.js';
 import { sendAccountDeletionEmail } from '../services/email.js';
-import { confirmAccountDeletion } from '../services/accountPurge.js';
+import {
+  confirmAccountDeletion,
+  confirmImmediateDeletion,
+  purgeUserDataNow,
+  unlinkCustomersForUser,
+} from '../services/accountPurge.js';
 import { isLastActiveAdmin, LAST_ADMIN_DELETE_MESSAGE } from '../services/lastAdmin.js';
 
 const router = Router();
@@ -27,15 +32,17 @@ router.patch('/me', requireAuth, async (req: AuthRequest, res: Response, next: N
       return next(new ApiError(400, 'Nenhum campo para atualizar', 'EMPTY_UPDATE'));
 
     const setClause = fields.map(([k], i) => `${k} = $${i + 2}`).join(', ');
+    const phoneChanged = body.phone !== undefined;
+    // Trocar telefone limpa a verificação — celular só vincula se verificado (confirm-email) ou se o e-mail também bater.
     const result = await query(
-      `UPDATE users SET ${setClause}
+      `UPDATE users SET ${setClause}${phoneChanged ? ', phone_verified_at = NULL' : ''}
         WHERE id = $1 AND deleted_at IS NULL
         RETURNING id, email, full_name, phone, pix_key, avatar_url, role`,
       [req.user!.sub, ...fields.map(([, v]) => v)],
     );
     if (!result.rows[0]) return next(new ApiError(404, 'Usuario nao encontrado', 'USER_NOT_FOUND'));
 
-    if (body.phone !== undefined) {
+    if (phoneChanged) {
       const { relinkCustomersForUser } = await import('../services/linking.js');
       await relinkCustomersForUser(req.user!.sub);
     }
@@ -48,8 +55,9 @@ router.patch('/me', requireAuth, async (req: AuthRequest, res: Response, next: N
 });
 
 const DeleteAccountSchema = z.object({
-  password: z.string().optional(),
+  mode: z.enum(['scheduled', 'immediate']).optional().default('scheduled'),
   confirmation: z.string().optional(),
+  password: z.string().optional(),
   reason: z.string().optional(),
 });
 
@@ -57,7 +65,6 @@ const DeleteAccountSchema = z.object({
 router.delete('/me', requireAuth, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const body = DeleteAccountSchema.parse(req.body);
-    const confirmation = body.confirmation ?? body.password ?? '';
     const userId = req.user!.sub;
 
     const result = await query(
@@ -67,17 +74,30 @@ router.delete('/me', requireAuth, async (req: AuthRequest, res: Response, next: 
     const user = result.rows[0];
     if (!user) return next(new ApiError(404, 'Usuario nao encontrado', 'USER_NOT_FOUND'));
 
+    const confirmation = body.confirmation ?? body.password ?? '';
     let passwordMatches = false;
     if (user.password_hash) {
-      passwordMatches = await bcrypt.compare(confirmation, user.password_hash);
+      // immediate: password field is reauth; scheduled: confirmation carries the password (compat)
+      const secret = body.mode === 'immediate' ? (body.password ?? '') : confirmation;
+      passwordMatches = await bcrypt.compare(secret, user.password_hash);
     }
 
-    const confirmationError = confirmAccountDeletion(user, confirmation, passwordMatches);
-    if (confirmationError) {
-      const message = confirmationError === 'INVALID_PASSWORD'
-        ? 'Senha incorreta'
-        : 'Confirmacao invalida';
-      return next(new ApiError(401, message, confirmationError));
+    if (body.mode === 'immediate') {
+      const confirmationError = confirmImmediateDeletion(user, body.confirmation ?? '', passwordMatches);
+      if (confirmationError) {
+        const message = confirmationError === 'INVALID_PASSWORD'
+          ? 'Senha incorreta'
+          : 'Confirmacao invalida';
+        return next(new ApiError(401, message, confirmationError));
+      }
+    } else {
+      const confirmationError = confirmAccountDeletion(user, body.confirmation ?? '', passwordMatches);
+      if (confirmationError) {
+        const message = confirmationError === 'INVALID_PASSWORD'
+          ? 'Senha incorreta'
+          : 'Confirmacao invalida';
+        return next(new ApiError(401, message, confirmationError));
+      }
     }
 
     if (await isLastActiveAdmin(userId)) {
@@ -86,8 +106,9 @@ router.delete('/me', requireAuth, async (req: AuthRequest, res: Response, next: 
 
     const hold = await query('SELECT legal_hold FROM users WHERE id = $1', [userId]);
     if (hold.rows[0]?.legal_hold === true) {
+      const status = body.mode === 'immediate' ? 403 : 409;
       return next(new ApiError(
-        409,
+        status,
         'Esta conta está sob bloqueio judicial e não pode ser encerrada até um administrador liberar.',
         'LEGAL_HOLD',
       ));
@@ -96,7 +117,7 @@ router.delete('/me', requireAuth, async (req: AuthRequest, res: Response, next: 
     await query(
       `UPDATE users SET
         deleted_at = NOW(),
-        purge_after = NOW() + INTERVAL '30 days',
+        purge_after = ${body.mode === 'immediate' ? 'NOW()' : "NOW() + INTERVAL '30 days'"},
         deleted_reason = $1,
         cpf = NULL,
         pix_key = NULL,
@@ -113,6 +134,12 @@ router.delete('/me', requireAuth, async (req: AuthRequest, res: Response, next: 
       console.error('[Fiado PRO] Falha ao invalidar tokens de redefinicao:', message);
     }
 
+    if (body.mode === 'immediate') {
+      await purgeUserDataNow(userId);
+    } else {
+      await unlinkCustomersForUser(userId);
+    }
+
     try {
       await sendAccountDeletionEmail(user.email, user.full_name);
     } catch (emailErr) {
@@ -124,8 +151,9 @@ router.delete('/me', requireAuth, async (req: AuthRequest, res: Response, next: 
 
     res.json({
       success: true,
-      message:
-        'Conta desativada. CPF e Pix saem agora. Dá para voltar em até 30 dias com o mesmo e-mail.',
+      message: body.mode === 'immediate'
+        ? 'Conta excluída imediatamente.'
+        : 'Conta desativada. CPF e Pix saem agora. Dá para voltar em até 30 dias com o mesmo e-mail.',
     });
   } catch (err) {
     if (err instanceof z.ZodError)
