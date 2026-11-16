@@ -195,7 +195,7 @@ describe('saldo nas abas e aviso credor', () => {
       clickText(refund.host, 'Confirmar');
     });
     expect(confirm).toHaveBeenCalled();
-    expect(String(confirm.mock.calls.at(-1)?.[0])).toContain('passa disso');
+    expect(String(confirm.mock.calls[confirm.mock.calls.length - 1]?.[0])).toContain('passa disso');
     expect(refund.host.textContent).toContain('Você deve');
     expect(refund.host.textContent).not.toContain('Salvando...');
     refund.cleanup();
@@ -212,7 +212,7 @@ describe('saldo nas abas e aviso credor', () => {
       clickText(abate.host, 'Confirmar');
     });
     expect(confirm).toHaveBeenCalled();
-    expect(String(confirm.mock.calls.at(-1)?.[0])).toContain('crédito');
+    expect(String(confirm.mock.calls[confirm.mock.calls.length - 1]?.[0])).toContain('crédito');
     expect(abate.host.textContent).toContain('Te deve');
     confirm.mockRestore();
     abate.cleanup();

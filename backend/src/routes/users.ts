@@ -10,7 +10,6 @@ import {
   confirmAccountDeletion,
   confirmImmediateDeletion,
   purgeUserDataNow,
-  unlinkCustomersForUser,
 } from '../services/accountPurge.js';
 import { isLastActiveAdmin, LAST_ADMIN_DELETE_MESSAGE } from '../services/lastAdmin.js';
 
@@ -136,8 +135,6 @@ router.delete('/me', requireAuth, async (req: AuthRequest, res: Response, next: 
 
     if (body.mode === 'immediate') {
       await purgeUserDataNow(userId);
-    } else {
-      await unlinkCustomersForUser(userId);
     }
 
     try {
