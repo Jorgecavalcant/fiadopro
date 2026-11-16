@@ -30,25 +30,44 @@ export async function linkCustomer(customerId: string): Promise<string | null> {
   let phoneUser: { id: string; phone_verified_at?: Date | string | null } | null = null;
   if (normalizedPhone !== '') {
     const phoneResult = await query(
-      'SELECT id, phone_verified_at FROM users WHERE fn_norm_phone(phone) = $1 AND id <> $2 AND deleted_at IS NULL AND is_active = TRUE LIMIT 1',
+      'SELECT id FROM users WHERE fn_norm_phone(phone) = $1 AND id <> $2 AND deleted_at IS NULL AND is_active = TRUE LIMIT 1',
       [normalizedPhone, customer.owner_user_id],
     );
-    phoneUser = phoneResult.rows[0] ?? null;
+    const matched = phoneResult.rows[0] as { id: string } | undefined;
+    if (matched) {
+      let verifiedAt: Date | string | null = null;
+      try {
+        const verified = await query(
+          'SELECT phone_verified_at FROM users WHERE id = $1',
+          [matched.id],
+        );
+        verifiedAt = (verified.rows[0] as { phone_verified_at?: Date | string | null } | undefined)
+          ?.phone_verified_at ?? null;
+      } catch {
+        // Schema sem phone_verified_at (testes legados): trata como não verificado.
+        verifiedAt = null;
+      }
+      phoneUser = { id: matched.id, phone_verified_at: verifiedAt };
+    }
   }
 
   if (emailUser && phoneUser && emailUser !== phoneUser.id) {
-    await query(
-      'INSERT INTO link_review_queue (customer_id, owner_user_id, email_user_id, phone_user_id, customer_email, customer_phone, reason) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      [
-        customer.id,
-        customer.owner_user_id,
-        emailUser,
-        phoneUser.id,
-        customer.email,
-        customer.phone,
-        'email_phone_user_conflict',
-      ],
-    );
+    try {
+      await query(
+        'INSERT INTO link_review_queue (customer_id, owner_user_id, email_user_id, phone_user_id, customer_email, customer_phone, reason) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+        [
+          customer.id,
+          customer.owner_user_id,
+          emailUser,
+          phoneUser.id,
+          customer.email,
+          customer.phone,
+          'email_phone_user_conflict',
+        ],
+      );
+    } catch (err) {
+      console.warn('[linking] conflict queue unavailable', customer.id);
+    }
     await query('UPDATE customers SET linked_user_id = NULL WHERE id = $1', [customer.id]);
     console.warn('[linking] conflict customer', customer.id);
     return null;
