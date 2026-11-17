@@ -36,6 +36,20 @@ export function sumConfirmed(transactions: LedgerTx[], range?: { from?: number; 
   return sums;
 }
 
+/** Total recebido (PAYMENT confirmado) por cliente, maior primeiro. */
+export function sumConfirmedPaymentsByCustomer(
+  transactions: Array<LedgerTx & { customerId: string }>,
+): Array<{ customerId: string; total: number }> {
+  const map = new Map<string, number>();
+  for (const tx of transactions) {
+    if (tx.status !== 'CONFIRMED' || tx.type !== 'PAYMENT') continue;
+    map.set(tx.customerId, (map.get(tx.customerId) || 0) + tx.amount);
+  }
+  return [...map.entries()]
+    .map(([customerId, total]) => ({ customerId, total }))
+    .sort((a, b) => b.total - a.total);
+}
+
 /** O que o gráfico chama de Fiado e Recebido até um instante. */
 export function cumulativeThrough(transactions: LedgerTx[], until: number): { Offered: number; Received: number } {
   const sums = sumConfirmed(transactions, { to: until });

@@ -52,10 +52,10 @@ function LaunchHarness({ initial }: { initial: Transaction[] }) {
   return (
     <div>
       <button type="button" onClick={() => open('DEBT')}>
-        Nova Despesa
+        Me deve
       </button>
       <button type="button" onClick={() => open('PAYMENT')}>
-        Registrar Pagamento
+        Me pagaram
       </button>
       <button type="button" onClick={() => open('REFUND')}>
         Registrar Devolução
@@ -245,8 +245,8 @@ describe('saldo nas abas e aviso credor', () => {
   it('as quatro abas mostram saldo, campo de valor e Salvando...', async () => {
     const view = await renderHarness([row('DEBT', 80)]);
     for (const tab of [
-      'Nova Despesa',
-      'Registrar Pagamento',
+      'Me deve',
+      'Me pagaram',
       'Registrar Devolução',
       'Registrar Abatimento',
     ]) {
@@ -257,7 +257,7 @@ describe('saldo nas abas e aviso credor', () => {
       expect(amountInput(view.host)).toBeTruthy();
     }
     await act(async () => {
-      clickText(view.host, 'Nova Despesa');
+      clickText(view.host, 'Me deve');
       setNativeValue(amountInput(view.host), '0');
     });
     await act(async () => {

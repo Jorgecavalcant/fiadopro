@@ -16,14 +16,14 @@ const HelpView = () => {
         'Abra Clientes e toque em Novo cliente. Preencha nome e telefone. O cadastro fica salvo neste aparelho.',
     },
     {
-      title: 'Nova Despesa',
+      title: 'Me deve',
       content:
-        'No perfil do cliente, toque em Nova Despesa. Informe o valor e a descrição. A dívida desse cliente aumenta.',
+        'No perfil do cliente, toque em Me deve. Informe o valor e a descrição. A dívida desse cliente aumenta.',
     },
     {
-      title: 'Registrar Pagamento',
+      title: 'Me pagaram',
       content:
-        'Quando o cliente pagar, abra o perfil e toque em Registrar Pagamento. Informe o valor e a forma: Pix, cartão de crédito, cartão de débito ou compensação.',
+        'Quando o cliente pagar, abra o perfil e toque em Me pagaram. Informe o valor e a forma: Pix, cartão de crédito, cartão de débito ou compensação.',
     },
     {
       title: 'Abatimento',
@@ -43,7 +43,7 @@ const HelpView = () => {
     {
       title: 'Compra parcelada',
       content:
-        'Em Nova Despesa, marque Compra parcelada. Escolha de 2 a 24 parcelas. Se quiser, marque Cobrar juros compostos.',
+        'Em Me deve, marque Compra parcelada. Escolha de 2 a 24 parcelas. Se quiser, marque Cobrar juros compostos.',
     },
     {
       title: 'Dividir Conta',
@@ -63,7 +63,7 @@ const HelpView = () => {
     {
       title: 'Acesso Rápido',
       content:
-        'O botão com + abre o Acesso Rápido. Lá estão Lançar Dívida e Receber Pagamento, sem abrir o perfil antes.',
+        'O botão com + abre o Acesso Rápido. Lá estão Me deve e Me pagaram, sem abrir o perfil antes.',
     },
     {
       title: 'Enviar via WhatsApp',
@@ -120,7 +120,7 @@ const HelpView = () => {
     },
     {
       q: 'Como funciona o parcelamento?',
-      a: 'Em Nova Despesa, marque Compra parcelada. Escolha de 2 a 24 parcelas. Se quiser, marque Cobrar juros compostos. Cada parcela aparece no extrato do cliente.',
+      a: 'Em Me deve, marque Compra parcelada. Escolha de 2 a 24 parcelas. Se quiser, marque Cobrar juros compostos. Cada parcela aparece no extrato do cliente.',
     },
   ];
 

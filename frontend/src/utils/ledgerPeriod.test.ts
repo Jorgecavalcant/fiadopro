@@ -6,6 +6,7 @@ import {
   periodResult,
   periodToReceive,
   sumConfirmed,
+  sumConfirmedPaymentsByCustomer,
   type LedgerTx,
 } from './ledgerPeriod';
 
@@ -50,5 +51,21 @@ describe('período do extrato', () => {
     expect(activeDebtorLabel(1)).toBe('1 devedor ativo');
     expect(activeDebtorLabel(0)).toBe('0 devedores ativos');
     expect(activeDebtorLabel(3)).toBe('3 devedores ativos');
+  });
+
+  it('Recebi soma só PAYMENT confirmado e agrupa por cliente', () => {
+    const now = Date.now();
+    const txs = [
+      { customerId: 'a', type: 'PAYMENT', amount: 100, status: 'CONFIRMED', timestamp: now },
+      { customerId: 'a', type: 'PAYMENT', amount: 20, status: 'CONFIRMED', timestamp: now },
+      { customerId: 'b', type: 'PAYMENT', amount: 50, status: 'CONFIRMED', timestamp: now },
+      { customerId: 'a', type: 'PAYMENT', amount: 999, status: 'PENDING', timestamp: now },
+      { customerId: 'b', type: 'DEBT', amount: 200, status: 'CONFIRMED', timestamp: now },
+    ];
+    expect(sumConfirmed(txs).payment).toBe(170);
+    expect(sumConfirmedPaymentsByCustomer(txs)).toEqual([
+      { customerId: 'a', total: 120 },
+      { customerId: 'b', total: 50 },
+    ]);
   });
 });

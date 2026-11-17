@@ -87,7 +87,7 @@ import { LedgerTitle } from './components/ui/LedgerTitle';
 import { ledgerDueText } from './components/ui/ledgerDue';
 import { Switch } from './components/ui/Switch';
 import { esc } from './utils/escapeHtml';
-import { cumulativeThrough, periodRange, periodToReceive, sumConfirmed, type PeriodPreset } from './utils/ledgerPeriod';
+import { cumulativeThrough, periodRange, periodToReceive, sumConfirmed, sumConfirmedPaymentsByCustomer, type PeriodPreset } from './utils/ledgerPeriod';
 import { showQuickFab } from './utils/quickFab';
 import { formatPhoneDisplay } from './utils/formatPhoneDisplay';
 import { attentionItems } from './utils/attention';
@@ -102,6 +102,8 @@ import {
   WholeBalanceButton,
 } from './components/BalancePanels';
 import ReceivablesListView from './components/ReceivablesListView';
+import ReceivedPaymentsListView from './components/ReceivedPaymentsListView';
+import OverdueCustomersListView from './components/OverdueCustomersListView';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Network } from '@capacitor/network';
@@ -129,6 +131,11 @@ import {
   saveCustomerToServer,
   updateProfile,
 } from './services/syncService';
+import {
+  STORAGE_KEY,
+  clearBusinessLocalCache,
+  isStoredUserMismatch,
+} from './services/localBusinessCache';
 import {
   calculateScore,
   balanceSign,
@@ -160,7 +167,6 @@ function balanceBeforeEdit(rawBalance: number, edited: Transaction | null): numb
   return (cents - balanceSign(edited.type) * amount) / 100;
 }
 
-const STORAGE_KEY = 'fiado_pro_data_v14';
 const API_URL = import.meta.env.VITE_API_URL || 'https://www.fiadopro.com.br/api';
 // JWT gerenciado via httpOnly cookie
 const GOOGLE_CLIENT_ID = '488168583801-r8pvtmis98qq12bonh2h1pkrp0rmt2v5.apps.googleusercontent.com';
@@ -356,10 +362,8 @@ const DashboardView = ({
   language,
   onLanguage,
 }: any) => {
-  const payable = (customersWithBalance || [])
-    .filter((c: { rawBalance: number; overpaymentStrategy?: string }) => c.rawBalance < 0 && c.overpaymentStrategy === 'RETURN')
-    .reduce((sum: number, c: { rawBalance: number }) => sum + Math.abs(c.rawBalance), 0);
   const month = sumConfirmed(transactions || [], periodRange('month', Date.now()));
+  const receivedTotal = sumConfirmed(transactions || []).payment;
   const monthName = new Intl.DateTimeFormat('pt-BR', { month: 'long', timeZone: 'America/Sao_Paulo' }).format(new Date());
   const label = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
@@ -369,13 +373,16 @@ const DashboardView = ({
       initial={userName}
       formatCurrency={formatCurrency}
       receivable={stats.totalReceivable || 0}
-      payable={payable}
+      receivedTotal={receivedTotal}
       overdue={stats.totalOverdue || 0}
       activeDebtors={stats.activeDebtors || 0}
       onNewDebt={onNewDebt}
       onReceive={onReceive}
       onSplit={() => setActiveView(AppView.SPLIT_BILL)}
       onNewCustomer={onNewCustomer}
+      onReceivable={() => setActiveView(AppView.RECEIVABLES_LIST)}
+      onReceived={() => setActiveView(AppView.RECEIVED_LIST)}
+      onOverdue={() => setActiveView(AppView.OVERDUE_LIST)}
       onStatement={() => setActiveView(AppView.STATEMENT)}
       onOpenCustomer={onOpenCustomer}
       onSeeAll={() => setActiveView(AppView.CUSTOMERS)}
@@ -2541,9 +2548,9 @@ const CustomerDetailView = ({
         <p style={{ margin: 0, fontSize: 13, color: 'var(--fp-warn-text)' }}>conta encerrada</p>
       ) : (
         <div className="fp-shortcuts fp-detail-actions">
-          <button type="button" className="fp-quick" onClick={() => { setTransactionType('DEBT'); setEditTransactionData(null); setIsTransactionModalOpen(true); }}>
-            <span className="fp-quick-pill"><ArrowUpRight size={22} strokeWidth={1.5} color="#fff" /></span>
-            <span className="fp-quick-label">Nova despesa</span>
+          <button type="button" className="fp-quick" onClick={() => { setTransactionType('DEBT'); setEditTransactionData(null); setIsTransactionModalOpen(true); }} aria-label="Me deve" title="Me deve">
+            <span className="fp-quick-pill fp-quick-pill--debt"><ArrowUpRight size={22} strokeWidth={1.5} color="#fff" /></span>
+            <span className="fp-quick-label">Me deve</span>
           </button>
           <button type="button" className="fp-quick" onClick={() => { setTransactionType('PAYMENT'); setEditTransactionData(null); setIsTransactionModalOpen(true); }} aria-label="Me pagaram" title="Me pagaram">
             <span className="fp-quick-pill fp-quick-pill--paid"><ArrowDownLeft size={22} strokeWidth={1.5} color="#fff" /></span>
@@ -2624,8 +2631,8 @@ const CustomerDetailView = ({
                   {transactions.some((tx: Transaction) => tx.customerId !== selectedCustomer.id) &&
                   !transactions.some((tx: Transaction) => tx.customerId === selectedCustomer.id) ? (
                     <p className="text-slate-500 font-bold px-4">
-                      Nenhuma transação registrada para este cliente ainda. Clique em &quot;Nova
-                      Despesa&quot; ou &quot;Registrar Pagamento&quot; para começar.
+                      Nenhuma transação registrada para este cliente ainda. Clique em &quot;Me
+                      deve&quot; ou &quot;Me pagaram&quot; para começar.
                     </p>
                   ) : (
                     <p className="text-slate-400 font-bold italic">{t.noTransactions}</p>
@@ -3562,6 +3569,39 @@ const App: React.FC = () => {
   // ===== Sincronização com o servidor (fonte de verdade quando logado) =====
   const [inboxCount, setInboxCount] = useState(0);
   const syncBootstrapped = useRef(false);
+  /** Evita schedulePush com cache velho antes do pull/epoch reset terminar. */
+  const [syncReady, setSyncReady] = useState(false);
+
+  /** Limpa dados de negócio em memória + localStorage; mantém idioma / hide values. */
+  const clearBusinessState = useCallback((options?: { clearEpoch?: boolean }) => {
+    setCustomers([]);
+    setTransactions([]);
+    setEvents([]);
+    setDebts([]);
+    setAuditLog([]);
+    setOwnerExpenses([]);
+    setCredentials(null);
+    clearBusinessLocalCache(options);
+  }, []);
+
+  /** Login / sessão: se o cache for de outro usuário, descarta antes do sync. */
+  const applySessionUser = useCallback(
+    (next: User) => {
+      if (isStoredUserMismatch({ id: next.id, email: next.email })) {
+        clearBusinessState({ clearEpoch: true });
+        resetSyncState();
+      }
+      setUser(next);
+    },
+    [clearBusinessState],
+  );
+
+  const handleLogout = useCallback(() => {
+    resetSyncState();
+    clearBusinessState({ clearEpoch: true });
+    setSyncReady(false);
+    setUser(null);
+  }, [clearBusinessState]);
 
   const refreshInbox = useCallback(async () => {
     const items = await fetchInbox();
@@ -3571,15 +3611,22 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!user) {
       syncBootstrapped.current = false;
+      setSyncReady(false);
       return;
     }
     if (syncBootstrapped.current) return;
     syncBootstrapped.current = true;
+    setSyncReady(false);
     void bootstrapSync(customers, transactions).then((result) => {
+      if (result.cacheReset) {
+        // Epoch novo já está no localStorage — não apagar de novo.
+        clearBusinessState({ clearEpoch: false });
+      }
       if (result.online) {
         setCustomers(result.customers);
         setTransactions(result.transactions);
       }
+      setSyncReady(true);
       void refreshInbox();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3622,7 +3669,7 @@ const App: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !syncReady) return;
     schedulePush(
       true,
       customers,
@@ -3659,7 +3706,7 @@ const App: React.FC = () => {
       },
       (notice) => setDuplicateCustomer(notice),
     );
-  }, [user, customers, transactions]);
+  }, [user, syncReady, customers, transactions]);
 
   const handleUpdateNote = (noteId: string) => {
     if (editingNoteText.trim() && selectedCustomerId) {
@@ -3738,20 +3785,17 @@ const App: React.FC = () => {
       .then((r) => r.json())
       .then((data) => {
         if (data.success && data.user) {
-          setUser((prev: User | null) => ({
-            ...(prev ?? {}),
+          applySessionUser({
             id: data.user.id,
             name: data.user.full_name || data.user.email,
             email: data.user.email,
             role: data.user.role,
             hasPassword:
-              typeof data.user.has_password === 'boolean'
-                ? data.user.has_password
-                : prev?.hasPassword,
-            phone: data.user.phone ?? prev?.phone,
-            pixKey: data.user.pix_key ?? prev?.pixKey,
-            avatar: data.user.avatar_url ?? prev?.avatar,
-          }));
+              typeof data.user.has_password === 'boolean' ? data.user.has_password : undefined,
+            phone: data.user.phone ?? undefined,
+            pixKey: data.user.pix_key ?? undefined,
+            avatar: data.user.avatar_url ?? undefined,
+          });
         }
       })
       .catch(() => {
@@ -4377,7 +4421,7 @@ const App: React.FC = () => {
         throw new Error(data.error?.message || data.message || 'Falha no login com Google');
       setRecoverAccount(null);
       skipFullscreenThisSession();
-      setUser({
+      applySessionUser({
         id: data.user.id,
         name: data.user.full_name || data.user.email,
         email: data.user.email,
@@ -4417,7 +4461,7 @@ const App: React.FC = () => {
         throw new Error(data.error?.message || data.message || 'E-mail ou senha incorretos');
       setRecoverAccount(null);
       skipFullscreenThisSession();
-      setUser({
+      applySessionUser({
         id: data.user.id,
         name: data.user.full_name || data.user.email,
         email: data.user.email,
@@ -4472,7 +4516,7 @@ const App: React.FC = () => {
         throw new Error(data.error?.message || data.message || 'Erro ao criar conta');
       setRecoverAccount(null);
       skipFullscreenThisSession();
-      setUser({
+      applySessionUser({
         id: data.user.id,
         name: data.user.full_name || data.user.email,
         email: data.user.email,
@@ -4538,7 +4582,7 @@ const App: React.FC = () => {
       if (!res.ok || !data.success)
         throw new Error(data.error?.message || data.message || 'Token invalido ou expirado.');
       skipFullscreenThisSession();
-      setUser({
+      applySessionUser({
         id: data.user.id,
         name: data.user.full_name || data.user.email,
         email: data.user.email,
@@ -4856,10 +4900,7 @@ const App: React.FC = () => {
             }
           }}
           user={user}
-          onLogout={() => {
-            resetSyncState();
-            setUser(null);
-          }}
+          onLogout={handleLogout}
           refundsCount={
             customersWithBalance.filter(
               (c) => c.rawBalance < 0 && c.overpaymentStrategy === 'RETURN',
@@ -5080,6 +5121,41 @@ const App: React.FC = () => {
               t={t}
             />
           )}
+          {activeView === AppView.RECEIVED_LIST && (
+            <ReceivedPaymentsListView
+              rows={sumConfirmedPaymentsByCustomer(transactions).flatMap((row) => {
+                const customer = customersWithBalance.find((c) => c.id === row.customerId)
+                  || customers.find((c) => c.id === row.customerId);
+                if (!customer) return [];
+                return [{
+                  id: customer.id,
+                  name: customer.name,
+                  phone: customer.phone,
+                  totalReceived: row.total,
+                }];
+              })}
+              formatCurrency={formatCurrency}
+              navigateToCustomer={navigateToCustomer}
+            />
+          )}
+          {activeView === AppView.OVERDUE_LIST && (
+            <OverdueCustomersListView
+              rows={(() => {
+                const overdueIds = new Set(summarizeOverdue(transactions, customersWithBalance).customerIds);
+                return customersWithBalance
+                  .filter((c) => overdueIds.has(c.id))
+                  .sort((a, b) => b.rawBalance - a.rawBalance)
+                  .map((c) => ({
+                    id: c.id,
+                    name: c.name,
+                    phone: c.phone,
+                    balance: c.balance,
+                  }));
+              })()}
+              formatCurrency={formatCurrency}
+              navigateToCustomer={navigateToCustomer}
+            />
+          )}
           {activeView === AppView.DEBTORS_LIST && (
             <DebtorsListView
               debts={debts}
@@ -5210,10 +5286,7 @@ const App: React.FC = () => {
                   setIsUpgradeModalOpen(true);
                 }
               }}
-              onLogout={() => {
-                resetSyncState();
-                setUser(null);
-              }}
+              onLogout={handleLogout}
             />
           )}
           {activeView === AppView.ADMIN && user && adminPanelFor(user.role) && (
@@ -5270,25 +5343,24 @@ const App: React.FC = () => {
                       {[
                         {
                           type: 'DEBT' as const,
-                          icon: <ArrowUpRight style={{ width: 36, height: 36 }} />,
-                          label: 'Lançar Dívida',
+                          icon: <ArrowUpRight size={22} strokeWidth={1.5} color="#fff" />,
+                          label: 'Me deve',
                           sub: 'Registrar fiado',
-                          bg: '#FEF2F2',
-                          border: '#FECACA',
-                          color: '#DC2626',
+                          pillClass: 'fp-quick-pill fp-quick-pill--debt',
                         },
                         {
                           type: 'PAYMENT' as const,
-                          icon: <ArrowDownLeft style={{ width: 36, height: 36 }} />,
-                          label: 'Receber Pagamento',
+                          icon: <ArrowDownLeft size={22} strokeWidth={1.5} color="#fff" />,
+                          label: 'Me pagaram',
                           sub: 'Registrar recebimento',
-                          bg: '#F0FDF4',
-                          border: '#BBF7D0',
-                          color: '#16A34A',
+                          pillClass: 'fp-quick-pill fp-quick-pill--paid',
                         },
                       ].map((btn) => (
                         <button
                           key={btn.type}
+                          type="button"
+                          aria-label={btn.label}
+                          title={btn.label}
                           onClick={() => {
                             setQuickAddType(btn.type);
                             setQuickAddStep(2);
@@ -5299,17 +5371,17 @@ const App: React.FC = () => {
                             alignItems: 'center',
                             gap: 12,
                             padding: '28px 16px',
-                            background: btn.bg,
-                            border: `2px solid ${btn.border}`,
+                            background: '#fff',
+                            border: '2px solid #E2E8F0',
                             borderRadius: 24,
                             cursor: 'pointer',
-                            color: btn.color,
+                            color: 'inherit',
                             transition: 'transform 150ms',
                           }}
                           onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(0.97)')}
                           onMouseLeave={(e) => (e.currentTarget.style.transform = 'none')}
                         >
-                          {btn.icon}
+                          <span className={btn.pillClass}>{btn.icon}</span>
                           <div>
                             <p style={{ fontWeight: 900, fontSize: 15, margin: 0 }}>{btn.label}</p>
                             <p style={{ fontSize: 12, color: '#6B7280', margin: '2px 0 0' }}>
