@@ -65,7 +65,7 @@ function panel(extra: Record<string, unknown> = {}) {
       userName="TESTE Ana"
       formatCurrency={(value: number) => `R$ ${value.toFixed(2)}`}
       receivable={10}
-      payable={0}
+      receivedTotal={0}
       overdue={0}
       activeDebtors={1}
       attention={[

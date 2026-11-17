@@ -33,13 +33,16 @@ export function HomePanel({
   initial,
   formatCurrency,
   receivable,
-  payable,
+  receivedTotal = 0,
   overdue,
   activeDebtors,
   onNewDebt,
   onReceive,
   onSplit,
   onNewCustomer,
+  onReceivable,
+  onReceived,
+  onOverdue,
   onStatement,
   onOpenCustomer,
   onSeeAll,
@@ -62,7 +65,8 @@ export function HomePanel({
   initial?: string;
   formatCurrency: (value: number) => string;
   receivable: number;
-  payable: number;
+  /** Soma de PAYMENT confirmados (não é saldo a devolver). */
+  receivedTotal?: number;
   overdue: number;
   overdueCustomers?: number;
   activeDebtors: number;
@@ -70,8 +74,9 @@ export function HomePanel({
   onReceive: () => void;
   onSplit: () => void;
   onNewCustomer: () => void;
+  onReceivable?: () => void;
+  onReceived?: () => void;
   onOverdue?: () => void;
-  onPayable?: () => void;
   onStatement?: () => void;
   onOpenCustomer?: (id: string) => void;
   onSeeAll?: () => void;
@@ -142,23 +147,39 @@ export function HomePanel({
 
       <div className={`fp-home-top${attention.length === 0 ? ' solo' : ''}`}>
         <div className="fp-home-left">
-          <article className="fp-card fp-balance">
-            <div className="fp-balance-grid">
-              <div>
-                <p>A receber</p>
-                <strong>{money(receivable)}</strong>
-                <span className="fp-debtors">{hidden ? '••••' : activeDebtorLabel(activeDebtors)}</span>
-              </div>
-              <div>
-                <p>A pagar</p>
-                <strong>{money(payable)}</strong>
-              </div>
-              <div>
-                <p>Em atraso</p>
-                <strong className="danger">{money(overdue)}</strong>
-              </div>
-            </div>
-          </article>
+          <div className="fp-balance-grid">
+            <button
+              type="button"
+              className="fp-card fp-balance-tile"
+              onClick={onReceivable}
+              aria-label="Me devem"
+              title="Me devem"
+            >
+              <p>Me devem</p>
+              <strong className="fp-amt-debt">{money(receivable)}</strong>
+              <span className="fp-debtors">{hidden ? '••••' : activeDebtorLabel(activeDebtors)}</span>
+            </button>
+            <button
+              type="button"
+              className="fp-card fp-balance-tile"
+              onClick={onReceived}
+              aria-label="Recebi"
+              title="Recebi"
+            >
+              <p>Recebi</p>
+              <strong className="fp-amt-paid">{money(receivedTotal)}</strong>
+            </button>
+            <button
+              type="button"
+              className="fp-card fp-balance-tile"
+              onClick={onOverdue}
+              aria-label="Em atraso"
+              title="Em atraso"
+            >
+              <p>Em atraso</p>
+              <strong className="danger">{money(overdue)}</strong>
+            </button>
+          </div>
           <div className="fp-shortcut-card">
             <div className="fp-shortcuts">
               <QuickAction icon={Plus} label="Me deve" tone="debt" onClick={onNewDebt} />

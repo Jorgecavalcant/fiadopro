@@ -87,7 +87,7 @@ import { LedgerTitle } from './components/ui/LedgerTitle';
 import { ledgerDueText } from './components/ui/ledgerDue';
 import { Switch } from './components/ui/Switch';
 import { esc } from './utils/escapeHtml';
-import { cumulativeThrough, periodRange, periodToReceive, sumConfirmed, type PeriodPreset } from './utils/ledgerPeriod';
+import { cumulativeThrough, periodRange, periodToReceive, sumConfirmed, sumConfirmedPaymentsByCustomer, type PeriodPreset } from './utils/ledgerPeriod';
 import { showQuickFab } from './utils/quickFab';
 import { formatPhoneDisplay } from './utils/formatPhoneDisplay';
 import { attentionItems } from './utils/attention';
@@ -102,6 +102,8 @@ import {
   WholeBalanceButton,
 } from './components/BalancePanels';
 import ReceivablesListView from './components/ReceivablesListView';
+import ReceivedPaymentsListView from './components/ReceivedPaymentsListView';
+import OverdueCustomersListView from './components/OverdueCustomersListView';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Network } from '@capacitor/network';
@@ -356,10 +358,8 @@ const DashboardView = ({
   language,
   onLanguage,
 }: any) => {
-  const payable = (customersWithBalance || [])
-    .filter((c: { rawBalance: number; overpaymentStrategy?: string }) => c.rawBalance < 0 && c.overpaymentStrategy === 'RETURN')
-    .reduce((sum: number, c: { rawBalance: number }) => sum + Math.abs(c.rawBalance), 0);
   const month = sumConfirmed(transactions || [], periodRange('month', Date.now()));
+  const receivedTotal = sumConfirmed(transactions || []).payment;
   const monthName = new Intl.DateTimeFormat('pt-BR', { month: 'long', timeZone: 'America/Sao_Paulo' }).format(new Date());
   const label = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
@@ -369,13 +369,16 @@ const DashboardView = ({
       initial={userName}
       formatCurrency={formatCurrency}
       receivable={stats.totalReceivable || 0}
-      payable={payable}
+      receivedTotal={receivedTotal}
       overdue={stats.totalOverdue || 0}
       activeDebtors={stats.activeDebtors || 0}
       onNewDebt={onNewDebt}
       onReceive={onReceive}
       onSplit={() => setActiveView(AppView.SPLIT_BILL)}
       onNewCustomer={onNewCustomer}
+      onReceivable={() => setActiveView(AppView.RECEIVABLES_LIST)}
+      onReceived={() => setActiveView(AppView.RECEIVED_LIST)}
+      onOverdue={() => setActiveView(AppView.OVERDUE_LIST)}
       onStatement={() => setActiveView(AppView.STATEMENT)}
       onOpenCustomer={onOpenCustomer}
       onSeeAll={() => setActiveView(AppView.CUSTOMERS)}
@@ -5078,6 +5081,41 @@ const App: React.FC = () => {
               formatCurrency={formatCurrency}
               navigateToCustomer={navigateToCustomer}
               t={t}
+            />
+          )}
+          {activeView === AppView.RECEIVED_LIST && (
+            <ReceivedPaymentsListView
+              rows={sumConfirmedPaymentsByCustomer(transactions).flatMap((row) => {
+                const customer = customersWithBalance.find((c) => c.id === row.customerId)
+                  || customers.find((c) => c.id === row.customerId);
+                if (!customer) return [];
+                return [{
+                  id: customer.id,
+                  name: customer.name,
+                  phone: customer.phone,
+                  totalReceived: row.total,
+                }];
+              })}
+              formatCurrency={formatCurrency}
+              navigateToCustomer={navigateToCustomer}
+            />
+          )}
+          {activeView === AppView.OVERDUE_LIST && (
+            <OverdueCustomersListView
+              rows={(() => {
+                const overdueIds = new Set(summarizeOverdue(transactions, customersWithBalance).customerIds);
+                return customersWithBalance
+                  .filter((c) => overdueIds.has(c.id))
+                  .sort((a, b) => b.rawBalance - a.rawBalance)
+                  .map((c) => ({
+                    id: c.id,
+                    name: c.name,
+                    phone: c.phone,
+                    balance: c.balance,
+                  }));
+              })()}
+              formatCurrency={formatCurrency}
+              navigateToCustomer={navigateToCustomer}
             />
           )}
           {activeView === AppView.DEBTORS_LIST && (
