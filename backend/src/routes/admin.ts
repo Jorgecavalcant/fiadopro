@@ -28,6 +28,7 @@ import {
   renderOverviewXlsx,
 } from '../services/adminOverview.js';
 import { createPromotion, grantPlan, listPlanGrants } from '../services/planGrants.js';
+import { planBadgeLabel, readUserPlansBatch } from '../services/plans.js';
 
 const router = Router();
 
@@ -72,9 +73,60 @@ router.get('/users', async (req: AuthRequest, res: Response, next: NextFunction)
       listParams,
     );
 
+    const ids = usersResult.rows.map((row: { id: string }) => row.id);
+    const plans = await readUserPlansBatch(ids);
+    const users = usersResult.rows.map((row: { id: string }) => {
+      const plan = plans.get(row.id) ?? 'FREE';
+      return { ...row, plan, plan_label: planBadgeLabel(plan) };
+    });
+
     res.json({
       success: true,
-      users: usersResult.rows,
+      users,
+      meta: { total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) },
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    next(err);
+  }
+});
+
+const ListTransactionsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+// GET /api/admin/transactions — todos os lançamentos (sem telefone/CPF/Pix)
+router.get('/transactions', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { page, limit } = ListTransactionsQuerySchema.parse(req.query);
+    const offset = (page - 1) * limit;
+
+    const countResult = await query(`SELECT COUNT(*)::int AS total FROM transactions`);
+    const total = countResult.rows[0]?.total ?? 0;
+
+    const listResult = await query(
+      `SELECT t.id,
+              t.type,
+              t.status,
+              t.amount,
+              t.occurred_at,
+              t.created_at,
+              c.name AS customer_name,
+              u.full_name AS owner_name,
+              u.email AS owner_email
+         FROM transactions t
+         LEFT JOIN customers c ON c.id = t.customer_id
+         LEFT JOIN users u ON u.id = t.owner_user_id
+        ORDER BY t.created_at DESC NULLS LAST, t.occurred_at DESC NULLS LAST
+        LIMIT $1 OFFSET $2`,
+      [limit, offset],
+    );
+
+    res.json({
+      success: true,
+      transactions: listResult.rows,
       meta: { total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) },
     });
   } catch (err) {

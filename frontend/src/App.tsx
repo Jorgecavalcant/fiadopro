@@ -361,6 +361,8 @@ const DashboardView = ({
   canUpgrade,
   language,
   onLanguage,
+  inboxCount = 0,
+  pendingCount = 0,
 }: any) => {
   const month = sumConfirmed(transactions || [], periodRange('month', Date.now()));
   const receivedTotal = sumConfirmed(transactions || []).payment;
@@ -400,6 +402,10 @@ const DashboardView = ({
       received={month.payment}
       stillToReceive={periodToReceive(month)}
       evolution={stats.evolutionData || []}
+      inboxCount={inboxCount}
+      pendingCount={pendingCount}
+      onApprovals={() => setActiveView(AppView.INBOX)}
+      onReminders={() => setActiveView(AppView.NOTIFICATIONS)}
     />
   );
 };
@@ -3495,6 +3501,11 @@ const App: React.FC = () => {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginName, setLoginName] = useState('');
+  const [loginPhone, setLoginPhone] = useState('');
+  const [needsPhoneCompletion, setNeedsPhoneCompletion] = useState(false);
+  const [completePhone, setCompletePhone] = useState('');
+  const [completePhoneError, setCompletePhoneError] = useState('');
+  const [savingCompletePhone, setSavingCompletePhone] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [recoverAccount, setRecoverAccount] = useState<null | {
     channel: 'login' | 'google' | 'register';
@@ -3796,6 +3807,7 @@ const App: React.FC = () => {
             pixKey: data.user.pix_key ?? undefined,
             avatar: data.user.avatar_url ?? undefined,
           });
+          setNeedsPhoneCompletion(Boolean(data.needs_phone_completion ?? data.user.needs_phone_completion));
         }
       })
       .catch(() => {
@@ -4428,6 +4440,7 @@ const App: React.FC = () => {
         role: data.user.role,
         hasPassword: data.user.has_password === true,
       });
+      setNeedsPhoneCompletion(Boolean(data.needs_phone_completion ?? data.user?.needs_phone_completion));
       setActiveView(AppView.DASHBOARD);
     } catch (err: any) {
       setLoginError(err.message || 'Erro ao entrar com Google. Tente novamente.');
@@ -4468,6 +4481,7 @@ const App: React.FC = () => {
         role: data.user.role,
         hasPassword: data.user.has_password === true,
       });
+      setNeedsPhoneCompletion(Boolean(data.needs_phone_completion ?? data.user?.needs_phone_completion));
       setLoginError('');
     } catch (err: any) {
       setLoginError(err.message || 'Erro ao fazer login. Tente novamente.');
@@ -4478,14 +4492,21 @@ const App: React.FC = () => {
     name: string,
     email: string,
     password: string,
+    phone = '',
     reactivate = false,
   ) => {
-    if (!name || !email || !password) {
+    if (!name || !email || !password || !phone) {
       setLoginError('Preencha todos os campos.');
       return;
     }
     if (password.length < 8) {
       setLoginError('Senha deve ter ao menos 8 caracteres.');
+      return;
+    }
+    let digits = phone.replace(/\D/g, '');
+    if (digits.startsWith('55') && digits.length >= 12) digits = digits.slice(2);
+    if (digits.length !== 10 && digits.length !== 11) {
+      setLoginError('Informe um celular com DDD, 10 ou 11 dígitos');
       return;
     }
     setLoginError('');
@@ -4498,6 +4519,7 @@ const App: React.FC = () => {
           full_name: name.trim(),
           email,
           password,
+          phone: digits,
           consent: true,
           ...(reactivate ? { reactivate: true } : {}),
         }),
@@ -4522,7 +4544,9 @@ const App: React.FC = () => {
         email: data.user.email,
         role: data.user.role,
         hasPassword: data.user.has_password === true,
+        phone: digits,
       });
+      setNeedsPhoneCompletion(Boolean(data.needs_phone_completion ?? data.user?.needs_phone_completion));
       setLoginError('');
     } catch (err: any) {
       setLoginError(err.message || 'Erro ao criar conta. Tente novamente.');
@@ -4653,7 +4677,7 @@ const App: React.FC = () => {
                 } else if (recoverAccount.channel === 'google' && recoverAccount.idToken) {
                   void handleGoogleCallback(recoverAccount.idToken, true);
                 } else {
-                  void handleRegister(loginName, loginEmail, loginPassword, true);
+                  void handleRegister(loginName, loginEmail, loginPassword, loginPhone, true);
                 }
               }}
               onCancel={() => setRecoverAccount(null)}
@@ -4722,6 +4746,13 @@ const App: React.FC = () => {
                 className="w-full px-5 py-3 bg-slate-50 rounded-xl border-none font-bold"
               />
               <input
+                type="tel"
+                placeholder="Celular com DDD"
+                value={loginPhone}
+                onChange={(e) => setLoginPhone(e.target.value)}
+                className="w-full px-5 py-3 bg-slate-50 rounded-xl border-none font-bold"
+              />
+              <input
                 type="email"
                 placeholder="E-mail"
                 value={loginEmail}
@@ -4763,7 +4794,7 @@ const App: React.FC = () => {
                 </span>
               </label>
               <button
-                onClick={() => handleRegister(loginName, loginEmail, loginPassword)}
+                onClick={() => handleRegister(loginName, loginEmail, loginPassword, loginPhone)}
                 disabled={!consentAccepted}
                 className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -4848,6 +4879,71 @@ const App: React.FC = () => {
               </button>
             </div>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  if (needsPhoneCompletion) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4" data-testid="complete-phone-gate">
+        <div className="bg-white w-full max-w-md p-10 rounded-t42xl shadow-2xl text-center space-y-6">
+          <h1 className="text-3xl font-black text-slate-900">Complete seu cadastro</h1>
+          <p className="text-slate-500 font-medium">Informe seu celular com DDD para continuar</p>
+          <input
+            type="tel"
+            placeholder="Celular com DDD"
+            value={completePhone}
+            onChange={(e) => setCompletePhone(e.target.value)}
+            className="w-full px-5 py-3 bg-slate-50 rounded-xl border-none font-bold"
+          />
+          {completePhoneError && <p className="text-red-500 text-sm font-bold">{completePhoneError}</p>}
+          <button
+            type="button"
+            disabled={savingCompletePhone}
+            onClick={async () => {
+              setCompletePhoneError('');
+              let digits = completePhone.replace(/\D/g, '');
+              if (digits.startsWith('55') && digits.length >= 12) digits = digits.slice(2);
+              if (digits.length !== 10 && digits.length !== 11) {
+                setCompletePhoneError('Informe um celular com DDD, 10 ou 11 dígitos');
+                return;
+              }
+              setSavingCompletePhone(true);
+              try {
+                const res = await fetch(`${API_URL}/users/me`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({ phone: digits }),
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                  throw new Error(data.error?.message || 'Não foi possível salvar o telefone');
+                }
+                setUser((u: any) => (u ? { ...u, phone: digits } : u));
+                setNeedsPhoneCompletion(false);
+                setCompletePhone('');
+              } catch (err: any) {
+                setCompletePhoneError(err.message || 'Erro ao salvar telefone');
+              } finally {
+                setSavingCompletePhone(false);
+              }
+            }}
+            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl disabled:opacity-50"
+          >
+            {savingCompletePhone ? 'Salvando…' : 'Salvar e continuar'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setUser(null);
+              setNeedsPhoneCompletion(false);
+            }}
+            className="w-full text-center text-slate-400 text-sm font-bold hover:underline"
+          >
+            Sair
+          </button>
         </div>
       </div>
     );
@@ -4958,6 +5054,8 @@ const App: React.FC = () => {
               }}
               language={language}
               onLanguage={() => setLanguage(language === 'pt-BR' ? 'en' : 'pt-BR')}
+              inboxCount={inboxCount}
+              pendingCount={transactions.filter((tx) => tx.status === 'PENDING').length}
             />
           )}
           {activeView === AppView.CUSTOMERS && (
@@ -5931,10 +6029,6 @@ const App: React.FC = () => {
                           email: fd.get('email') as string,
                           pixKey: fd.get('pixKey') as string,
                         };
-                        if (!cData.phone) {
-                          showToast(t.phoneRequired);
-                          return;
-                        }
                         const ignoreId = isEditCustomerModalOpen ? selectedCustomerId : null;
                         const normalizedPhone = normalizeCustomerPhone(cData.phone);
                         const phoneOwner = normalizedPhone
@@ -5983,7 +6077,11 @@ const App: React.FC = () => {
                             draft,
                             editing && Boolean(existing),
                           );
-                          if (saved && saved !== 'offline') {
+                          if (saved === 'offline') {
+                            /* segue com save local */
+                          } else if (saved && 'ok' in saved && saved.ok) {
+                            if (saved.linkMessage) showToast(saved.linkMessage);
+                          } else if (saved && 'message' in saved) {
                             if (
                               saved.message === 'Esse telefone é o seu.' ||
                               saved.message === 'Esse e-mail é o seu.'

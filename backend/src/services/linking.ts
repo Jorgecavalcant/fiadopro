@@ -1,8 +1,35 @@
 import { query } from '../config/database.js';
-import { normalizePhone } from '../utils/phone.js';
+import { normalizePhone, phoneMatchVariants, phonesMatchMobile9th } from '../utils/phone.js';
 
-export { normalizePhone };
+export { normalizePhone, phonesMatchMobile9th, phoneMatchVariants };
 
+export const LINKED_MESSAGE = 'Conta encontrada e vinculada';
+export const UNLINKED_MESSAGE =
+  'Cliente ainda não tem conta no Fiado Pro — o vínculo acontece automático quando ele se cadastrar';
+
+export function linkFeedback(linkedUserId: string | null): { linked: boolean; message: string } {
+  return {
+    linked: Boolean(linkedUserId),
+    message: linkedUserId ? LINKED_MESSAGE : UNLINKED_MESSAGE,
+  };
+}
+
+async function findActiveUserByEmail(
+  email: string,
+  excludeUserId: string,
+): Promise<string | null> {
+  const emailResult = await query(
+    'SELECT id FROM users WHERE lower(email) = lower($1) AND id <> $2 AND deleted_at IS NULL AND is_active = TRUE LIMIT 1',
+    [email, excludeUserId],
+  );
+  return (emailResult.rows[0] as { id: string } | undefined)?.id ?? null;
+}
+
+/**
+ * Matcher primário: telefone (com equivalência do 9º dígito).
+ * Secundário: e-mail. Conflito telefone≠e-mail → link_review_queue.
+ * Não exige phone_verified_at (reversão da regra do PR #70).
+ */
 export async function linkCustomer(customerId: string): Promise<string | null> {
   const customerResult = await query(
     'SELECT id, owner_user_id, email, phone, linked_user_id FROM customers WHERE id = $1 AND deleted_at IS NULL',
@@ -17,41 +44,36 @@ export async function linkCustomer(customerId: string): Promise<string | null> {
   const email = typeof customer.email === 'string' ? customer.email.trim() : '';
   const phone = typeof customer.phone === 'string' ? customer.phone : '';
   const normalizedPhone = normalizePhone(phone);
+  const variants = phoneMatchVariants(normalizedPhone);
 
   let emailUser: string | null = null;
   if (email !== '') {
-    const emailResult = await query(
-      'SELECT id FROM users WHERE lower(email) = lower($1) AND id <> $2 AND deleted_at IS NULL AND is_active = TRUE LIMIT 1',
-      [email, customer.owner_user_id],
-    );
-    emailUser = emailResult.rows[0]?.id ?? null;
+    emailUser = await findActiveUserByEmail(email, customer.owner_user_id);
   }
 
-  let phoneUser: { id: string; phone_verified_at?: Date | string | null } | null = null;
-  if (normalizedPhone !== '') {
+  let phoneUser: string | null = null;
+  if (variants.length > 0) {
     const phoneResult = await query(
-      'SELECT id FROM users WHERE fn_norm_phone(phone) = $1 AND id <> $2 AND deleted_at IS NULL AND is_active = TRUE LIMIT 1',
-      [normalizedPhone, customer.owner_user_id],
+      `SELECT id, phone FROM users
+        WHERE fn_norm_phone(phone) = ANY($1::text[])
+          AND id <> $2
+          AND deleted_at IS NULL
+          AND is_active = TRUE`,
+      [variants, customer.owner_user_id],
     );
-    const matched = phoneResult.rows[0] as { id: string } | undefined;
-    if (matched) {
-      let verifiedAt: Date | string | null = null;
-      try {
-        const verified = await query(
-          'SELECT phone_verified_at FROM users WHERE id = $1',
-          [matched.id],
-        );
-        verifiedAt = (verified.rows[0] as { phone_verified_at?: Date | string | null } | undefined)
-          ?.phone_verified_at ?? null;
-      } catch {
-        // Schema sem phone_verified_at (testes legados): trata como não verificado.
-        verifiedAt = null;
+    const matchedIds = new Set<string>();
+    for (const row of phoneResult.rows as { id: string; phone: string | null }[]) {
+      const userNorm = normalizePhone(row.phone);
+      if (phonesMatchMobile9th(normalizedPhone, userNorm) || variants.includes(userNorm)) {
+        matchedIds.add(row.id);
       }
-      phoneUser = { id: matched.id, phone_verified_at: verifiedAt };
+    }
+    if (matchedIds.size === 1) {
+      phoneUser = [...matchedIds][0] ?? null;
     }
   }
 
-  if (emailUser && phoneUser && emailUser !== phoneUser.id) {
+  if (emailUser && phoneUser && emailUser !== phoneUser) {
     try {
       await query(
         'INSERT INTO link_review_queue (customer_id, owner_user_id, email_user_id, phone_user_id, customer_email, customer_phone, reason) VALUES ($1, $2, $3, $4, $5, $6, $7)',
@@ -59,7 +81,7 @@ export async function linkCustomer(customerId: string): Promise<string | null> {
           customer.id,
           customer.owner_user_id,
           emailUser,
-          phoneUser.id,
+          phoneUser,
           customer.email,
           customer.phone,
           'email_phone_user_conflict',
@@ -73,13 +95,12 @@ export async function linkCustomer(customerId: string): Promise<string | null> {
     return null;
   }
 
+  // Telefone primeiro; e-mail só se não houver match de telefone.
   let targetUserId: string | null = null;
-  if (emailUser && phoneUser && emailUser === phoneUser.id) {
-    targetUserId = emailUser;
+  if (phoneUser) {
+    targetUserId = phoneUser;
   } else if (emailUser) {
     targetUserId = emailUser;
-  } else if (phoneUser?.phone_verified_at !== null && phoneUser?.phone_verified_at !== undefined) {
-    targetUserId = phoneUser.id;
   }
 
   if (!targetUserId) {
@@ -93,6 +114,7 @@ export async function linkCustomer(customerId: string): Promise<string | null> {
   return targetUserId;
 }
 
+/** Relink barato: só candidatos sem vínculo que batem telefone/e-mail do usuário. */
 export async function relinkCustomersForUser(userId: string): Promise<number> {
   let linkedCount = 0;
 
@@ -122,10 +144,22 @@ export async function relinkCustomersForUser(userId: string): Promise<number> {
     typeof user.phone === 'string' && normalizePhone(user.phone) !== ''
       ? normalizePhone(user.phone)
       : null;
+  const variants = phone ? phoneMatchVariants(phone) : [];
+
+  if (!email && variants.length === 0) {
+    return linkedCount;
+  }
 
   const candidatesResult = await query(
-    'SELECT id FROM customers WHERE linked_user_id IS NULL AND deleted_at IS NULL AND owner_user_id <> $1 AND (($2::text IS NOT NULL AND lower(email) = lower($2)) OR ($3::text IS NOT NULL AND fn_norm_phone(phone) = $3))',
-    [userId, email, phone],
+    `SELECT id FROM customers
+      WHERE linked_user_id IS NULL
+        AND deleted_at IS NULL
+        AND owner_user_id <> $1
+        AND (
+          ($2::text IS NOT NULL AND lower(email) = lower($2))
+          OR (cardinality($3::text[]) > 0 AND fn_norm_phone(phone) = ANY($3::text[]))
+        )`,
+    [userId, email, variants],
   );
 
   for (const customer of candidatesResult.rows) {

@@ -157,6 +157,62 @@ export async function getUserPlan(userId: string): Promise<Plan> {
   return (await readUserPlan(userId)).plan;
 }
 
+/** Planos efetivos em lote (evita N+1 no admin). */
+export async function readUserPlansBatch(userIds: string[]): Promise<Map<string, Plan>> {
+  const out = new Map<string, Plan>();
+  if (userIds.length === 0) return out;
+  try {
+    const result = await query(
+      `SELECT u.id,
+              u.role,
+              s.plan,
+              s.status,
+              s.current_period_end,
+              s.grant_plan,
+              s.grant_source,
+              s.grant_expires_at,
+              promo.plan AS promotion_plan
+         FROM users u
+         LEFT JOIN subscriptions s ON s.user_id = u.id
+         LEFT JOIN LATERAL (
+           SELECT p.plan
+             FROM plan_promotions p
+             LEFT JOIN plan_promotion_users pu
+               ON pu.promotion_id = p.id
+              AND pu.user_id = u.id
+            WHERE p.starts_at <= NOW()
+              AND p.expires_at > NOW()
+              AND (p.audience = 'all' OR pu.user_id IS NOT NULL)
+            ORDER BY CASE p.plan
+                       WHEN 'ENTERPRISE' THEN 2
+                       WHEN 'PRO' THEN 1
+                       ELSE 0
+                     END DESC
+            LIMIT 1
+         ) promo ON TRUE
+        WHERE u.id = ANY($1::uuid[])`,
+      [userIds],
+    );
+    for (const row of result.rows as Array<PlanRow & { id: string }>) {
+      out.set(row.id, resolveEffectivePlan(row));
+    }
+    for (const id of userIds) {
+      if (!out.has(id)) out.set(id, 'FREE');
+    }
+  } catch (err) {
+    console.error('[billing] Erro ao consultar planos em lote:', err);
+    for (const id of userIds) out.set(id, 'FREE');
+  }
+  return out;
+}
+
+export function planBadgeLabel(plan: Plan): string {
+  if (plan === 'FREE') return 'Grátis';
+  if (plan === 'PRO') return 'Pro';
+  if (plan === 'ENTERPRISE') return 'Enterprise';
+  return 'Admin';
+}
+
 /** Janela máxima (em meses) de relatórios permitida para cada plano. */
 export function maxReportMonths(plan: Plan): number {
   return PLAN_LIMITS[plan].maxReportMonths;

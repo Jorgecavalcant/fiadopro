@@ -3,11 +3,21 @@ import { z } from 'zod';
 import { query } from '../config/database.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
-import { linkCustomer } from '../services/linking.js';
+import { linkCustomer, linkFeedback } from '../services/linking.js';
 import { normalizeEmail } from '../utils/normalizeEmail.js';
-import { normalizePhone } from '../utils/phone.js';
+import { normalizePhone, PHONE_INVALID_MESSAGE, validatePhoneInput } from '../utils/phone.js';
 import { OWN_EMAIL_MESSAGE, OWN_PHONE_MESSAGE } from '../services/accountAccess.js';
 import { assertCanAddCustomers } from '../services/planLimits.js';
+
+function requireValidCustomerPhone(raw: string | null | undefined): string {
+  if (raw === null || raw === undefined || String(raw).trim() === '') return '';
+  try {
+    return validatePhoneInput(raw);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : PHONE_INVALID_MESSAGE;
+    throw new ApiError(400, message, 'INVALID_PHONE');
+  }
+}
 
 const router = Router();
 router.use(requireAuth);
@@ -21,7 +31,7 @@ const NoteSchema = z.object({
 export const CustomerSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().min(1).max(255),
-  phone: z.string().min(1).max(30),
+  phone: z.union([z.string().max(30), z.literal('')]).optional().nullable(),
   email: z.string().email().max(255).optional().nullable(),
   pix_key: z.string().max(140).optional().nullable(),
   trusted: z.boolean().optional(),
@@ -40,11 +50,6 @@ const COUNTERPART_CLOSED = `EXISTS (
      AND u.purge_completed_at IS NULL
 ) AS counterpart_closed`;
 
-/**
- * Outro cliente ativo da mesma loja com o mesmo celular.
- * Sem índice único: um número já repetido na base não pode derrubar o deploy.
- * A comparação usa normalizePhone (só dígitos, sem DDI 55 e sem zero à esquerda).
- */
 export async function activeCustomerWithSamePhone(
   ownerId: string,
   phone: string | null | undefined,
@@ -68,9 +73,6 @@ export async function activeCustomerWithSamePhone(
   return null;
 }
 
-/**
- * Outro cliente ativo da mesma loja com o mesmo e-mail, comparado após normalização.
- */
 export async function activeCustomerWithSameEmail(
   ownerId: string,
   email: string | null | undefined,
@@ -168,7 +170,6 @@ async function uniqueViolationError(
   return null;
 }
 
-// GET /api/customers — todos os clientes do dono (com contagem de pendências)
 router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await query(
@@ -187,11 +188,11 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   }
 });
 
-// POST /api/customers — cria (aceita id do cliente para sync offline-first)
 router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   let body: z.infer<typeof CustomerSchema> | undefined;
   try {
     body = CustomerSchema.parse(req.body);
+    body.phone = requireValidCustomerPhone(body.phone ?? '');
     const own = await ownContactError(req.user!.sub, body.phone, body.email);
     if (own) return next(new ApiError(400, own, 'OWN_CONTACT'));
     const duplicatePhone = await activeCustomerWithSamePhone(
@@ -238,8 +239,13 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
     if (!result.rows[0]) return next(new ApiError(409, 'Cliente já existe', 'ALREADY_EXISTS'));
     const customer = result.rows[0];
     customer.linked_user_id = await linkCustomer(customer.id);
-    res.status(201).json({ success: true, customer });
+    res.status(201).json({
+      success: true,
+      customer,
+      link: linkFeedback(customer.linked_user_id),
+    });
   } catch (err) {
+    if (err instanceof ApiError) return next(err);
     if (err instanceof z.ZodError)
       return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     const uniqueError = await uniqueViolationError(
@@ -254,7 +260,6 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
   }
 });
 
-// GET /api/customers/:id
 router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await query(
@@ -269,12 +274,14 @@ router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
   }
 });
 
-// PATCH /api/customers/:id
 router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   let phoneForDup: string | null | undefined;
   let emailForDup: string | null | undefined;
   try {
     const body = CustomerSchema.partial().omit({ id: true }).parse(req.body);
+    if (body.phone !== undefined) {
+      body.phone = requireValidCustomerPhone(body.phone);
+    }
     phoneForDup = body.phone;
     emailForDup = body.email;
     const fields = Object.entries(body).filter(([, v]) => v !== undefined);
@@ -312,11 +319,14 @@ router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction)
     );
     if (!result.rows[0]) return next(new ApiError(404, 'Cliente não encontrado', 'NOT_FOUND'));
     const customer = result.rows[0];
+    let link = linkFeedback(customer.linked_user_id ?? null);
     if (body.phone !== undefined || body.email !== undefined) {
       customer.linked_user_id = await linkCustomer(customer.id);
+      link = linkFeedback(customer.linked_user_id);
     }
-    res.json({ success: true, customer });
+    res.json({ success: true, customer, link });
   } catch (err) {
+    if (err instanceof ApiError) return next(err);
     if (err instanceof z.ZodError)
       return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
     const uniqueError = await uniqueViolationError(
@@ -331,7 +341,6 @@ router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction)
   }
 });
 
-// DELETE /api/customers/:id — soft delete
 router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await query(

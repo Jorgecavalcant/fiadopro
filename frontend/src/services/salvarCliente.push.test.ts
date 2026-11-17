@@ -166,7 +166,7 @@ describe('pushDiffs depois de salvar um cliente', () => {
     const draft = draftCustomer();
     calls.length = 0;
     const message = await saveCustomerToServer(draft, false);
-    expect(message).toBeNull();
+    expect(message).toEqual({ ok: true, linkMessage: undefined });
     expect(calls).toHaveLength(1);
     expect(calls[0].method).toBe('POST');
     expect(calls[0].url).toContain('/customers');

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, ArrowDownLeft, ArrowRight, Clock, Eye, EyeOff, Plus, Sparkles, SquareSplitHorizontal, Undo2, UserPlus } from 'lucide-react';
+import { AlertTriangle, ArrowDownLeft, ArrowRight, Bell, Clock, Eye, EyeOff, Plus, Sparkles, SquareSplitHorizontal, Undo2, UserPlus } from 'lucide-react';
 import { HomeFull, HomeStrip, useHomeAds, type AdPlan } from './HomeAds';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { activeDebtorLabel } from '../utils/ledgerPeriod';
@@ -60,6 +60,10 @@ export function HomePanel({
   received = 0,
   stillToReceive = 0,
   evolution = [],
+  inboxCount = 0,
+  pendingCount = 0,
+  onApprovals,
+  onReminders,
 }: {
   userName?: string;
   initial?: string;
@@ -94,6 +98,10 @@ export function HomePanel({
   received?: number;
   stillToReceive?: number;
   evolution?: Point[];
+  inboxCount?: number;
+  pendingCount?: number;
+  onApprovals?: () => void;
+  onReminders?: () => void;
 }) {
   const [hidden, setHidden] = useState(() => {
     try {
@@ -103,10 +111,12 @@ export function HomePanel({
     }
   });
   const [asking, setAsking] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
   const ads = useHomeAds(adPlan ?? (isPro ? 'pro' : 'free'), flowOpen);
   const money = (value: number) => (hidden ? '••••' : formatCurrency(value));
   const first = userName?.trim().split(/\s+/)[0] || 'olá';
   const letter = (initial || first).charAt(0).toUpperCase();
+  const bellTotal = Math.max(0, (inboxCount || 0) + (pendingCount || 0));
 
   const toggle = () => {
     setHidden((current) => {
@@ -139,6 +149,44 @@ export function HomePanel({
               {language === 'pt-BR' ? 'PT' : 'EN'}
             </button>
           ) : null}
+          <div className="fp-bell-wrap">
+            <button
+              type="button"
+              className="fp-bell"
+              aria-label="Notificações"
+              aria-expanded={bellOpen}
+              onClick={() => setBellOpen((open) => !open)}
+            >
+              <Bell size={18} strokeWidth={1.5} />
+              <span className="fp-bell-badge" data-testid="home-bell-badge">
+                {bellTotal > 99 ? '99+' : bellTotal}
+              </span>
+            </button>
+            {bellOpen ? (
+              <div className="fp-bell-menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setBellOpen(false);
+                    onApprovals?.();
+                  }}
+                >
+                  Aprovações{inboxCount > 0 ? ` (${inboxCount})` : ''}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setBellOpen(false);
+                    onReminders?.();
+                  }}
+                >
+                  Lembretes{pendingCount > 0 ? ` (${pendingCount})` : ''}
+                </button>
+              </div>
+            ) : null}
+          </div>
           <button type="button" className="fp-avatar" onClick={onAvatar} aria-label="Minha conta">
             {letter}
           </button>

@@ -7,6 +7,7 @@ import { linkCustomer } from '../services/linking.js';
 import { assertCanAddCustomers } from '../services/planLimits.js';
 import { activeCustomerWithSamePhone, activeCustomerWithSameEmail, duplicatePhoneError, duplicateEmailError } from './customers.js';
 import { confirmedBalanceExpr, paymentLeavesCredit } from '../domain/balance.js';
+import { validatePhoneInput, PHONE_INVALID_MESSAGE } from '../utils/phone.js';
 
 const router = Router();
 // Importação carrega anexos em base64 — limite maior SÓ nesta rota
@@ -87,6 +88,14 @@ router.post('/import', async (req: AuthRequest, res: Response, next: NextFunctio
     const creditConfirmationRequired: string[] = [];
 
     for (const c of body.customers) {
+      try {
+        const normalized = validatePhoneInput(c.phone);
+        c.phone = normalized;
+      } catch {
+        rejected.push({ id: c.id, code: 'INVALID_PHONE', message: PHONE_INVALID_MESSAGE, existingCustomerId: '' });
+        continue;
+      }
+
       const duplicateEmail = await activeCustomerWithSameEmail(userId, c.email, c.id);
       if (duplicateEmail) {
         rejected.push({

@@ -417,9 +417,8 @@ export async function pushLocalChanges(
   const patches: StatusPatch[] = [];
 
   for (const c of customers) {
-    // Sem telefone, o servidor rejeita (campo obrigatório) — não tenta
-    // enviar; o cliente fica só local até o telefone ser preenchido.
-    if (!c.phone || !c.phone.trim()) continue;
+    // Telefone opcional; se vazio envia mesmo assim; se preenchido o
+    // servidor valida 10/11.
     const fp = fingerprintCustomer(c);
     if (blockedPhone.get(c.id) === fp) continue;
     const known = shadowCustomers.get(c.id);
@@ -612,10 +611,15 @@ export interface CustomerSaveError {
   existingCustomerId?: string;
 }
 
+export type CustomerSaveResult =
+  | CustomerSaveError
+  | 'offline'
+  | { ok: true; linkMessage?: string };
+
 export async function saveCustomerToServer(
   customer: Customer,
   editing: boolean,
-): Promise<CustomerSaveError | 'offline' | null> {
+): Promise<CustomerSaveResult> {
   const body = toServerCustomerBody(customer);
   const send = async (method: 'POST' | 'PATCH', path: string) => {
     const res = await fetch(`${API_URL}${path}`, {
@@ -626,11 +630,13 @@ export async function saveCustomerToServer(
     });
     let data: {
       success?: boolean;
+      link?: { linked?: boolean; message?: string };
       error?: { message?: string; code?: string; existingCustomerId?: string };
     } | null = null;
     try {
       data = (await res.json()) as {
         success?: boolean;
+        link?: { linked?: boolean; message?: string };
         error?: { message?: string; code?: string; existingCustomerId?: string };
       };
     } catch {
@@ -651,7 +657,7 @@ export async function saveCustomerToServer(
       };
     }
     shadowCustomers.set(customer.id, fingerprintCustomer(customer));
-    return null;
+    return { ok: true, linkMessage: data?.link?.message };
   } catch {
     return 'offline';
   }

@@ -13,6 +13,7 @@ import {
   Pencil,
   Loader2,
   AlertCircle,
+  Receipt,
 } from 'lucide-react';
 import { adminFetch } from './adminApi';
 import { AdminAuditTab } from './AdminAuditTab';
@@ -27,7 +28,7 @@ import { BLOCK_REASON_LABEL } from './adminLabels';
 /* ============================================================
  * Tipos (espelham o envelope { success, ... } do backend /api/admin/*)
  * ============================================================ */
-type AdminTab = 'users' | 'overview' | 'grants' | 'marketing' | 'audit' | 'closed';
+type AdminTab = 'users' | 'overview' | 'grants' | 'marketing' | 'transactions' | 'audit' | 'closed';
 
 interface AdminUser {
   id: string;
@@ -39,10 +40,24 @@ interface AdminUser {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  plan?: string;
+  plan_label?: string;
   block_reason?: string | null;
   block_note?: string | null;
   legal_hold?: boolean;
   blocked_at?: string | null;
+}
+
+interface AdminTransaction {
+  id: string;
+  type: string;
+  status: string;
+  amount: number | string;
+  occurred_at: string | null;
+  created_at: string | null;
+  customer_name: string | null;
+  owner_name: string | null;
+  owner_email: string | null;
 }
 
 interface UsersMeta {
@@ -66,6 +81,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
     { id: 'overview', label: 'Visão geral', icon: BarChart3 },
     { id: 'grants', label: 'Concessões', icon: Gift },
     { id: 'marketing', label: 'Marketing', icon: Megaphone },
+    { id: 'transactions', label: 'Lançamentos', icon: Receipt },
     { id: 'audit', label: 'Registro', icon: ClipboardList },
     { id: 'closed', label: 'Contas encerradas', icon: Archive },
   ];
@@ -75,7 +91,8 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
       <div>
         <h2 className="fp-admin-title">Painel administrativo</h2>
         <p className="fp-admin-sub">
-          Usuários, visão geral, concessões, marketing, registro e contas encerradas
+          Usuários, visão geral, concessões, marketing, lançamentos, registro (ações do administrador) e
+          contas encerradas
         </p>
       </div>
 
@@ -97,6 +114,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
       {tab === 'overview' && <AdminOverviewTab />}
       {tab === 'grants' && <AdminGrantsTab />}
       {tab === 'marketing' && <MarketingTab />}
+      {tab === 'transactions' && <TransactionsTab />}
       {tab === 'audit' && <AdminAuditTab />}
       {tab === 'closed' && <AdminClosedTab />}
     </div>
@@ -251,6 +269,7 @@ const UsersTab: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
                 <th>Nome</th>
                 <th>E-mail</th>
                 <th>Telefone</th>
+                <th>Plano</th>
                 <th>Papel</th>
                 <th>Status</th>
                 <th>Ações</th>
@@ -262,6 +281,11 @@ const UsersTab: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
                   <td className="font-bold text-slate-800">{u.full_name || '—'}</td>
                   <td>{u.email}</td>
                   <td>{u.phone || '—'}</td>
+                  <td>
+                    <span className="fp-badge fp-badge-muted" data-testid="plan-badge">
+                      {u.plan_label || u.plan || 'Grátis'}
+                    </span>
+                  </td>
                   <td>
                     <span
                       className={`fp-badge ${u.role === 'admin' ? 'fp-badge-purple' : 'fp-badge-muted'}`}
@@ -340,7 +364,7 @@ const UsersTab: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
               ))}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center text-slate-400 py-10">
+                  <td colSpan={7} className="text-center text-slate-400 py-10">
                     Nenhum usuário encontrado.
                   </td>
                 </tr>
@@ -439,6 +463,113 @@ const UsersTab: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TransactionsTab: React.FC = () => {
+  const [rows, setRows] = useState<AdminTransaction[]>([]);
+  const [meta, setMeta] = useState<UsersMeta | null>(null);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const limit = 20;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      const data = await adminFetch<{ transactions: AdminTransaction[]; meta: UsersMeta }>(
+        `/transactions?${params.toString()}`,
+      );
+      setRows(data.transactions);
+      setMeta(data.meta);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar lançamentos');
+    } finally {
+      setLoading(false);
+    }
+  }, [page]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const money = (value: number | string) => {
+    const n = typeof value === 'number' ? value : Number(value);
+    if (Number.isNaN(n)) return String(value);
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-slate-500">Lançamentos de todos os usuários (sem dados sensíveis).</p>
+      {error && <ErrorBanner message={error} />}
+      <div className="fp-card overflow-x-auto">
+        {loading ? (
+          <LoadingBlock />
+        ) : (
+          <table className="fp-table">
+            <thead>
+              <tr>
+                <th>Dono</th>
+                <th>E-mail</th>
+                <th>Cliente</th>
+                <th>Tipo</th>
+                <th>Status</th>
+                <th>Valor</th>
+                <th>Data</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((tx) => (
+                <tr key={tx.id}>
+                  <td className="font-bold text-slate-800">{tx.owner_name || '—'}</td>
+                  <td>{tx.owner_email || '—'}</td>
+                  <td>{tx.customer_name || '—'}</td>
+                  <td>{tx.type}</td>
+                  <td>{tx.status}</td>
+                  <td>{money(tx.amount)}</td>
+                  <td>{tx.occurred_at || tx.created_at || '—'}</td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="text-center text-slate-400 py-10">
+                    Nenhum lançamento encontrado.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {meta && meta.totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm font-semibold text-slate-500">
+          <span>
+            {meta.total} lançamento(s) — página {meta.page} de {meta.totalPages}
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="fp-btn fp-btn-ghost disabled:opacity-40"
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
+              disabled={page >= meta.totalPages}
+              className="fp-btn fp-btn-ghost disabled:opacity-40"
+            >
+              Próxima
+            </button>
           </div>
         </div>
       )}

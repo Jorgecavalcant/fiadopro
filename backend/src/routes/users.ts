@@ -12,6 +12,7 @@ import {
   purgeUserDataNow,
 } from '../services/accountPurge.js';
 import { isLastActiveAdmin, LAST_ADMIN_DELETE_MESSAGE } from '../services/lastAdmin.js';
+import { PHONE_INVALID_MESSAGE, validatePhoneInput } from '../utils/phone.js';
 
 const router = Router();
 
@@ -30,14 +31,28 @@ router.patch('/me', requireAuth, async (req: AuthRequest, res: Response, next: N
     if (fields.length === 0)
       return next(new ApiError(400, 'Nenhum campo para atualizar', 'EMPTY_UPDATE'));
 
+    if (body.phone !== undefined && body.phone !== null) {
+      try {
+        const normalized = validatePhoneInput(body.phone);
+        if (normalized === '') {
+          return next(new ApiError(400, PHONE_INVALID_MESSAGE, 'INVALID_PHONE'));
+        }
+        body.phone = normalized;
+      } catch (e) {
+        const message = e instanceof Error ? e.message : PHONE_INVALID_MESSAGE;
+        return next(new ApiError(400, message, 'INVALID_PHONE'));
+      }
+    }
+
     const setClause = fields.map(([k], i) => `${k} = $${i + 2}`).join(', ');
     const phoneChanged = body.phone !== undefined;
-    // Trocar telefone limpa a verificação — celular só vincula se verificado (confirm-email) ou se o e-mail também bater.
+    // Trocar telefone limpa a verificação (coluna mantida; vínculo não depende mais dela).
+    const values = fields.map(([k, v]) => (k === 'phone' ? body.phone : v));
     const result = await query(
       `UPDATE users SET ${setClause}${phoneChanged ? ', phone_verified_at = NULL' : ''}
         WHERE id = $1 AND deleted_at IS NULL
         RETURNING id, email, full_name, phone, pix_key, avatar_url, role`,
-      [req.user!.sub, ...fields.map(([, v]) => v)],
+      [req.user!.sub, ...values],
     );
     if (!result.rows[0]) return next(new ApiError(404, 'Usuario nao encontrado', 'USER_NOT_FOUND'));
 

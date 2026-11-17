@@ -396,6 +396,60 @@ body:has(.fp-fab) .fp-scroll { padding-bottom: 168px; }
 .fp-hello { display: flex; align-items: center; gap: 8px; }
 .fp-hello h2 { margin: 0; font-size: 20px; font-weight: 500; }
 .fp-hello-end { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.fp-bell-wrap { position: relative; }
+.fp-bell {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fp-tile);
+  color: var(--fp-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.fp-bell-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+.fp-bell-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 160px;
+  padding: 6px;
+  border: 1px solid var(--fp-line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: var(--fp-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fp-bell-menu button {
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--fp-text);
+  cursor: pointer;
+}
+.fp-bell-menu button:hover { background: var(--fp-navy-soft); }
 .fp-ask-line, .fp-ask {
   display: flex;
   align-items: center;

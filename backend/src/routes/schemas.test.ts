@@ -56,18 +56,37 @@ describe('TransactionSchema', () => {
 });
 
 describe('CustomerSchema', () => {
-  it('aceita cliente mínimo (nome + telefone)', () => {
+  it('aceita cliente com nome e telefone', () => {
     const parsed = CustomerSchema.parse({ name: 'Dyllan', phone: '(62) 99999-1234' });
     expect(parsed.name).toBe('Dyllan');
   });
 
+  it('aceita cliente só com nome', () => {
+    const parsed = CustomerSchema.parse({ name: 'Dyllan' });
+    expect(parsed.name).toBe('Dyllan');
+  });
+
+  it('aceita cliente com phone vazio', () => {
+    const parsed = CustomerSchema.parse({ name: 'Dyllan', phone: '' });
+    expect(parsed.name).toBe('Dyllan');
+  });
+
+  it('aceita cliente com phone nulo', () => {
+    const parsed = CustomerSchema.parse({ name: 'Dyllan', phone: null });
+    expect(parsed.name).toBe('Dyllan');
+  });
+
+  it('não valida formato de phone no schema', () => {
+    expect(() => CustomerSchema.parse({ name: 'Dyllan', phone: '123' })).not.toThrow();
+  });
+
   it('rejeita e-mail inválido', () => {
-    expect(() => CustomerSchema.parse({ name: 'X', phone: '1', email: 'não-é-email' })).toThrow();
+    expect(() => CustomerSchema.parse({ name: 'X', email: 'não-é-email' })).toThrow();
   });
 
   it('rejeita estratégia de sobra desconhecida', () => {
     expect(() =>
-      CustomerSchema.parse({ name: 'X', phone: '1', overpayment_strategy: 'ROUBAR' }),
+      CustomerSchema.parse({ name: 'X', overpayment_strategy: 'ROUBAR' }),
     ).toThrow();
   });
 });

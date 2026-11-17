@@ -39,6 +39,7 @@ interface FakeUser {
   email: string;
   full_name: string;
   password_hash: string | null;
+  phone: string | null;
   is_active: boolean;
   google_id: string | null;
   avatar_url: string | null;
@@ -68,14 +69,18 @@ function createFakeDb() {
     }
 
     if (
-      sql.startsWith('INSERT INTO users (full_name, email, password_hash, consent_at, consent_ip)')
+      sql.startsWith('INSERT INTO users (full_name, email, password_hash') &&
+      sql.includes('RETURNING id, email, full_name')
     ) {
+      const hasPhone = /\bphone\b/.test(sql);
       const [full_name, email, password_hash] = params as [string, string, string];
+      const phone = hasPhone ? ((params[3] as string | null) ?? null) : null;
       const user: FakeUser = {
         id: String(idCounter++),
         full_name,
         email,
         password_hash,
+        phone,
         is_active: true,
         google_id: null,
         avatar_url: null,
@@ -89,20 +94,46 @@ function createFakeDb() {
             id: user.id,
             email: user.email,
             full_name: user.full_name,
+            phone: user.phone,
             created_at: user.created_at,
           },
         ],
       };
     }
 
+    if (sql.startsWith('SELECT phone FROM users WHERE id = $1')) {
+      const [id] = params as [string];
+      const user = users.find((u) => u.id === id);
+      return { rows: user ? [{ phone: user.phone }] : [] };
+    }
+
     if (
-      sql.startsWith(
-        'SELECT id, email, full_name, is_active, role, (password_hash IS NOT NULL) AS has_password',
-      ) &&
+      sql.includes('SELECT id, email, full_name') &&
+      sql.includes('(password_hash IS NOT NULL) AS has_password') &&
       sql.includes('WHERE google_id = $1 OR email = $2')
     ) {
       const [google_id, email] = params as [string, string];
-      return { rows: users.filter((u) => u.google_id === google_id || u.email === email) };
+      return {
+        rows: users
+          .filter((u) => u.google_id === google_id || u.email === email)
+          .map((u) => ({
+            id: u.id,
+            email: u.email,
+            full_name: u.full_name,
+            phone: u.phone,
+            is_active: u.is_active,
+            role: u.role,
+            has_password: u.password_hash !== null,
+            google_id: u.google_id,
+            avatar_url: u.avatar_url,
+            created_at: u.created_at,
+            deleted_at: u.deleted_at ?? null,
+            purge_completed_at: u.purge_completed_at ?? null,
+            purge_after: u.purge_after ?? null,
+            login_retained: u.login_retained ?? false,
+            legal_hold: u.legal_hold ?? false,
+          })),
+      };
     }
 
     if (sql.startsWith('INSERT INTO users (email, full_name, avatar_url, google_id)')) {
@@ -119,12 +150,17 @@ function createFakeDb() {
         avatar_url,
         google_id,
         password_hash: null,
+        phone: null,
         is_active: true,
         created_at: new Date().toISOString(),
         role: 'user',
       };
       users.push(user);
-      return { rows: [{ id: user.id, email: user.email, full_name: user.full_name }] };
+      return {
+        rows: [
+          { id: user.id, email: user.email, full_name: user.full_name, phone: user.phone },
+        ],
+      };
     }
 
     if (sql.startsWith('UPDATE users SET google_id = $1')) {
@@ -192,6 +228,8 @@ function createReq(body: Record<string, unknown>): Request {
   return { body, headers: {}, ip: '127.0.0.1' } as unknown as Request;
 }
 
+const VALID_PHONE = '62999991234';
+
 describe('normalizacao de e-mail em auth.ts (dedup auth)', () => {
   let fakeDb: ReturnType<typeof createFakeDb>;
 
@@ -211,6 +249,7 @@ describe('normalizacao de e-mail em auth.ts (dedup auth)', () => {
       full_name: 'Jorge Teste',
       email: 'Jorge@Gmail.com',
       password: 'Senha123',
+      phone: VALID_PHONE,
       consent: true,
     });
     const registerRes = createRes();
@@ -244,12 +283,12 @@ describe('normalizacao de e-mail em auth.ts (dedup auth)', () => {
   });
 
   it('login via Google com e-mail em capitalizacao diferente de um cadastro manual existente atualiza o registro existente (vincula google_id) em vez de criar um novo', async () => {
-    // Simula um usuario ja cadastrado manualmente (email normalizado, como fica apos o fix)
     fakeDb.users.push({
       id: 'user-manual-1',
       email: 'jorge@gmail.com',
       full_name: 'Jorge Teste',
       password_hash: 'hash-fake',
+      phone: null,
       is_active: true,
       google_id: null,
       avatar_url: null,
@@ -278,9 +317,7 @@ describe('normalizacao de e-mail em auth.ts (dedup auth)', () => {
     expect(res.body.user.id).toBe('user-manual-1');
     expect(res.body.user.email).toBe('jorge@gmail.com');
 
-    // Nao deve ter criado um segundo usuario
     expect(fakeDb.users).toHaveLength(1);
-    // Deve ter vinculado o google_id ao usuario existente
     expect(fakeDb.users[0].google_id).toBe('google-sub-123');
   });
 
@@ -290,6 +327,7 @@ describe('normalizacao de e-mail em auth.ts (dedup auth)', () => {
       email: 'vitima@example.test',
       full_name: 'Vitima',
       password_hash: null,
+      phone: null,
       is_active: false,
       google_id: 'sub-do-google',
       avatar_url: null,
@@ -337,5 +375,170 @@ describe('normalizacao de e-mail em auth.ts (dedup auth)', () => {
     const err = next.mock.calls[0][0];
     expect(err.statusCode).toBe(400);
     expect(err.code).toBe('MISSING_EMAIL');
+  });
+});
+
+describe('telefone em auth.ts (cadastro e completude)', () => {
+  let fakeDb: ReturnType<typeof createFakeDb>;
+
+  beforeEach(() => {
+    delete process.env.REQUIRE_EMAIL_CONFIRMATION;
+    fakeDb = createFakeDb();
+    mockQuery.mockReset();
+    mockQuery.mockImplementation(fakeDb.query);
+    mockVerifyIdToken.mockReset();
+  });
+
+  it('register sem phone retorna 400 de validacao e nao cria usuario', async () => {
+    const registerHandler = getRouteHandler('post', '/register');
+    const req = createReq({
+      full_name: 'Sem Telefone',
+      email: 'sem.phone@gmail.com',
+      password: 'Senha123',
+      consent: true,
+    });
+    const res = createRes();
+    const next = vi.fn();
+
+    await registerHandler(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    const err = next.mock.calls[0][0];
+    expect(err.statusCode).toBe(400);
+    expect(['VALIDATION_ERROR', 'INVALID_PHONE']).toContain(err.code);
+    expect(fakeDb.users).toHaveLength(0);
+  });
+
+  it('register com phone invalido retorna 400 e nao cria usuario', async () => {
+    const registerHandler = getRouteHandler('post', '/register');
+    const req = createReq({
+      full_name: 'Telefone Ruim',
+      email: 'phone.ruim@gmail.com',
+      password: 'Senha123',
+      phone: '123',
+      consent: true,
+    });
+    const res = createRes();
+    const next = vi.fn();
+
+    await registerHandler(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    const err = next.mock.calls[0][0];
+    expect(err.statusCode).toBe(400);
+    expect(err.code).toBe('INVALID_PHONE');
+    expect(fakeDb.users).toHaveLength(0);
+  });
+
+  it('register com phone valido retorna 201 e persiste o phone normalizado', async () => {
+    const registerHandler = getRouteHandler('post', '/register');
+    const req = createReq({
+      full_name: 'Com Telefone',
+      email: 'com.phone@gmail.com',
+      password: 'Senha123',
+      phone: '(62) 99999-1234',
+      consent: true,
+    });
+    const res = createRes();
+    const next = vi.fn();
+
+    await registerHandler(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.needs_phone_completion).toBe(false);
+    expect(fakeDb.users).toHaveLength(1);
+    expect(fakeDb.users[0].phone).toMatch(/^\+?(55)?62999991234$/);
+  });
+
+  it('login de usuario sem phone sinaliza needs_phone_completion true', async () => {
+    const registerHandler = getRouteHandler('post', '/register');
+    const loginHandler = getRouteHandler('post', '/login');
+
+    const registerRes = createRes();
+    await registerHandler(
+      createReq({
+        full_name: 'Sem Phone Depois',
+        email: 'sem.phone.depois@gmail.com',
+        password: 'Senha123',
+        phone: VALID_PHONE,
+        consent: true,
+      }),
+      registerRes,
+      vi.fn(),
+    );
+    expect(registerRes.statusCode).toBe(201);
+    fakeDb.users[0].phone = null;
+
+    const loginRes = createRes();
+    const loginNext = vi.fn();
+    await loginHandler(
+      createReq({ email: 'sem.phone.depois@gmail.com', password: 'Senha123' }),
+      loginRes,
+      loginNext,
+    );
+
+    expect(loginNext).not.toHaveBeenCalled();
+    expect(loginRes.body.success).toBe(true);
+    expect(loginRes.body.needs_phone_completion).toBe(true);
+    expect(loginRes.body.user.needs_phone_completion).toBe(true);
+  });
+
+  it('login de usuario com phone de 11 digitos sinaliza needs_phone_completion false', async () => {
+    const registerHandler = getRouteHandler('post', '/register');
+    const loginHandler = getRouteHandler('post', '/login');
+
+    const registerRes = createRes();
+    await registerHandler(
+      createReq({
+        full_name: 'Com Phone Onze',
+        email: 'com.phone.onze@gmail.com',
+        password: 'Senha123',
+        phone: VALID_PHONE,
+        consent: true,
+      }),
+      registerRes,
+      vi.fn(),
+    );
+    expect(registerRes.statusCode).toBe(201);
+    fakeDb.users[0].phone = VALID_PHONE;
+
+    const loginRes = createRes();
+    const loginNext = vi.fn();
+    await loginHandler(
+      createReq({ email: 'com.phone.onze@gmail.com', password: 'Senha123' }),
+      loginRes,
+      loginNext,
+    );
+
+    expect(loginNext).not.toHaveBeenCalled();
+    expect(loginRes.body.success).toBe(true);
+    expect(loginRes.body.needs_phone_completion).toBe(false);
+    expect(loginRes.body.user.needs_phone_completion).toBe(false);
+  });
+
+  it('login via Google de usuario novo sinaliza needs_phone_completion true', async () => {
+    mockVerifyIdToken.mockResolvedValue({
+      getPayload: () => ({
+        sub: 'google-sub-novo',
+        email: 'novo.google@gmail.com',
+        name: 'Novo Google',
+      }),
+    });
+
+    const googleHandler = getRouteHandler('post', '/google');
+    const req = createReq({ id_token: 'fake-id-token' });
+    const res = createRes();
+    const next = vi.fn();
+
+    await googleHandler(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.body.success).toBe(true);
+    expect(res.body.needs_phone_completion).toBe(true);
+    expect(res.body.user.needs_phone_completion).toBe(true);
+    expect(fakeDb.users).toHaveLength(1);
+    expect(fakeDb.users[0].phone ?? null).toBeNull();
   });
 });

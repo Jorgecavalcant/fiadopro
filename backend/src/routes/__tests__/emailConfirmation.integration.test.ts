@@ -124,6 +124,7 @@ async function register(email: string, password: string) {
       full_name: 'Pessoa Teste',
       email,
       password,
+      phone: '62999991234',
       consent: true,
     }),
   });
@@ -162,6 +163,8 @@ beforeAll(async () => {
       email VARCHAR(255) NOT NULL UNIQUE,
       password_hash VARCHAR(255),
       full_name VARCHAR(255),
+      phone VARCHAR(30),
+      phone_verified_at TIMESTAMPTZ,
       avatar_url VARCHAR(500),
       google_id VARCHAR(255),
       is_active BOOLEAN DEFAULT TRUE,
