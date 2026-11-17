@@ -15,24 +15,17 @@ import {
   LEGAL_HOLD_REACTIVATE_MESSAGE,
   reactivateAccount,
 } from '../services/accountAccess.js';
+import { isValidBrPhone, normalizePhone } from '../utils/phone.js';
 
 const router = Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const RegisterSchema = z.object({
   full_name: z.string().min(2).max(100),
+  phone: z.string().min(1).refine((v) => isValidBrPhone(v), { message: 'Informe um telefone brasileiro válido com DDD (10 ou 11 dígitos).' }),
   email: z.string().email(),
-  password: z
-    .string()
-    .min(8)
-    .regex(/[A-Z]/, 'Precisa de pelo menos 1 letra maiuscula')
-    .regex(/[0-9]/, 'Precisa de pelo menos 1 numero'),
-  consent: z.literal(true, {
-    errorMap: () => ({
-      message:
-        'Voce precisa aceitar a Politica de Privacidade e os Termos de Uso para se cadastrar',
-    }),
-  }),
+  password: z.string().min(8).regex(/[A-Z]/, 'Precisa de pelo menos 1 letra maiuscula').regex(/[0-9]/, 'Precisa de pelo menos 1 numero'),
+  consent: z.literal(true, { errorMap: () => ({ message: 'Voce precisa aceitar a Politica de Privacidade e os Termos de Uso para se cadastrar' }) }),
   reactivate: z.boolean().optional(),
 });
 
@@ -224,11 +217,11 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     const requireConfirmation = emailConfirmationEnabled();
     const result = await query(
       requireConfirmation
-        ? `INSERT INTO users (full_name, email, password_hash, consent_at, consent_ip, email_confirmation_required)
-           VALUES ($1, $2, $3, NOW(), $4, TRUE)
+        ? `INSERT INTO users (full_name, phone, email, password_hash, consent_at, consent_ip, email_confirmation_required)
+           VALUES ($1, $2, $3, $4, NOW(), $5, TRUE)
            RETURNING id, email, full_name, created_at`
-        : 'INSERT INTO users (full_name, email, password_hash, consent_at, consent_ip) VALUES ($1, $2, $3, NOW(), $4) RETURNING id, email, full_name, created_at',
-      [body.full_name, email, hash, consentIp],
+        : 'INSERT INTO users (full_name, phone, email, password_hash, consent_at, consent_ip) VALUES ($1, $2, $3, $4, NOW(), $5) RETURNING id, email, full_name, created_at',
+      [body.full_name, normalizePhone(body.phone), email, hash, consentIp],
     );
     const user = result.rows[0];
     // Vincular clientes já cadastrados por terceiros com este e-mail + promover admin se for o ADMIN_EMAIL
@@ -249,6 +242,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
         full_name: user.full_name,
         role: roleResult.rows[0]?.role ?? 'user',
         has_password: true,
+        phone: normalizePhone(body.phone),
       },
     });
   } catch (err) {
@@ -285,8 +279,16 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
     if (await passwordLoginNeedsConfirmation(user.id)) {
       return next(new ApiError(403, EMAIL_NOT_CONFIRMED_MESSAGE, 'EMAIL_NOT_CONFIRMED'));
     }
+    try { const { relinkCustomersForUser } = await import('../services/linking.js'); await relinkCustomersForUser(user.id); } catch (error) { const message = error instanceof Error ? error.message : String(error); console.warn('[auth] relink after login skip:', message); }
     const token = signToken({ sub: user.id, email: user.email });
     setAuthCookie(res, token);
+    let phone: string | null = null;
+    try {
+      const phoneRow = await query('SELECT phone FROM users WHERE id = $1', [user.id]);
+      phone = (phoneRow.rows[0]?.phone as string | null | undefined) ?? null;
+    } catch {
+      phone = null;
+    }
     res.json({
       success: true,
       user: {
@@ -295,6 +297,7 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
         full_name: user.full_name,
         role: user.role,
         has_password: true,
+        phone,
       },
     });
   } catch (err) {
@@ -345,6 +348,7 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
     const byEmail = rows.find((row) => normalizeEmail(row.email) === email);
     const byGoogle = rows.find((row) => row.google_id === google_id);
     let user = byEmail ?? byGoogle;
+    let wasCreated = false;
     if (!user) {
       const insert = await query(
         'INSERT INTO users (email, full_name, avatar_url, google_id) VALUES ($1, $2, $3, $4) RETURNING id, email, full_name',
@@ -355,9 +359,7 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
         return next(new ApiError(500, 'Falha ao criar a conta', 'USER_NOT_FOUND'));
       }
       user = created;
-      const { relinkCustomersForUser, ensureAdminRole } = await import('../services/linking.js');
-      await ensureAdminRole();
-      await relinkCustomersForUser(user.id);
+      wasCreated = true;
       user.role =
         (await query('SELECT role FROM users WHERE id = $1', [user.id])).rows[0]?.role ?? 'user';
     } else if (isReactivatableAccount(user)) {
@@ -377,8 +379,26 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
         return next(new ApiError(403, 'Conta desativada', 'ACCOUNT_DISABLED'));
       }
     }
+    if (wasCreated) {
+      const { ensureAdminRole } = await import('../services/linking.js');
+      await ensureAdminRole();
+    }
+    try {
+      const { relinkCustomersForUser } = await import('../services/linking.js');
+      await relinkCustomersForUser(user.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn('[auth] relink after Google login skip:', message);
+    }
     const token = signToken({ sub: user.id, email: user.email });
     setAuthCookie(res, token);
+    let phone: string | null = null;
+    try {
+      const phoneRow = await query('SELECT phone FROM users WHERE id = $1', [user.id]);
+      phone = (phoneRow.rows[0]?.phone as string | null | undefined) ?? null;
+    } catch {
+      phone = null;
+    }
     res.json({
       success: true,
       user: {
@@ -387,6 +407,7 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
         full_name: user.full_name,
         role: user.role ?? 'user',
         has_password: user.has_password === true,
+        phone,
       },
     });
   } catch (err: unknown) {

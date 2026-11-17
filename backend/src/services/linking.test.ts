@@ -43,14 +43,13 @@ describe('linkCustomer', () => {
 
     await linkCustomer('c1');
 
-    expect(mockQuery.mock.calls.some(([sql]) => /owner_user_id/i.test(String(sql)))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /owner_user_id|id <> \$2/i.test(String(sql)))).toBe(true);
   });
 });
 
 describe('relinkCustomersForUser', () => {
-  it('relinks candidate customers and returns the number linked', async () => {
+  it('relinks only unlinked candidate customers and returns the number linked', async () => {
     mockQuery
-      .mockResolvedValueOnce(rows([{ id: 'c1' }]) as never)
       .mockResolvedValueOnce(rows([{ email: 'a@example.com', phone: null }]) as never)
       .mockResolvedValueOnce(rows([{ id: 'c9' }]) as never)
       .mockResolvedValueOnce(rows([{
@@ -64,7 +63,8 @@ describe('relinkCustomersForUser', () => {
       .mockResolvedValueOnce(rows([]) as never);
 
     await expect(relinkCustomersForUser('user-1')).resolves.toBe(1);
-    expect(mockQuery).toHaveBeenCalledTimes(6);
+    expect(mockQuery).toHaveBeenCalledTimes(5);
+    expect(String(mockQuery.mock.calls[1][0])).toMatch(/linked_user_id IS NULL/);
   });
 });
 

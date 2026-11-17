@@ -77,6 +77,7 @@ import HelpView from './components/HelpView';
 import { MenuView } from './components/MenuView';
 import { StatementView } from './components/StatementView';
 import { HomePanel } from './components/HomePanel';
+import { CompleteSignupGate, needsPhoneCompletion } from './components/CompleteSignupGate';
 import { skipFullscreenThisSession } from './components/HomeAds';
 import { CustomerIdentity } from './components/CustomerIdentity';
 import { EmptyState } from './components/ui/EmptyState';
@@ -361,6 +362,8 @@ const DashboardView = ({
   canUpgrade,
   language,
   onLanguage,
+  notificationCount = 0,
+  onNotifications,
 }: any) => {
   const month = sumConfirmed(transactions || [], periodRange('month', Date.now()));
   const receivedTotal = sumConfirmed(transactions || []).payment;
@@ -400,6 +403,8 @@ const DashboardView = ({
       received={month.payment}
       stillToReceive={periodToReceive(month)}
       evolution={stats.evolutionData || []}
+      notificationCount={notificationCount}
+      onNotifications={onNotifications}
     />
   );
 };
@@ -3495,6 +3500,7 @@ const App: React.FC = () => {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginName, setLoginName] = useState('');
+  const [loginPhone, setLoginPhone] = useState('');
   const [loginError, setLoginError] = useState('');
   const [recoverAccount, setRecoverAccount] = useState<null | {
     channel: 'login' | 'google' | 'register';
@@ -4427,6 +4433,7 @@ const App: React.FC = () => {
         email: data.user.email,
         role: data.user.role,
         hasPassword: data.user.has_password === true,
+        phone: data.user.phone ?? undefined,
       });
       setActiveView(AppView.DASHBOARD);
     } catch (err: any) {
@@ -4478,9 +4485,10 @@ const App: React.FC = () => {
     name: string,
     email: string,
     password: string,
+    phone: string,
     reactivate = false,
   ) => {
-    if (!name || !email || !password) {
+    if (!name || !email || !password || !phone) {
       setLoginError('Preencha todos os campos.');
       return;
     }
@@ -4496,6 +4504,7 @@ const App: React.FC = () => {
         credentials: 'include',
         body: JSON.stringify({
           full_name: name.trim(),
+          phone: phone.trim(),
           email,
           password,
           consent: true,
@@ -4522,6 +4531,7 @@ const App: React.FC = () => {
         email: data.user.email,
         role: data.user.role,
         hasPassword: data.user.has_password === true,
+        phone: data.user.phone ?? loginPhone,
       });
       setLoginError('');
     } catch (err: any) {
@@ -4653,7 +4663,7 @@ const App: React.FC = () => {
                 } else if (recoverAccount.channel === 'google' && recoverAccount.idToken) {
                   void handleGoogleCallback(recoverAccount.idToken, true);
                 } else {
-                  void handleRegister(loginName, loginEmail, loginPassword, true);
+                  void handleRegister(loginName, loginEmail, loginPassword, loginPhone, true);
                 }
               }}
               onCancel={() => setRecoverAccount(null)}
@@ -4729,6 +4739,14 @@ const App: React.FC = () => {
                 className="w-full px-5 py-3 bg-slate-50 rounded-xl border-none font-bold"
               />
               <input
+                id="register-phone"
+                type="tel"
+                placeholder="Telefone com DDD"
+                value={loginPhone}
+                onChange={(e) => setLoginPhone(e.target.value)}
+                className="w-full px-5 py-3 bg-slate-50 rounded-xl border-none font-bold"
+              />
+              <input
                 type="password"
                 placeholder="Senha (min. 6 caracteres)"
                 value={loginPassword}
@@ -4763,7 +4781,7 @@ const App: React.FC = () => {
                 </span>
               </label>
               <button
-                onClick={() => handleRegister(loginName, loginEmail, loginPassword)}
+                onClick={() => handleRegister(loginName, loginEmail, loginPassword, loginPhone)}
                 disabled={!consentAccepted}
                 className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -4911,12 +4929,25 @@ const App: React.FC = () => {
           inboxCount={inboxCount}
           isAdmin={user?.role === 'admin'}
         >
+        <CompleteSignupGate
+          open={needsPhoneCompletion(user)}
+          onSaved={(phone) => {
+            setUser((current) => (current ? { ...current, phone } : current));
+          }}
+        />
+
           {activeView === AppView.DASHBOARD && (
             <DashboardView
               stats={stats}
               formatCurrency={formatCurrency}
               navigateToCustomer={navigateToCustomer}
               setActiveView={setActiveView}
+              notificationCount={
+                inboxCount + transactions.filter((tx) => tx.status === 'PENDING').length
+              }
+              onNotifications={() => {
+                setActiveView(inboxCount > 0 ? AppView.INBOX : AppView.NOTIFICATIONS);
+              }}
               isPro={isPro}
               adPlan={
                 user?.role === 'admin'
@@ -5931,8 +5962,9 @@ const App: React.FC = () => {
                           email: fd.get('email') as string,
                           pixKey: fd.get('pixKey') as string,
                         };
-                        if (!cData.phone) {
-                          showToast(t.phoneRequired);
+                        const phoneDigits = (cData.phone || '').replace(/\D/g, '');
+                        if (phoneDigits && phoneDigits.length !== 10 && phoneDigits.length !== 11) {
+                          showToast(t.phoneInvalid || 'Informe um telefone brasileiro válido com DDD');
                           return;
                         }
                         const ignoreId = isEditCustomerModalOpen ? selectedCustomerId : null;
@@ -6005,8 +6037,12 @@ const App: React.FC = () => {
                               });
                               return;
                             }
-                            showToast(saved.message);
-                            return;
+                            if (saved.link_notice) {
+                              setCustomerFormWarning(saved.link_notice);
+                            } else if (saved.message) {
+                              showToast(saved.message);
+                              return;
+                            }
                           }
                         }
                         if (isEditCustomerModalOpen) {

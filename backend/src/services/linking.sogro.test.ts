@@ -11,8 +11,8 @@ beforeEach(() => {
   mockQuery.mockReset();
 });
 
-describe('linkCustomer sogro scenarios', () => {
-  it('links a customer by email', async () => {
+describe('linkCustomer phone-first without phone_verified_at', () => {
+  it('links a customer by email only', async () => {
     mockQuery
       .mockResolvedValueOnce(
         rows([
@@ -39,24 +39,26 @@ describe('linkCustomer sogro scenarios', () => {
             id: 'c1',
             owner_user_id: 'owner',
             email: 'person@example.com',
-            phone: '+15551234567',
+            phone: '62999991234',
             linked_user_id: null,
           },
         ]) as never,
       )
-      .mockResolvedValueOnce(rows([{ id: 'user-email' }]) as never)
       .mockResolvedValueOnce(rows([{ id: 'user-phone' }]) as never)
-      .mockResolvedValueOnce(rows([{ phone_verified_at: new Date().toISOString() }]) as never)
-      .mockResolvedValueOnce(rows([]) as never) // review insert
-      .mockResolvedValueOnce(rows([]) as never); // unlink
+      .mockResolvedValueOnce(rows([{ id: 'user-email' }]) as never)
+      .mockResolvedValueOnce(rows([]) as never)
+      .mockResolvedValueOnce(rows([]) as never);
 
     await expect(linkCustomer('c1')).resolves.toBeNull();
     expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('link_review_queue'))).toBe(
       true,
     );
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('phone_verified_at'))).toBe(
+      false,
+    );
   });
 
-  it('does not link a phone match that is not verified', async () => {
+  it('links a phone match without verification', async () => {
     mockQuery
       .mockResolvedValueOnce(
         rows([
@@ -64,36 +66,35 @@ describe('linkCustomer sogro scenarios', () => {
             id: 'c1',
             owner_user_id: 'owner',
             email: null,
-            phone: '+15551234567',
+            phone: '62999991234',
             linked_user_id: null,
           },
         ]) as never,
       )
       .mockResolvedValueOnce(rows([{ id: 'user-phone' }]) as never)
-      .mockResolvedValueOnce(rows([{ phone_verified_at: null }]) as never)
-      .mockResolvedValueOnce(rows([]) as never);
-
-    await expect(linkCustomer('c1')).resolves.toBeNull();
-  });
-
-  it('links a customer to a verified phone match', async () => {
-    mockQuery
-      .mockResolvedValueOnce(
-        rows([
-          {
-            id: 'c1',
-            owner_user_id: 'owner',
-            email: null,
-            phone: '+15551234567',
-            linked_user_id: null,
-          },
-        ]) as never,
-      )
-      .mockResolvedValueOnce(rows([{ id: 'user-phone' }]) as never)
-      .mockResolvedValueOnce(rows([{ phone_verified_at: new Date().toISOString() }]) as never)
       .mockResolvedValueOnce(rows([]) as never);
 
     await expect(linkCustomer('c1')).resolves.toBe('user-phone');
+  });
+
+  it('prefers phone over email when both match the same user', async () => {
+    mockQuery
+      .mockResolvedValueOnce(
+        rows([
+          {
+            id: 'c1',
+            owner_user_id: 'owner',
+            email: 'same@example.com',
+            phone: '62999991234',
+            linked_user_id: null,
+          },
+        ]) as never,
+      )
+      .mockResolvedValueOnce(rows([{ id: 'user-same' }]) as never)
+      .mockResolvedValueOnce(rows([{ id: 'user-same' }]) as never)
+      .mockResolvedValueOnce(rows([]) as never);
+
+    await expect(linkCustomer('c1')).resolves.toBe('user-same');
   });
 });
 

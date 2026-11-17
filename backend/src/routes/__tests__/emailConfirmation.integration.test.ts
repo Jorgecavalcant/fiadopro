@@ -122,6 +122,7 @@ async function register(email: string, password: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       full_name: 'Pessoa Teste',
+      phone: '62999991234',
       email,
       password,
       consent: true,
@@ -162,6 +163,7 @@ beforeAll(async () => {
       email VARCHAR(255) NOT NULL UNIQUE,
       password_hash VARCHAR(255),
       full_name VARCHAR(255),
+      phone VARCHAR(30),
       avatar_url VARCHAR(500),
       google_id VARCHAR(255),
       is_active BOOLEAN DEFAULT TRUE,

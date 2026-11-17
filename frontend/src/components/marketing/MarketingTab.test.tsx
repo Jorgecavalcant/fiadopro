@@ -33,7 +33,15 @@ describe('marketing no admin', () => {
       root.render(<AdminPanel />);
     });
     const labels = [...document.querySelectorAll('.fp-admin-tab')].map((item) => item.textContent);
-    expect(labels).toEqual(['Usuários', 'Visão geral', 'Concessões', 'Marketing', 'Registro', 'Contas encerradas']);
+    expect(labels).toEqual([
+      'Usuários',
+      'Visão geral',
+      'Concessões',
+      'Marketing',
+      'Lançamentos',
+      'Registro',
+      'Contas encerradas',
+    ]);
     expect(document.body.textContent).toContain('Painel administrativo');
     act(() => root.unmount());
   });

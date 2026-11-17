@@ -5,6 +5,7 @@ import { query } from '../config/database.js';
 import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { clearAuthCookie } from '../utils/jwt.js';
+import { assertValidBrPhoneOrEmpty } from '../utils/phone.js';
 import { sendAccountDeletionEmail } from '../services/email.js';
 import {
   confirmAccountDeletion,
@@ -26,6 +27,12 @@ const UpdateProfileSchema = z.object({
 router.patch('/me', requireAuth, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const body = UpdateProfileSchema.parse(req.body);
+    if (body.phone !== undefined) {
+      const phoneValidation = assertValidBrPhoneOrEmpty(body.phone);
+      if (!phoneValidation.ok)
+        return next(new ApiError(400, phoneValidation.message, 'VALIDATION_ERROR'));
+      body.phone = phoneValidation.normalized === '' ? null : phoneValidation.normalized;
+    }
     const fields = Object.entries(body).filter(([, v]) => v !== undefined);
     if (fields.length === 0)
       return next(new ApiError(400, 'Nenhum campo para atualizar', 'EMPTY_UPDATE'));

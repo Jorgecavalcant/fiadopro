@@ -610,6 +610,7 @@ export interface CustomerSaveError {
   message: string;
   code?: string;
   existingCustomerId?: string;
+  link_notice?: string;
 }
 
 export async function saveCustomerToServer(
@@ -626,11 +627,13 @@ export async function saveCustomerToServer(
     });
     let data: {
       success?: boolean;
+      link_notice?: string;
       error?: { message?: string; code?: string; existingCustomerId?: string };
     } | null = null;
     try {
       data = (await res.json()) as {
         success?: boolean;
+        link_notice?: string;
         error?: { message?: string; code?: string; existingCustomerId?: string };
       };
     } catch {
@@ -651,6 +654,9 @@ export async function saveCustomerToServer(
       };
     }
     shadowCustomers.set(customer.id, fingerprintCustomer(customer));
+    if (data?.link_notice) {
+      return { message: '', link_notice: data.link_notice };
+    }
     return null;
   } catch {
     return 'offline';
