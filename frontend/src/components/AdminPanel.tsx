@@ -6,6 +6,7 @@ import {
   Archive,
   Gift,
   Megaphone,
+  ListOrdered,
   Search,
   KeyRound,
   ShieldCheck,
@@ -20,6 +21,7 @@ import { AdminBlockDialog } from './AdminBlockDialog';
 import { AdminClosedTab } from './AdminClosedTab';
 import { AdminGrantsTab } from './AdminGrantsTab';
 import { AdminOverviewTab } from './AdminOverviewTab';
+import { AdminTransactionsTab } from './AdminTransactionsTab';
 import { MarketingTab } from './marketing/MarketingTab';
 import './marketing/marketing.css';
 import { BLOCK_REASON_LABEL } from './adminLabels';
@@ -27,7 +29,7 @@ import { BLOCK_REASON_LABEL } from './adminLabels';
 /* ============================================================
  * Tipos (espelham o envelope { success, ... } do backend /api/admin/*)
  * ============================================================ */
-type AdminTab = 'users' | 'overview' | 'grants' | 'marketing' | 'audit' | 'closed';
+type AdminTab = 'users' | 'overview' | 'grants' | 'marketing' | 'transactions' | 'audit' | 'closed';
 
 interface AdminUser {
   id: string;
@@ -43,6 +45,7 @@ interface AdminUser {
   block_note?: string | null;
   legal_hold?: boolean;
   blocked_at?: string | null;
+  plan?: string;
 }
 
 interface UsersMeta {
@@ -66,6 +69,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
     { id: 'overview', label: 'Visão geral', icon: BarChart3 },
     { id: 'grants', label: 'Concessões', icon: Gift },
     { id: 'marketing', label: 'Marketing', icon: Megaphone },
+    { id: 'transactions', label: 'Lançamentos', icon: ListOrdered },
     { id: 'audit', label: 'Registro', icon: ClipboardList },
     { id: 'closed', label: 'Contas encerradas', icon: Archive },
   ];
@@ -97,6 +101,7 @@ const AdminPanel: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => 
       {tab === 'overview' && <AdminOverviewTab />}
       {tab === 'grants' && <AdminGrantsTab />}
       {tab === 'marketing' && <MarketingTab />}
+      {tab === 'transactions' && <AdminTransactionsTab />}
       {tab === 'audit' && <AdminAuditTab />}
       {tab === 'closed' && <AdminClosedTab />}
     </div>
@@ -252,6 +257,7 @@ const UsersTab: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
                 <th>E-mail</th>
                 <th>Telefone</th>
                 <th>Papel</th>
+                <th>Plano</th>
                 <th>Status</th>
                 <th>Ações</th>
               </tr>
@@ -269,6 +275,7 @@ const UsersTab: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
                       {u.role}
                     </span>
                   </td>
+                  <td>{u.plan || '—'}</td>
                   <td>
                     <div className="flex flex-wrap gap-1">
                       <span
@@ -340,7 +347,7 @@ const UsersTab: React.FC<{ currentUserId?: string }> = ({ currentUserId }) => {
               ))}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center text-slate-400 py-10">
+                  <td colSpan={7} className="text-center text-slate-400 py-10">
                     Nenhum usuário encontrado.
                   </td>
                 </tr>

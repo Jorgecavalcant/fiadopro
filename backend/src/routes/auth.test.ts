@@ -68,20 +68,25 @@ function createFakeDb() {
     }
 
     if (
-      sql.startsWith('INSERT INTO users (full_name, email, password_hash, consent_at, consent_ip)')
+      sql.startsWith('INSERT INTO users (full_name, phone, email, password_hash, consent_at, consent_ip)')
+      || sql.startsWith('INSERT INTO users (full_name, email, password_hash, consent_at, consent_ip)')
     ) {
-      const [full_name, email, password_hash] = params as [string, string, string];
+      const hasPhone = sql.includes('phone');
+      const [full_name, phoneOrEmail, emailOrHash, maybeHash] = params as [string, string, string, string?];
+      const email = hasPhone ? emailOrHash : phoneOrEmail;
+      const password_hash = hasPhone ? (maybeHash as string) : emailOrHash;
       const user: FakeUser = {
         id: String(idCounter++),
         full_name,
         email,
         password_hash,
+        phone: hasPhone ? phoneOrEmail : null,
         is_active: true,
         google_id: null,
         avatar_url: null,
         created_at: new Date().toISOString(),
         role: 'user',
-      };
+      } as FakeUser;
       users.push(user);
       return {
         rows: [
@@ -141,6 +146,22 @@ function createFakeDb() {
       const [id] = params as [string];
       const user = users.find((u) => u.id === id);
       return { rows: user ? [{ role: user.role }] : [] };
+    }
+
+    if (sql.startsWith('SELECT phone FROM users WHERE id = $1')) {
+      const [id] = params as [string];
+      const user = users.find((u) => u.id === id) as { phone?: string | null } | undefined;
+      return { rows: user ? [{ phone: user.phone ?? null }] : [] };
+    }
+
+    // light relink no-ops in unit fake
+    if (sql.includes('FROM customers WHERE linked_user_id IS NULL')) {
+      return { rows: [] };
+    }
+    if (sql.startsWith('SELECT email, phone FROM users WHERE id = $1')) {
+      const [id] = params as [string];
+      const user = users.find((u) => u.id === id) as { email?: string; phone?: string | null } | undefined;
+      return { rows: user ? [{ email: user.email, phone: user.phone ?? null }] : [] };
     }
 
     throw new Error(`Query nao tratada no fake db: ${sql}`);
@@ -209,6 +230,7 @@ describe('normalizacao de e-mail em auth.ts (dedup auth)', () => {
 
     const registerReq = createReq({
       full_name: 'Jorge Teste',
+      phone: '62999991234',
       email: 'Jorge@Gmail.com',
       password: 'Senha123',
       consent: true,

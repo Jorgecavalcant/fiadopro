@@ -28,6 +28,7 @@ import {
   renderOverviewXlsx,
 } from '../services/adminOverview.js';
 import { createPromotion, grantPlan, listPlanGrants } from '../services/planGrants.js';
+import { readUserPlansBatch } from '../services/plans.js';
 
 const router = Router();
 
@@ -45,7 +46,6 @@ const ListUsersQuerySchema = z.object({
   search: z.string().trim().max(200).optional(),
 });
 
-// GET /api/admin/users — paginação + busca por nome/email. NUNCA expõe password_hash.
 router.get('/users', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { page, limit, search } = ListUsersQuerySchema.parse(req.query);
@@ -72,9 +72,21 @@ router.get('/users', async (req: AuthRequest, res: Response, next: NextFunction)
       listParams,
     );
 
+    const plans = await readUserPlansBatch(usersResult.rows.map((user) => user.id));
+    const planLabels: Record<string, string> = {
+      FREE: 'Grátis',
+      PRO: 'Pro',
+      ENTERPRISE: 'Pro',
+      ADMIN: 'Admin',
+    };
+    const users = usersResult.rows.map((user) => {
+      const planCode = plans.get(user.id) ?? 'FREE';
+      return { ...user, plan: planLabels[planCode] ?? 'Grátis' };
+    });
+
     res.json({
       success: true,
-      users: usersResult.rows,
+      users,
       meta: { total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) },
     });
   } catch (err) {
@@ -495,4 +507,51 @@ router.post('/promotions', async (req: AuthRequest, res: Response, next: NextFun
   }
 });
 
+const ListTransactionsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+router.get('/transactions', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { page, limit } = ListTransactionsQuerySchema.parse(req.query);
+    const offset = (page - 1) * limit;
+
+    const countResult = await query('SELECT COUNT(*)::int AS total FROM transactions');
+    const total = countResult.rows[0]?.total ?? 0;
+
+    const transactionsResult = await query(
+      `SELECT t.id, t.type, t.status, t.amount, t.created_at,
+        owner.full_name AS owner_name, customer.name AS customer_name,
+        linked.full_name AS linked_user_name
+       FROM transactions t
+       JOIN users owner ON owner.id = t.owner_user_id
+       JOIN customers customer ON customer.id = t.customer_id
+       LEFT JOIN users linked ON linked.id = customer.linked_user_id
+       ORDER BY t.created_at DESC LIMIT $1 OFFSET $2`,
+      [limit, offset],
+    );
+
+    const transactions = transactionsResult.rows.map((transaction) => ({
+      ...transaction,
+      dono: transaction.owner_name,
+      cliente: transaction.customer_name,
+      tipo: transaction.type,
+      valor: transaction.amount,
+      data: transaction.created_at,
+    }));
+
+    res.json({
+      success: true,
+      transactions,
+      meta: { total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) },
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError)
+      return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
+    next(err);
+  }
+});
+
 export default router;
+

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, ArrowDownLeft, ArrowRight, Clock, Eye, EyeOff, Plus, Sparkles, SquareSplitHorizontal, Undo2, UserPlus } from 'lucide-react';
+import { AlertTriangle, ArrowDownLeft, ArrowRight, Bell, Clock, Eye, EyeOff, Plus, Sparkles, SquareSplitHorizontal, Undo2, UserPlus } from 'lucide-react';
 import { HomeFull, HomeStrip, useHomeAds, type AdPlan } from './HomeAds';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { activeDebtorLabel } from '../utils/ledgerPeriod';
@@ -48,6 +48,8 @@ export function HomePanel({
   onSeeAll,
   onAvatar,
   onLanguage,
+  notificationCount,
+  onNotifications,
   language = 'pt-BR',
   isPro = false,
   adPlan,
@@ -82,6 +84,8 @@ export function HomePanel({
   onSeeAll?: () => void;
   onAvatar?: () => void;
   onLanguage?: () => void;
+  notificationCount?: number;
+  onNotifications?: () => void;
   language?: 'pt-BR' | 'en';
   isPro?: boolean;
   adPlan?: AdPlan;
@@ -139,6 +143,12 @@ export function HomePanel({
               {language === 'pt-BR' ? 'PT' : 'EN'}
             </button>
           ) : null}
+          <button type="button" className="fp-bell" onClick={onNotifications} aria-label="Notificações">
+            <Bell size={18} strokeWidth={1.5} />
+            {notificationCount && notificationCount > 0 ? (
+              <span className="fp-bell-badge">{notificationCount > 99 ? '99+' : notificationCount}</span>
+            ) : null}
+          </button>
           <button type="button" className="fp-avatar" onClick={onAvatar} aria-label="Minha conta">
             {letter}
           </button>

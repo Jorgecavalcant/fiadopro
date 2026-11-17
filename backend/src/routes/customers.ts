@@ -5,7 +5,7 @@ import { requireAuth, AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { linkCustomer } from '../services/linking.js';
 import { normalizeEmail } from '../utils/normalizeEmail.js';
-import { normalizePhone } from '../utils/phone.js';
+import { assertValidBrPhoneOrEmpty, normalizePhone } from '../utils/phone.js';
 import { OWN_EMAIL_MESSAGE, OWN_PHONE_MESSAGE } from '../services/accountAccess.js';
 import { assertCanAddCustomers } from '../services/planLimits.js';
 
@@ -21,7 +21,7 @@ const NoteSchema = z.object({
 export const CustomerSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().min(1).max(255),
-  phone: z.string().min(1).max(30),
+  phone: z.string().max(30).optional().nullable(),
   email: z.string().email().max(255).optional().nullable(),
   pix_key: z.string().max(140).optional().nullable(),
   trusted: z.boolean().optional(),
@@ -192,6 +192,11 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
   let body: z.infer<typeof CustomerSchema> | undefined;
   try {
     body = CustomerSchema.parse(req.body);
+    if (body.phone !== undefined && body.phone !== null && String(body.phone).trim() !== '') {
+      const phoneValidation = assertValidBrPhoneOrEmpty(body.phone);
+      if (!phoneValidation.ok)
+        return next(new ApiError(400, phoneValidation.message, 'VALIDATION_ERROR'));
+    }
     const own = await ownContactError(req.user!.sub, body.phone, body.email);
     if (own) return next(new ApiError(400, own, 'OWN_CONTACT'));
     const duplicatePhone = await activeCustomerWithSamePhone(
@@ -226,7 +231,7 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
         body.id ?? null,
         req.user!.sub,
         body.name,
-        body.phone,
+        body.phone ?? '',
         body.email ? normalizeEmail(body.email) : body.email ?? null,
         body.pix_key ?? null,
         body.trusted ?? null,
@@ -238,7 +243,13 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
     if (!result.rows[0]) return next(new ApiError(409, 'Cliente já existe', 'ALREADY_EXISTS'));
     const customer = result.rows[0];
     customer.linked_user_id = await linkCustomer(customer.id);
-    res.status(201).json({ success: true, customer });
+    res.status(201).json({
+      success: true,
+      customer,
+      link_notice: customer.linked_user_id
+        ? 'conta encontrada e vinculada'
+        : 'ainda não tem conta no Fiado Pro',
+    });
   } catch (err) {
     if (err instanceof z.ZodError)
       return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
@@ -275,6 +286,11 @@ router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction)
   let emailForDup: string | null | undefined;
   try {
     const body = CustomerSchema.partial().omit({ id: true }).parse(req.body);
+    if (body.phone !== undefined && body.phone !== null && String(body.phone).trim() !== '') {
+      const phoneValidation = assertValidBrPhoneOrEmpty(body.phone);
+      if (!phoneValidation.ok)
+        return next(new ApiError(400, phoneValidation.message, 'VALIDATION_ERROR'));
+    }
     phoneForDup = body.phone;
     emailForDup = body.email;
     const fields = Object.entries(body).filter(([, v]) => v !== undefined);
@@ -312,10 +328,14 @@ router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction)
     );
     if (!result.rows[0]) return next(new ApiError(404, 'Cliente não encontrado', 'NOT_FOUND'));
     const customer = result.rows[0];
+    let link_notice: string | undefined;
     if (body.phone !== undefined || body.email !== undefined) {
       customer.linked_user_id = await linkCustomer(customer.id);
+      link_notice = customer.linked_user_id
+        ? 'conta encontrada e vinculada'
+        : 'ainda não tem conta no Fiado Pro';
     }
-    res.json({ success: true, customer });
+    res.json({ success: true, customer, ...(link_notice ? { link_notice } : {}) });
   } catch (err) {
     if (err instanceof z.ZodError)
       return next(new ApiError(400, err.errors[0].message, 'VALIDATION_ERROR'));
