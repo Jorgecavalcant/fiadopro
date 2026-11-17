@@ -96,9 +96,11 @@ describe('pergunta à IA', () => {
 });
 
 describe('acabamento', () => {
-  it('não mostra o botão flutuante no Início', () => {
-    expect(showQuickFab(AppView.DASHBOARD)).toBe(false);
+  it('mostra o botão flutuante no Início, Clientes e Extrato', () => {
+    expect(showQuickFab(AppView.DASHBOARD)).toBe(true);
     expect(showQuickFab(AppView.CUSTOMERS)).toBe(true);
+    expect(showQuickFab(AppView.STATEMENT)).toBe(true);
+    expect(showQuickFab(AppView.MENU)).toBe(false);
   });
 
   it('não corta o nome do lançamento', () => {

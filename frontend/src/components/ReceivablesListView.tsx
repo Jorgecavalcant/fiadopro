@@ -25,7 +25,7 @@ const ReceivablesListView = ({
       <div>
         <h2 className="text-2xl font-black text-indigo-900">{t.receivablesList}</h2>
         <p className="text-indigo-700 font-medium leading-relaxed">
-          Clientes com saldos pendentes a receber, ordenados pelos maiores valores.
+          Clientes que Me devem, ordenados pelos maiores valores.
         </p>
       </div>
     </div>
@@ -36,7 +36,7 @@ const ReceivablesListView = ({
           <div className="bg-slate-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 className="w-12 h-12 text-slate-300" />
           </div>
-          <h3 className="text-xl font-black text-slate-800">Sem recebíveis pendentes</h3>
+          <h3 className="text-xl font-black text-slate-800">Ninguém Me deve no momento</h3>
         </div>
       ) : (
         receivables.map((c: CustomerWithBalance) => (

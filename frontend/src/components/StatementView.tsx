@@ -78,11 +78,15 @@ export function StatementView({
   }
 
   const cards = [
-    { label: 'Lançado', value: sums.debt },
-    { label: 'Recebido', value: sums.payment },
+    { label: 'Me devem', value: sums.debt, tone: 'debt' as const },
+    { label: 'Me pagaram', value: sums.payment, tone: 'paid' as const },
     { label: 'Devolvido', value: sums.refund },
     { label: 'Abatido', value: sums.abatement },
-    { label: 'A receber no período', value: toReceive, hint: 'Quanto do que foi lançado no período ainda não voltou' },
+    {
+      label: 'Falta receber no período',
+      value: toReceive,
+      hint: 'Quanto do que Me devem no período ainda não voltou',
+    },
   ];
 
   const downloadPdf = () => {
@@ -124,15 +128,35 @@ export function StatementView({
         </div>
       ) : null}
       <div className="fp-stat-grid">
-        {cards.map((card) => (
-          <article key={card.label} className="fp-card" style={{ padding: 14 }}>
-            <p style={{ margin: 0, fontSize: 12, color: 'var(--fp-muted)' }}>{card.label}</p>
-            <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--fp-text)' }}>
-              {formatCurrency(card.value)}
-            </p>
-            {card.hint ? <p style={{ margin: '6px 0 0', fontSize: 13, fontWeight: 400, color: 'var(--fp-muted)' }}>{card.hint}</p> : null}
-          </article>
-        ))}
+        {cards.map((card) => {
+          const valueColor =
+            'tone' in card && card.tone === 'debt'
+              ? '#ef4444'
+              : 'tone' in card && card.tone === 'paid'
+                ? '#22c55e'
+                : 'var(--fp-text)';
+          return (
+            <article key={card.label} className="fp-card" style={{ padding: 14, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--fp-muted)' }}>{card.label}</p>
+              <p
+                style={{
+                  margin: '4px 0 0',
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: valueColor,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {formatCurrency(card.value)}
+              </p>
+              {card.hint ? (
+                <p style={{ margin: '6px 0 0', fontSize: 13, fontWeight: 400, color: 'var(--fp-muted)' }}>{card.hint}</p>
+              ) : null}
+            </article>
+          );
+        })}
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {TYPES.map((item) => (
