@@ -50,7 +50,7 @@ export function sumConfirmedPaymentsByCustomer(
     .sort((a, b) => b.total - a.total);
 }
 
-/** O que o gráfico chama de Fiado e Recebido até um instante. */
+/** O que o gráfico chama de Me devem e Me pagaram até um instante. */
 export function cumulativeThrough(transactions: LedgerTx[], until: number): { Offered: number; Received: number } {
   const sums = sumConfirmed(transactions, { to: until });
   return { Offered: sums.debt, Received: sums.payment };

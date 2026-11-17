@@ -1,6 +1,6 @@
 import { AppView } from '../types';
 
-/** O Início já tem o atalho Me deve. O botão flutuante fica nas outras listas. */
+/** FAB de Acesso Rápido no Início e nas listas; oculto só no Menu. */
 export function showQuickFab(view: AppView): boolean {
-  return view !== AppView.MENU && view !== AppView.DASHBOARD;
+  return view !== AppView.MENU;
 }

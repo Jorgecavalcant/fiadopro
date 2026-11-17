@@ -2485,7 +2485,7 @@ const CustomerDetailView = ({
 <div class="logo">Fiado Pro <span>Extrato</span></div>
 <div class="header">
   <div><div class="customer-name">${esc(selectedCustomer.name)}</div><div class="customer-phone">${esc(selectedCustomer.phone || '')}</div>${filterInfo}</div>
-  <div class="balance-box"><div class="balance-label">Saldo atual</div><div class="balance-value">${formatCurrency(Math.abs(selectedCustomer.rawBalance))}</div><div style="font-size:11px;color:${saldoColor};font-weight:700;margin-top:2px">${selectedCustomer.rawBalance > 0 ? 'A receber' : selectedCustomer.rawBalance < 0 ? 'A pagar' : 'Quitado'}</div></div>
+  <div class="balance-box"><div class="balance-label">Saldo atual</div><div class="balance-value">${formatCurrency(Math.abs(selectedCustomer.rawBalance))}</div><div style="font-size:11px;color:${saldoColor};font-weight:700;margin-top:2px">${selectedCustomer.rawBalance > 0 ? 'Me devem' : selectedCustomer.rawBalance < 0 ? 'A pagar' : 'Quitado'}</div></div>
 </div>
 <table><thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th style="text-align:right">Valor</th></tr></thead>
 <tbody>${items}</tbody></table>

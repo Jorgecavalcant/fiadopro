@@ -6,6 +6,9 @@ All notable changes to the FiadoPro project are documented in this file.
 
 ## Unreleased
 
+- Início: botão flutuante (+) de Acesso Rápido restaurado (`showQuickFab` volta a incluir `DASHBOARD`; permanece oculto só no Menu).
+- Gráfico/resumo do mês e Extrato: "Lançado"/"Recebido"/"Fiado" → "Me devem"/"Me pagaram" (vermelho #ef4444 / verde #22c55e); legenda e progresso alinhados; lista aberta por Me devem usa a mesma linguagem.
+- Layout: cards, gráfico, atalhos e FAB se adaptam melhor a zoom do navegador e viewports estreitas (clamp, min-width:0, ellipsis; padding do FAB sem cobrir o gráfico).
 - Atalhos do Início: "Nova dívida" → "Me deve" (degradê vermelho) e "Receber" → "Me pagaram" (degradê verde); ícones inalterados.
 - Ficha do cliente e Acesso Rápido (FAB): mesmos rótulos "Me deve" / "Me pagaram" e mesmos degradês do Início (`.fp-quick-pill--debt` / `--paid`); ajuda e empty state alinhados.
 - Início: resumo em 3 cards clicáveis — "Me devem" (vermelho), "Recebi" (verde = soma de pagamentos confirmados) e "Em atraso"; navegação restaurada para listas respectivas (Recebi ≠ A pagar/devolver).

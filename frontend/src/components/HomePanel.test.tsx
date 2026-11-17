@@ -154,4 +154,28 @@ describe('início', () => {
     ]).payment;
     expect(receivedTotal).toBe(150);
   });
+
+  it('resumo do mês usa Me devem / Me pagaram e mantém Falta receber', async () => {
+    await render(
+      <HomePanel
+        {...baseProps}
+        monthLabel="Novembro"
+        launched={400}
+        received={150}
+        stillToReceive={250}
+        evolution={[{ date: '01/11', Offered: 100, Received: 40 }]}
+      />,
+    );
+    const text = document.body.textContent ?? '';
+    expect(text).toContain('Me devem');
+    expect(text).toContain('Me pagaram');
+    expect(text).toContain('Falta receber');
+    expect(text).toContain('Me devem e Me pagaram · últimos 14 dias');
+    expect(text).not.toContain('Lançado');
+    expect(text).not.toContain('Fiado e Recebido');
+    expect(text).not.toContain('Recebido sobre o lançado');
+    expect(document.querySelector('.fp-month-nums .fp-amt-debt')?.textContent).toContain('400.00');
+    expect(document.querySelector('.fp-month-nums .fp-amt-paid')?.textContent).toContain('150.00');
+    expect(document.querySelector('[aria-label="Me pagaram sobre Me devem"]')).toBeTruthy();
+  });
 });

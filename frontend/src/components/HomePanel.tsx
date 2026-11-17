@@ -20,8 +20,8 @@ function Chart({ data }: { data: Point[] }) {
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--fp-line)" />
           <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--fp-muted)', fontSize: 10 }} tickFormatter={(value: string) => value.slice(0, 5)} interval={2} />
           <Tooltip formatter={(value: number) => value} />
-          <Bar dataKey="Offered" name="Fiado" fill="#2B2F77" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="Received" name="Recebido" fill="#1F7A4D" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="Offered" name="Me devem" fill="#ef4444" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="Received" name="Me pagaram" fill="#22c55e" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -240,12 +240,12 @@ export function HomePanel({
           </div>
           <div className="fp-month-nums">
             <div>
-              <p>Lançado</p>
-              <strong>{money(launched)}</strong>
+              <p>Me devem</p>
+              <strong className="fp-amt-debt">{money(launched)}</strong>
             </div>
             <div>
-              <p>Recebido</p>
-              <strong className="in">{money(received)}</strong>
+              <p>Me pagaram</p>
+              <strong className="fp-amt-paid">{money(received)}</strong>
             </div>
             <div>
               <p>Falta receber</p>
@@ -253,7 +253,7 @@ export function HomePanel({
             </div>
           </div>
           <div className="fp-chart-mobile">
-            <p className="fp-legend">Fiado e Recebido · últimos 14 dias</p>
+            <p className="fp-legend">Me devem e Me pagaram · últimos 14 dias</p>
             <Chart data={evolution} />
           </div>
           <div className="fp-month-fill">
@@ -270,7 +270,7 @@ export function HomePanel({
             <div
               className="fp-progress"
               role="img"
-              aria-label="Recebido sobre o lançado"
+              aria-label="Me pagaram sobre Me devem"
             >
               <span
                 style={{
@@ -278,7 +278,7 @@ export function HomePanel({
                 }}
               />
             </div>
-            <p className="fp-legend">Recebido sobre o lançado</p>
+            <p className="fp-legend">Me pagaram sobre Me devem</p>
           </div>
         </article>
         <article className="fp-card fp-chart-desk">
