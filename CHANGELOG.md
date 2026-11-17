@@ -7,6 +7,7 @@ All notable changes to the FiadoPro project are documented in this file.
 ## Unreleased
 
 - Atalhos do Início: "Nova dívida" → "Me deve" (degradê vermelho) e "Receber" → "Me pagaram" (degradê verde); ícones inalterados.
+- Ficha do cliente e Acesso Rápido (FAB): mesmos rótulos "Me deve" / "Me pagaram" e mesmos degradês do Início (`.fp-quick-pill--debt` / `--paid`); ajuda e empty state alinhados.
 
 ---
 

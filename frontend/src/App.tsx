@@ -2541,9 +2541,9 @@ const CustomerDetailView = ({
         <p style={{ margin: 0, fontSize: 13, color: 'var(--fp-warn-text)' }}>conta encerrada</p>
       ) : (
         <div className="fp-shortcuts fp-detail-actions">
-          <button type="button" className="fp-quick" onClick={() => { setTransactionType('DEBT'); setEditTransactionData(null); setIsTransactionModalOpen(true); }}>
-            <span className="fp-quick-pill"><ArrowUpRight size={22} strokeWidth={1.5} color="#fff" /></span>
-            <span className="fp-quick-label">Nova despesa</span>
+          <button type="button" className="fp-quick" onClick={() => { setTransactionType('DEBT'); setEditTransactionData(null); setIsTransactionModalOpen(true); }} aria-label="Me deve" title="Me deve">
+            <span className="fp-quick-pill fp-quick-pill--debt"><ArrowUpRight size={22} strokeWidth={1.5} color="#fff" /></span>
+            <span className="fp-quick-label">Me deve</span>
           </button>
           <button type="button" className="fp-quick" onClick={() => { setTransactionType('PAYMENT'); setEditTransactionData(null); setIsTransactionModalOpen(true); }} aria-label="Me pagaram" title="Me pagaram">
             <span className="fp-quick-pill fp-quick-pill--paid"><ArrowDownLeft size={22} strokeWidth={1.5} color="#fff" /></span>
@@ -2624,8 +2624,8 @@ const CustomerDetailView = ({
                   {transactions.some((tx: Transaction) => tx.customerId !== selectedCustomer.id) &&
                   !transactions.some((tx: Transaction) => tx.customerId === selectedCustomer.id) ? (
                     <p className="text-slate-500 font-bold px-4">
-                      Nenhuma transação registrada para este cliente ainda. Clique em &quot;Nova
-                      Despesa&quot; ou &quot;Registrar Pagamento&quot; para começar.
+                      Nenhuma transação registrada para este cliente ainda. Clique em &quot;Me
+                      deve&quot; ou &quot;Me pagaram&quot; para começar.
                     </p>
                   ) : (
                     <p className="text-slate-400 font-bold italic">{t.noTransactions}</p>
@@ -5270,25 +5270,24 @@ const App: React.FC = () => {
                       {[
                         {
                           type: 'DEBT' as const,
-                          icon: <ArrowUpRight style={{ width: 36, height: 36 }} />,
-                          label: 'Lançar Dívida',
+                          icon: <ArrowUpRight size={22} strokeWidth={1.5} color="#fff" />,
+                          label: 'Me deve',
                           sub: 'Registrar fiado',
-                          bg: '#FEF2F2',
-                          border: '#FECACA',
-                          color: '#DC2626',
+                          pillClass: 'fp-quick-pill fp-quick-pill--debt',
                         },
                         {
                           type: 'PAYMENT' as const,
-                          icon: <ArrowDownLeft style={{ width: 36, height: 36 }} />,
-                          label: 'Receber Pagamento',
+                          icon: <ArrowDownLeft size={22} strokeWidth={1.5} color="#fff" />,
+                          label: 'Me pagaram',
                           sub: 'Registrar recebimento',
-                          bg: '#F0FDF4',
-                          border: '#BBF7D0',
-                          color: '#16A34A',
+                          pillClass: 'fp-quick-pill fp-quick-pill--paid',
                         },
                       ].map((btn) => (
                         <button
                           key={btn.type}
+                          type="button"
+                          aria-label={btn.label}
+                          title={btn.label}
                           onClick={() => {
                             setQuickAddType(btn.type);
                             setQuickAddStep(2);
@@ -5299,17 +5298,17 @@ const App: React.FC = () => {
                             alignItems: 'center',
                             gap: 12,
                             padding: '28px 16px',
-                            background: btn.bg,
-                            border: `2px solid ${btn.border}`,
+                            background: '#fff',
+                            border: '2px solid #E2E8F0',
                             borderRadius: 24,
                             cursor: 'pointer',
-                            color: btn.color,
+                            color: 'inherit',
                             transition: 'transform 150ms',
                           }}
                           onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(0.97)')}
                           onMouseLeave={(e) => (e.currentTarget.style.transform = 'none')}
                         >
-                          {btn.icon}
+                          <span className={btn.pillClass}>{btn.icon}</span>
                           <div>
                             <p style={{ fontWeight: 900, fontSize: 15, margin: 0 }}>{btn.label}</p>
                             <p style={{ fontSize: 12, color: '#6B7280', margin: '2px 0 0' }}>
