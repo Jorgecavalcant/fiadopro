@@ -4,6 +4,12 @@ All notable changes to the FiadoPro project are documented in this file.
 
 ---
 
+## Unreleased
+
+- Atalhos do Início: "Nova dívida" → "Me deve" (degradê vermelho) e "Receber" → "Me pagaram" (degradê verde); ícones inalterados.
+
+---
+
 ## [1.0.0] — March 2026
 
 ### Initial Release

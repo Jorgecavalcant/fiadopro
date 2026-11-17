@@ -161,8 +161,8 @@ export function HomePanel({
           </article>
           <div className="fp-shortcut-card">
             <div className="fp-shortcuts">
-              <QuickAction icon={Plus} label="Nova dívida" onClick={onNewDebt} />
-              <QuickAction icon={ArrowDownLeft} label="Receber" onClick={onReceive} />
+              <QuickAction icon={Plus} label="Me deve" tone="debt" onClick={onNewDebt} />
+              <QuickAction icon={ArrowDownLeft} label="Me pagaram" tone="paid" onClick={onReceive} />
               <QuickAction icon={SquareSplitHorizontal} label="Dividir conta" onClick={onSplit} />
               <QuickAction icon={UserPlus} label="Novo cliente" onClick={onNewCustomer} />
             </div>

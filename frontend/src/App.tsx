@@ -2545,9 +2545,9 @@ const CustomerDetailView = ({
             <span className="fp-quick-pill"><ArrowUpRight size={22} strokeWidth={1.5} color="#fff" /></span>
             <span className="fp-quick-label">Nova despesa</span>
           </button>
-          <button type="button" className="fp-quick" onClick={() => { setTransactionType('PAYMENT'); setEditTransactionData(null); setIsTransactionModalOpen(true); }}>
-            <span className="fp-quick-pill"><ArrowDownLeft size={22} strokeWidth={1.5} color="#fff" /></span>
-            <span className="fp-quick-label">Receber</span>
+          <button type="button" className="fp-quick" onClick={() => { setTransactionType('PAYMENT'); setEditTransactionData(null); setIsTransactionModalOpen(true); }} aria-label="Me pagaram" title="Me pagaram">
+            <span className="fp-quick-pill fp-quick-pill--paid"><ArrowDownLeft size={22} strokeWidth={1.5} color="#fff" /></span>
+            <span className="fp-quick-label">Me pagaram</span>
           </button>
           <button type="button" className="fp-quick" onClick={() => { setTransactionType('ABATIMENTO'); setEditTransactionData(null); setIsTransactionModalOpen(true); }}>
             <span className="fp-quick-pill"><RefreshCcw size={22} strokeWidth={1.5} color="#fff" /></span>
@@ -5249,8 +5249,8 @@ const App: React.FC = () => {
                   quickAddStep === 1
                     ? 'Acesso rápido'
                     : quickAddType === 'DEBT'
-                      ? 'Nova dívida — selecione o cliente'
-                      : 'Receber — selecione o cliente'
+                      ? 'Me deve — selecione o cliente'
+                      : 'Me pagaram — selecione o cliente'
                 }
                 onBack={() => {
                   if (quickAddStep === 2) {
