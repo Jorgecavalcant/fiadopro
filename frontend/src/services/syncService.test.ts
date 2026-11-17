@@ -2,12 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   bootstrapSync,
   resetSyncState,
+  schedulePush,
   fetchInbox,
   fetchCounterpartTransactions,
   createCounterpartPayment,
   updateProfile,
 } from './syncService';
 import { Customer, Transaction } from '../types';
+import { DATA_EPOCH_KEY, MIGRATED_FLAG } from './localBusinessCache';
 
 // Ambiente node: stub de localStorage e fetch
 const store = new Map<string, string>();
@@ -40,6 +42,46 @@ const localTx: Transaction = {
   eventId: 'evento-local-123',
 };
 
+const serverCustomer = {
+  id: localCustomer.id,
+  linked_user_id: 'user-dyllan',
+  name: 'Dyllan',
+  phone: '62 99999-1234',
+  email: null,
+  pix_key: null,
+  trusted: false,
+  overpayment_strategy: 'RETURN',
+  notes: [],
+  score: null,
+  created_at: '2023-11-14T00:00:00.000Z',
+};
+
+const serverTx = {
+  id: localTx.id,
+  customer_id: localCustomer.id,
+  type: 'DEBT',
+  status: 'PENDING',
+  amount: '50.00',
+  description: 'fiado',
+  occurred_at: '2023-11-14T00:00:01.000Z',
+  due_date: null,
+  payment_method: null,
+  attachment: null,
+  installment_number: null,
+  total_installments: null,
+  installment_group_id: null,
+  interest_rate: null,
+};
+
+/** auth/me + customers + transactions (sem import). */
+function mockPull(opts?: { dataEpoch?: string | null; customers?: unknown[]; transactions?: unknown[] }) {
+  mockFetch.mockReturnValueOnce(
+    ok({ success: true, user: { id: 'u1' }, dataEpoch: opts?.dataEpoch ?? null }),
+  );
+  mockFetch.mockReturnValueOnce(ok({ success: true, customers: opts?.customers ?? [] }));
+  mockFetch.mockReturnValueOnce(ok({ success: true, transactions: opts?.transactions ?? [] }));
+}
+
 beforeEach(() => {
   store.clear();
   mockFetch.mockReset();
@@ -49,67 +91,26 @@ beforeEach(() => {
 describe('bootstrapSync', () => {
   it('migra o legado uma única vez e puxa o estado do servidor', async () => {
     mockFetch
+      .mockReturnValueOnce(ok({ success: true, user: { id: 'u1' }, dataEpoch: null })) // auth/me
       .mockReturnValueOnce(ok({ success: true, customersImported: 1, transactionsImported: 1 })) // import
-      .mockReturnValueOnce(
-        ok({
-          success: true,
-          customers: [
-            {
-              id: localCustomer.id,
-              linked_user_id: 'user-dyllan',
-              name: 'Dyllan',
-              phone: '62 99999-1234',
-              email: null,
-              pix_key: null,
-              trusted: false,
-              overpayment_strategy: 'RETURN',
-              notes: [],
-              score: null,
-              created_at: '2023-11-14T00:00:00.000Z',
-            },
-          ],
-        }),
-      )
-      .mockReturnValueOnce(
-        ok({
-          success: true,
-          transactions: [
-            {
-              id: localTx.id,
-              customer_id: localCustomer.id,
-              type: 'DEBT',
-              status: 'PENDING',
-              amount: '50.00',
-              description: 'fiado',
-              occurred_at: '2023-11-14T00:00:01.000Z',
-              due_date: null,
-              payment_method: null,
-              attachment: null,
-              installment_number: null,
-              total_installments: null,
-              installment_group_id: null,
-              interest_rate: null,
-            },
-          ],
-        }),
-      );
+      .mockReturnValueOnce(ok({ success: true, customers: [serverCustomer] }))
+      .mockReturnValueOnce(ok({ success: true, transactions: [serverTx] }));
 
     const result = await bootstrapSync([localCustomer], [localTx]);
 
     expect(result.online).toBe(true);
-    expect(mockFetch.mock.calls[0][0]).toContain('/sync/import');
+    expect(result.cacheReset).toBe(false);
+    expect(String(mockFetch.mock.calls[1][0])).toContain('/sync/import');
     // status do servidor vence; campos locais (eventId) são preservados
     expect(result.transactions[0].status).toBe('PENDING');
     expect(result.transactions[0].eventId).toBe('evento-local-123');
     expect(result.transactions[0].amount).toBe(50);
-    expect(store.get('fiado_pro_migrated_v1')).toBe('1');
+    expect(store.get(MIGRATED_FLAG)).toBe('1');
   });
 
   it('não repete a migração quando a flag já existe', async () => {
-    store.set('fiado_pro_migrated_v1', '1');
-    mockFetch
-      .mockReturnValueOnce(ok({ success: true, customers: [] }))
-      .mockReturnValueOnce(ok({ success: true, transactions: [] }));
+    store.set(MIGRATED_FLAG, '1');
+    mockPull({ dataEpoch: null });
 
     await bootstrapSync([localCustomer], [localTx]);
 
@@ -118,7 +119,7 @@ describe('bootstrapSync', () => {
   });
 
   it('offline: devolve o estado local sem quebrar (cache é fallback)', async () => {
-    store.set('fiado_pro_migrated_v1', '1');
+    store.set(MIGRATED_FLAG, '1');
     mockFetch.mockRejectedValue(new Error('network down'));
 
     const result = await bootstrapSync([localCustomer], [localTx]);
@@ -126,6 +127,82 @@ describe('bootstrapSync', () => {
     expect(result.online).toBe(false);
     expect(result.customers).toEqual([localCustomer]);
     expect(result.transactions).toEqual([localTx]);
+  });
+
+  it('epoch diferente: descarta cache local, não importa e não concatena só-locais', async () => {
+    store.set(MIGRATED_FLAG, '1');
+    store.set(DATA_EPOCH_KEY, 'epoch-antigo');
+    const onlyLocal: Customer = {
+      id: 'cccccccc-0000-4000-8000-000000000099',
+      name: 'Só local',
+      phone: '11999990000',
+      createdAt: 1700000000000,
+    };
+
+    mockPull({
+      dataEpoch: '2026-11-17T09:12:00Z',
+      customers: [],
+      transactions: [],
+    });
+
+    const result = await bootstrapSync([localCustomer, onlyLocal], [localTx]);
+
+    expect(result.cacheReset).toBe(true);
+    expect(result.customers).toEqual([]);
+    expect(result.transactions).toEqual([]);
+    expect(store.get(DATA_EPOCH_KEY)).toBe('2026-11-17T09:12:00Z');
+    const urls = mockFetch.mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => u.includes('/sync/import'))).toBe(false);
+
+    // Com o estado devolvido pelo bootstrap (vazio), o push não recria o descartado.
+    const calls: string[] = [];
+    mockFetch.mockImplementation(async (url: string) => {
+      calls.push(String(url));
+      return ok({ success: true });
+    });
+    vi.useFakeTimers();
+    schedulePush(true, result.customers, result.transactions, () => {});
+    await vi.advanceTimersByTimeAsync(4000);
+    vi.useRealTimers();
+    expect(calls.filter((u) => /\/customers\/?$/.test(u) || u.endsWith('/customers')).length).toBe(
+      0,
+    );
+  });
+
+  it('epoch igual: preserva cliente só-local pendente da sessão', async () => {
+    store.set(MIGRATED_FLAG, '1');
+    store.set(DATA_EPOCH_KEY, '2026-11-17T09:12:00Z');
+    const onlyLocal: Customer = {
+      id: 'cccccccc-0000-4000-8000-000000000099',
+      name: 'Pendência real',
+      phone: '11999990000',
+      createdAt: 1700000000000,
+    };
+
+    mockPull({
+      dataEpoch: '2026-11-17T09:12:00Z',
+      customers: [serverCustomer],
+      transactions: [],
+    });
+
+    const result = await bootstrapSync([localCustomer, onlyLocal], []);
+
+    expect(result.cacheReset).toBe(false);
+    expect(result.customers.map((c) => c.id).sort()).toEqual(
+      [localCustomer.id, onlyLocal.id].sort(),
+    );
+  });
+
+  it('cliente sem epoch local: trata como mismatch e descarta', async () => {
+    store.set(MIGRATED_FLAG, '1');
+    // sem DATA_EPOCH_KEY
+    mockPull({ dataEpoch: '2026-11-17T09:12:00Z', customers: [], transactions: [] });
+
+    const result = await bootstrapSync([localCustomer], [localTx]);
+
+    expect(result.cacheReset).toBe(true);
+    expect(result.customers).toEqual([]);
+    expect(store.get(DATA_EPOCH_KEY)).toBe('2026-11-17T09:12:00Z');
   });
 });
 

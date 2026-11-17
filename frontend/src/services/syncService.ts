@@ -1,4 +1,5 @@
 import { Customer, Transaction } from '../types';
+import { DATA_EPOCH_KEY, MIGRATED_FLAG } from './localBusinessCache';
 
 /**
  * Sincronização servidor↔localStorage.
@@ -11,7 +12,6 @@ import { Customer, Transaction } from '../types';
  */
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://www.fiadopro.com.br/api';
-const MIGRATED_FLAG = 'fiado_pro_migrated_v1';
 const PUSH_DEBOUNCE_MS = 4000;
 
 interface ServerCustomer {
@@ -183,26 +183,55 @@ export interface BootstrapResult {
   customers: Customer[];
   transactions: Transaction[];
   online: boolean;
+  /** Servidor pediu reset (data_epoch novo) — App deve limpar eventos/dívidas/histórico. */
+  cacheReset: boolean;
+}
+
+function readServerDataEpoch(me: Record<string, unknown> | null): string | null {
+  const raw = me?.dataEpoch;
+  return typeof raw === 'string' && raw.length > 0 ? raw : null;
 }
 
 /**
  * Pull inicial pós-login. Migra o legado local uma única vez e devolve o
  * estado do servidor mesclado com campos exclusivamente locais.
+ * Se data_epoch do servidor divergir do gravado no cliente, descarta o
+ * cache de negócio (não importa, não concatena só-locais, não empurra lixo).
  */
 export async function bootstrapSync(
   localCustomers: Customer[],
   localTransactions: Transaction[],
 ): Promise<BootstrapResult> {
+  // 0. Epoch do servidor — reset de dados em produção invalida o cache local
+  const me = await jsonFetch('/auth/me');
+  const serverEpoch = readServerDataEpoch(me);
+  const localEpoch = localStorage.getItem(DATA_EPOCH_KEY);
+  const epochMismatch = Boolean(serverEpoch && serverEpoch !== localEpoch);
+
+  let workingCustomers = localCustomers;
+  let workingTransactions = localTransactions;
+  let cacheReset = false;
+
+  if (epochMismatch && serverEpoch) {
+    cacheReset = true;
+    workingCustomers = [];
+    workingTransactions = [];
+    // Marca migrado para não reenviar lixo via /sync/import se o STORAGE_KEY
+    // ainda tiver resíduos até o App limpar o estado React.
+    localStorage.setItem(MIGRATED_FLAG, '1');
+    localStorage.setItem(DATA_EPOCH_KEY, serverEpoch);
+  }
+
   // 1. Migração única do estado local pré-servidor
   let heldForCredit: string[] = [];
   if (
     !localStorage.getItem(MIGRATED_FLAG) &&
-    (localCustomers.length > 0 || localTransactions.length > 0)
+    (workingCustomers.length > 0 || workingTransactions.length > 0)
   ) {
     const imported = await jsonFetch('/sync/import', {
       method: 'POST',
       body: JSON.stringify({
-        customers: localCustomers.map((c) => ({
+        customers: workingCustomers.map((c) => ({
           id: c.id,
           name: c.name,
           phone: c.phone || '',
@@ -214,7 +243,7 @@ export async function bootstrapSync(
           score: typeof c.score === 'number' ? Math.round(c.score) : null,
           createdAt: c.createdAt,
         })),
-        transactions: localTransactions.map((t) => ({
+        transactions: workingTransactions.map((t) => ({
           id: t.id,
           customerId: t.customerId,
           type: t.type,
@@ -246,35 +275,50 @@ export async function bootstrapSync(
     jsonFetch('/transactions'),
   ]);
   if (!customersData || !transactionsData) {
-    return { customers: localCustomers, transactions: localTransactions, online: false };
+    return {
+      customers: workingCustomers,
+      transactions: workingTransactions,
+      online: false,
+      cacheReset,
+    };
   }
 
-  const localCustomerById = new Map(localCustomers.map((c) => [c.id, c]));
-  const localTransactionById = new Map(localTransactions.map((t) => [t.id, t]));
+  const localCustomerById = new Map(workingCustomers.map((c) => [c.id, c]));
+  const localTransactionById = new Map(workingTransactions.map((t) => [t.id, t]));
 
   const serverCustomerIds = new Set((customersData.customers as ServerCustomer[]).map((s) => s.id));
-  const customers = (customersData.customers as ServerCustomer[])
-    .map((s) => toClientCustomer(s, localCustomerById.get(s.id)))
-    // Clientes que só existem localmente (ex.: sem telefone, nunca sincronizados)
-    // não podem ser descartados aqui — senão o pull apaga o que ainda não subiu.
-    .concat(localCustomers.filter((c) => !serverCustomerIds.has(c.id)));
+  let customers = (customersData.customers as ServerCustomer[]).map((s) =>
+    toClientCustomer(s, localCustomerById.get(s.id)),
+  );
+  // Clientes só-locais: só preserva se o epoch bate (pendências reais da sessão).
+  // Após reset de dados, concatenar recolocaria lixo no push.
+  if (!cacheReset) {
+    customers = customers.concat(workingCustomers.filter((c) => !serverCustomerIds.has(c.id)));
+  }
   const serverTransactions = (transactionsData.transactions as ServerTransaction[]).map((s) =>
     toClientTransaction(s, localTransactionById.get(s.id)),
   );
   const serverTransactionIds = new Set(serverTransactions.map((t) => t.id));
   const heldIds = new Set(heldForCredit);
-  const transactions = serverTransactions.concat(
-    localTransactions.filter((t) => heldIds.has(t.id) && !serverTransactionIds.has(t.id)),
-  );
+  const transactions = cacheReset
+    ? serverTransactions
+    : serverTransactions.concat(
+        workingTransactions.filter((t) => heldIds.has(t.id) && !serverTransactionIds.has(t.id)),
+      );
 
   // 3. Registrar shadow para o diff do push. O item que espera confirmação
   // fica de fora, para o próximo envio pedir o aceite na tela.
+  // Após cacheReset, shadow = só servidor → push não reenvia o descartado.
   shadowCustomers = new Map(customers.map((c) => [c.id, fingerprintCustomer(c)]));
   shadowTransactions = new Map(
     serverTransactions.map((t) => [t.id, fingerprintTransaction(t)]),
   );
 
-  return { customers, transactions, online: true };
+  if (serverEpoch && !localStorage.getItem(DATA_EPOCH_KEY)) {
+    localStorage.setItem(DATA_EPOCH_KEY, serverEpoch);
+  }
+
+  return { customers, transactions, online: true, cacheReset };
 }
 
 export type StatusPatch = { id: string; status: Transaction['status'] };

@@ -132,6 +132,11 @@ import {
   updateProfile,
 } from './services/syncService';
 import {
+  STORAGE_KEY,
+  clearBusinessLocalCache,
+  isStoredUserMismatch,
+} from './services/localBusinessCache';
+import {
   calculateScore,
   balanceSign,
   computeRawBalance,
@@ -162,7 +167,6 @@ function balanceBeforeEdit(rawBalance: number, edited: Transaction | null): numb
   return (cents - balanceSign(edited.type) * amount) / 100;
 }
 
-const STORAGE_KEY = 'fiado_pro_data_v14';
 const API_URL = import.meta.env.VITE_API_URL || 'https://www.fiadopro.com.br/api';
 // JWT gerenciado via httpOnly cookie
 const GOOGLE_CLIENT_ID = '488168583801-r8pvtmis98qq12bonh2h1pkrp0rmt2v5.apps.googleusercontent.com';
@@ -3565,6 +3569,39 @@ const App: React.FC = () => {
   // ===== Sincronização com o servidor (fonte de verdade quando logado) =====
   const [inboxCount, setInboxCount] = useState(0);
   const syncBootstrapped = useRef(false);
+  /** Evita schedulePush com cache velho antes do pull/epoch reset terminar. */
+  const [syncReady, setSyncReady] = useState(false);
+
+  /** Limpa dados de negócio em memória + localStorage; mantém idioma / hide values. */
+  const clearBusinessState = useCallback((options?: { clearEpoch?: boolean }) => {
+    setCustomers([]);
+    setTransactions([]);
+    setEvents([]);
+    setDebts([]);
+    setAuditLog([]);
+    setOwnerExpenses([]);
+    setCredentials(null);
+    clearBusinessLocalCache(options);
+  }, []);
+
+  /** Login / sessão: se o cache for de outro usuário, descarta antes do sync. */
+  const applySessionUser = useCallback(
+    (next: User) => {
+      if (isStoredUserMismatch({ id: next.id, email: next.email })) {
+        clearBusinessState({ clearEpoch: true });
+        resetSyncState();
+      }
+      setUser(next);
+    },
+    [clearBusinessState],
+  );
+
+  const handleLogout = useCallback(() => {
+    resetSyncState();
+    clearBusinessState({ clearEpoch: true });
+    setSyncReady(false);
+    setUser(null);
+  }, [clearBusinessState]);
 
   const refreshInbox = useCallback(async () => {
     const items = await fetchInbox();
@@ -3574,15 +3611,22 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!user) {
       syncBootstrapped.current = false;
+      setSyncReady(false);
       return;
     }
     if (syncBootstrapped.current) return;
     syncBootstrapped.current = true;
+    setSyncReady(false);
     void bootstrapSync(customers, transactions).then((result) => {
+      if (result.cacheReset) {
+        // Epoch novo já está no localStorage — não apagar de novo.
+        clearBusinessState({ clearEpoch: false });
+      }
       if (result.online) {
         setCustomers(result.customers);
         setTransactions(result.transactions);
       }
+      setSyncReady(true);
       void refreshInbox();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3625,7 +3669,7 @@ const App: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !syncReady) return;
     schedulePush(
       true,
       customers,
@@ -3662,7 +3706,7 @@ const App: React.FC = () => {
       },
       (notice) => setDuplicateCustomer(notice),
     );
-  }, [user, customers, transactions]);
+  }, [user, syncReady, customers, transactions]);
 
   const handleUpdateNote = (noteId: string) => {
     if (editingNoteText.trim() && selectedCustomerId) {
@@ -3741,20 +3785,17 @@ const App: React.FC = () => {
       .then((r) => r.json())
       .then((data) => {
         if (data.success && data.user) {
-          setUser((prev: User | null) => ({
-            ...(prev ?? {}),
+          applySessionUser({
             id: data.user.id,
             name: data.user.full_name || data.user.email,
             email: data.user.email,
             role: data.user.role,
             hasPassword:
-              typeof data.user.has_password === 'boolean'
-                ? data.user.has_password
-                : prev?.hasPassword,
-            phone: data.user.phone ?? prev?.phone,
-            pixKey: data.user.pix_key ?? prev?.pixKey,
-            avatar: data.user.avatar_url ?? prev?.avatar,
-          }));
+              typeof data.user.has_password === 'boolean' ? data.user.has_password : undefined,
+            phone: data.user.phone ?? undefined,
+            pixKey: data.user.pix_key ?? undefined,
+            avatar: data.user.avatar_url ?? undefined,
+          });
         }
       })
       .catch(() => {
@@ -4380,7 +4421,7 @@ const App: React.FC = () => {
         throw new Error(data.error?.message || data.message || 'Falha no login com Google');
       setRecoverAccount(null);
       skipFullscreenThisSession();
-      setUser({
+      applySessionUser({
         id: data.user.id,
         name: data.user.full_name || data.user.email,
         email: data.user.email,
@@ -4420,7 +4461,7 @@ const App: React.FC = () => {
         throw new Error(data.error?.message || data.message || 'E-mail ou senha incorretos');
       setRecoverAccount(null);
       skipFullscreenThisSession();
-      setUser({
+      applySessionUser({
         id: data.user.id,
         name: data.user.full_name || data.user.email,
         email: data.user.email,
@@ -4475,7 +4516,7 @@ const App: React.FC = () => {
         throw new Error(data.error?.message || data.message || 'Erro ao criar conta');
       setRecoverAccount(null);
       skipFullscreenThisSession();
-      setUser({
+      applySessionUser({
         id: data.user.id,
         name: data.user.full_name || data.user.email,
         email: data.user.email,
@@ -4541,7 +4582,7 @@ const App: React.FC = () => {
       if (!res.ok || !data.success)
         throw new Error(data.error?.message || data.message || 'Token invalido ou expirado.');
       skipFullscreenThisSession();
-      setUser({
+      applySessionUser({
         id: data.user.id,
         name: data.user.full_name || data.user.email,
         email: data.user.email,
@@ -4859,10 +4900,7 @@ const App: React.FC = () => {
             }
           }}
           user={user}
-          onLogout={() => {
-            resetSyncState();
-            setUser(null);
-          }}
+          onLogout={handleLogout}
           refundsCount={
             customersWithBalance.filter(
               (c) => c.rawBalance < 0 && c.overpaymentStrategy === 'RETURN',
@@ -5248,10 +5286,7 @@ const App: React.FC = () => {
                   setIsUpgradeModalOpen(true);
                 }
               }}
-              onLogout={() => {
-                resetSyncState();
-                setUser(null);
-              }}
+              onLogout={handleLogout}
             />
           )}
           {activeView === AppView.ADMIN && user && adminPanelFor(user.role) && (

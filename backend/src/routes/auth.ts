@@ -422,7 +422,18 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response, next: Nex
       [req.user!.sub],
     );
     if (!result.rows[0]) return next(new ApiError(404, 'Usuario nao encontrado', 'USER_NOT_FOUND'));
-    res.json({ success: true, user: result.rows[0] });
+
+    // data_epoch: bump no servidor invalida cache local (logout/wipe sem reimportar lixo).
+    let dataEpoch: string | null = null;
+    try {
+      const epochRow = await query(`SELECT value FROM app_settings WHERE key = 'data_epoch'`);
+      const raw = epochRow.rows[0]?.value;
+      if (typeof raw === 'string' && raw.length > 0) dataEpoch = raw;
+    } catch {
+      dataEpoch = null;
+    }
+
+    res.json({ success: true, user: result.rows[0], dataEpoch });
   } catch (err) {
     next(err);
   }
