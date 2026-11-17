@@ -41,7 +41,7 @@ describe('componentes da base visual', () => {
         <Notice title="Você deve R$ 10,00 a este cliente">Use Devolver ou Abater.</Notice>
         <Chip label="30 dias" selected />
         <SearchField value="" onChange={() => undefined} label="Buscar" />
-        <QuickAction icon={ArrowDownLeft} label="Receber" />
+        <QuickAction icon={ArrowDownLeft} label="Me pagaram" />
         <QuickAction icon={Undo2} label="Devolver" />
         <QuickAction icon={Users} label="Dividir" />
         <PageHeader title="TESTE Ana" onBack={() => undefined} />
@@ -53,12 +53,29 @@ describe('componentes da base visual', () => {
     expect(text).toContain('TESTE Ana');
     expect(text).toContain('Use Devolver ou Abater.');
     expect(text).toContain('30 dias');
-    expect(text).toContain('Receber');
+    expect(text).toContain('Me pagaram');
     expect(text).toContain('Devolver');
     expect(text).toContain('Dividir');
     expect(document.querySelector('.fp-notice button')).toBeNull();
     expect(document.querySelector('.fp-page-head')?.textContent).not.toContain('Voltar');
     expect(document.querySelectorAll('.fp-quick-label').length).toBe(3);
+  });
+
+  it('aplica tone debt/paid nos atalhos Me deve e Me pagaram', () => {
+    render(
+      <div>
+        <QuickAction icon={ArrowDownLeft} label="Me deve" tone="debt" />
+        <QuickAction icon={ArrowDownLeft} label="Me pagaram" tone="paid" />
+      </div>,
+    );
+
+    const text = document.body.textContent ?? '';
+    expect(text).toContain('Me deve');
+    expect(text).toContain('Me pagaram');
+    expect(document.querySelector('.fp-quick-pill--debt')).toBeTruthy();
+    expect(document.querySelector('.fp-quick-pill--paid')).toBeTruthy();
+    expect(document.querySelector('.fp-quick[aria-label="Me deve"]')).toBeTruthy();
+    expect(document.querySelector('.fp-quick[aria-label="Me pagaram"]')).toBeTruthy();
   });
 
   it('a navegação tem Clientes e Dividir conta, com ícones diferentes', () => {
