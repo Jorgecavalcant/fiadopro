@@ -117,7 +117,7 @@ export function CompleteSignupGate({
         <div className="flex min-h-full items-center justify-center">
           <section className="fp-modal w-full max-w-md rounded-t42md border border-[#EAEAE5] p-6 shadow-t42md sm:p-8">
             <div className="mb-6">
-              <h2 id="complete-signup-title" className="text-lg font-semibold leading-snug text-slate-900 sm:text-xl">
+              <h2 id="complete-signup-title" className="text-base font-medium leading-snug text-slate-900 sm:text-lg">
                 Falta pouco para começar
               </h2>
               <p className="mt-1.5 text-sm leading-6 text-slate-500 sm:text-[15px]">
@@ -154,9 +154,6 @@ export function CompleteSignupGate({
               >
                 {saving ? 'Salvando...' : 'Concluir cadastro'}
               </button>
-              <p className="text-center text-xs leading-5 text-slate-500">
-                Usamos seu telefone apenas para completar seu cadastro.
-              </p>
             </form>
           </section>
         </div>
