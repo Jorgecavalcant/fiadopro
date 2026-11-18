@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { Phone } from 'lucide-react';
 import FullScreenModal from './FullScreenModal';
 
 type CompleteSignupGateProps = {
@@ -117,18 +116,13 @@ export function CompleteSignupGate({
       >
         <div className="flex min-h-full items-center justify-center">
           <section className="fp-modal w-full max-w-md rounded-t42md border border-[#EAEAE5] p-6 shadow-t42md sm:p-8">
-            <div className="mb-6 flex items-start gap-3">
-              <div className="fp-icon-circle" aria-hidden="true">
-                <Phone size={20} strokeWidth={2} />
-              </div>
-              <div>
-                <h2 id="complete-signup-title" className="text-xl font-semibold text-slate-900">
-                  Falta pouco para começar
-                </h2>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
-                  Informe seu telefone com DDD para concluir o cadastro.
-                </p>
-              </div>
+            <div className="mb-6">
+              <h2 id="complete-signup-title" className="text-lg font-semibold leading-snug text-slate-900 sm:text-xl">
+                Falta pouco para começar
+              </h2>
+              <p className="mt-1.5 text-sm leading-6 text-slate-500 sm:text-[15px]">
+                Informe seu telefone com DDD para concluir o cadastro.
+              </p>
             </div>
 
             <form className="space-y-5" onSubmit={handleSubmit}>
