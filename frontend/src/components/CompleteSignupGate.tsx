@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Phone, ShieldCheck } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { Phone } from 'lucide-react';
 import FullScreenModal from './FullScreenModal';
 
 type CompleteSignupGateProps = {
@@ -48,7 +48,7 @@ export function CompleteSignupGate({
 
   if (!open) return null;
 
-  function keepFocusInDialog(event: React.KeyboardEvent<HTMLDivElement>) {
+  function keepFocusInDialog(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== 'Tab') return;
     const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
       'input:not([disabled]), button:not([disabled])',
@@ -109,29 +109,31 @@ export function CompleteSignupGate({
     <FullScreenModal>
       <div
         ref={dialogRef}
-        className="fixed inset-0 z-[10000] overflow-y-auto bg-slate-950/50 p-4 backdrop-blur-sm sm:p-6"
+        className="fp-overlay z-[10000] overflow-y-auto p-4 sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby="complete-signup-title"
         onKeyDown={keepFocusInDialog}
       >
         <div className="flex min-h-full items-center justify-center">
-          <section className="w-full max-w-md overflow-hidden rounded-[28px] bg-white shadow-2xl shadow-slate-950/30">
-            <div className="bg-[#2B2F77] px-6 pb-7 pt-8 text-white sm:px-8">
-              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
-                <Phone size={24} strokeWidth={2} aria-hidden="true" />
+          <section className="fp-modal w-full max-w-md rounded-t42md border border-[#EAEAE5] p-6 shadow-t42md sm:p-8">
+            <div className="mb-6 flex items-start gap-3">
+              <div className="fp-icon-circle" aria-hidden="true">
+                <Phone size={20} strokeWidth={2} />
               </div>
-              <h2 id="complete-signup-title" className="text-2xl font-semibold tracking-tight">
-                Falta pouco para começar
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-indigo-100">
-                Informe seu telefone com DDD para deixar seu cadastro completo e seguro.
-              </p>
+              <div>
+                <h2 id="complete-signup-title" className="text-xl font-semibold text-slate-900">
+                  Falta pouco para começar
+                </h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  Informe seu telefone com DDD para concluir o cadastro.
+                </p>
+              </div>
             </div>
 
-            <form className="space-y-5 px-6 py-7 sm:px-8" onSubmit={handleSubmit}>
+            <form className="space-y-5" onSubmit={handleSubmit}>
               <label className="block" htmlFor="signup-phone">
-                <span className="mb-2 block text-sm font-semibold text-slate-800">Telefone</span>
+                <span className="mb-2 block text-sm font-medium text-slate-900">Telefone</span>
                 <input
                   ref={phoneInputRef}
                   id="signup-phone"
@@ -139,7 +141,7 @@ export function CompleteSignupGate({
                   inputMode="tel"
                   autoComplete="tel"
                   placeholder="(00) 00000-0000"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#2B2F77] focus:bg-white focus:ring-4 focus:ring-indigo-100"
+                  className="fp-input"
                   value={phone}
                   onChange={(event) => setPhone(event.target.value)}
                   aria-invalid={Boolean(error)}
@@ -152,15 +154,14 @@ export function CompleteSignupGate({
                 </p>
               )}
               <button
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#2B2F77] px-4 py-3.5 text-base font-semibold text-white transition hover:bg-[#22265f] disabled:cursor-not-allowed disabled:opacity-70"
+                className="fp-btn fp-btn-primary fp-btn-block"
                 type="submit"
                 disabled={saving}
               >
-                <ShieldCheck size={19} aria-hidden="true" />
                 {saving ? 'Salvando...' : 'Concluir cadastro'}
               </button>
               <p className="text-center text-xs leading-5 text-slate-500">
-                Usamos seu telefone apenas para completar sua conta e facilitar seu atendimento.
+                Usamos seu telefone apenas para completar seu cadastro.
               </p>
             </form>
           </section>
