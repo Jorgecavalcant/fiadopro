@@ -38,6 +38,26 @@ describe('CompleteSignupGate', () => {
     await act(async () => {
       root?.render(<CompleteSignupGate open onSaved={() => undefined} />);
     });
-    expect(document.body.textContent).toContain('Complete seu cadastro');
+    expect(document.body.textContent).toContain('Falta pouco para começar');
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(document.querySelector('input#signup-phone')).not.toBeNull();
+  });
+
+  it('keeps keyboard focus inside the required signup gate', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    root = createRoot(host);
+    await act(async () => {
+      root?.render(<CompleteSignupGate open onSaved={() => undefined} />);
+    });
+
+    const input = document.querySelector<HTMLInputElement>('#signup-phone');
+    const button = document.querySelector<HTMLButtonElement>('button[type="submit"]');
+    expect(input).not.toBeNull();
+    expect(button).not.toBeNull();
+
+    button?.focus();
+    button?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    expect(document.activeElement).toBe(input);
   });
 });
