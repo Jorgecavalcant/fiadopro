@@ -33,15 +33,34 @@ export function CompleteSignupGate({
   const [saving, setSaving] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const phoneInputRef = useRef<HTMLInputElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
+    const appRoot = document.getElementById('root');
     const previousOverflow = document.body.style.overflow;
+    const previousAriaHidden = appRoot?.getAttribute('aria-hidden');
+    const previousInert = appRoot?.inert ?? false;
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
     document.body.style.overflow = 'hidden';
+    if (appRoot) {
+      appRoot.setAttribute('aria-hidden', 'true');
+      appRoot.inert = true;
+    }
     phoneInputRef.current?.focus();
 
     return () => {
       document.body.style.overflow = previousOverflow;
+      if (appRoot) {
+        if (previousAriaHidden === null) {
+          appRoot.removeAttribute('aria-hidden');
+        } else {
+          appRoot.setAttribute('aria-hidden', previousAriaHidden);
+        }
+        appRoot.inert = previousInert;
+      }
+      previousFocusRef.current?.focus();
     };
   }, [open]);
 
